@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Reflection.Emit;
 
-namespace EntityArchitect.CRUD;
+namespace EntityArchitect.CRUD.TypeBuilders;
 
 internal static class TypeBuilderExtension
 {
