@@ -1,3 +1,4 @@
+using System.Collections;
 using EntityArchitect.Entities.Attributes;
 using EntityArchitect.Entities.Entities;
 
@@ -39,9 +40,10 @@ public static class EntityConverter
     }
     public static TResponse ConvertEntityToResponse<TEntity, TResponse>(this TEntity entityInstance)
         where TEntity : Entity
+        where TResponse : EntityResponse, new()
     {
         var responseInstance = Activator.CreateInstance<TResponse>();
-        var responseProperties = typeof(TResponse).GetProperties();
+        var responseProperties = responseInstance.GetType().GetProperties();
         var entityProperties = entityInstance.GetType().GetProperties();
 
         foreach (var propertyEntity in responseProperties)
@@ -49,27 +51,58 @@ public static class EntityConverter
             var propertyResponse = Array.Find(entityProperties, p => p.Name == propertyEntity.Name);
             if (propertyResponse == null || !propertyResponse.CanRead) continue;
             var value = propertyResponse.GetValue(entityInstance);
-
-            if (propertyEntity.PropertyType.BaseType == typeof(Entity))
+            
+            if (propertyEntity.PropertyType.BaseType == typeof(EntityResponse) ||
+                (propertyEntity.PropertyType.IsGenericType &&
+                 propertyEntity.PropertyType.GetGenericArguments()[0].BaseType == typeof(EntityResponse)))
             {
+                switch (value)
+                {
+                    case null when propertyEntity.PropertyType.IsGenericType &&
+                                   propertyEntity.PropertyType.GetGenericArguments()[0].BaseType ==
+                                   typeof(EntityResponse):
+                    {
+                        var emptyListType =
+                            typeof(List<>).MakeGenericType(propertyEntity.PropertyType.GetGenericArguments()[0]);
+                        var emptyList = Activator.CreateInstance(emptyListType);
+                        propertyEntity.SetValue(responseInstance,emptyList);
+                        continue;
+                    }
+                    case null:
+                        propertyEntity.SetValue(responseInstance, null);
+                        continue;
+                }
+                
+                if(value.GetType().IsGenericType && value.GetType().GetGenericArguments()[0].BaseType == typeof(Entity))
+                {
+                    var listType = typeof(List<>).MakeGenericType(propertyEntity.PropertyType.GetGenericArguments()[0]);
+                    var list = Activator.CreateInstance(listType) as IList;
+                    foreach (var item in (value as IList)!)
+                    {
+                        var listValue = typeof(EntityConverter).GetMethod(nameof(ConvertEntityToResponse))!
+                            .MakeGenericMethod(item.GetType(), propertyEntity.PropertyType.GetGenericArguments()[0])//TODO: get response type
+                            .Invoke(null, new[] { item });
+                        list!.Add(listValue);
+                    }
+                    
+                    propertyEntity.SetValue(responseInstance, list);
+                    continue;
+                }
+                
                 var convertedValue = typeof(EntityConverter).GetMethod(nameof(ConvertEntityToResponse))!
-                    .MakeGenericMethod(propertyEntity.PropertyType, propertyResponse.PropertyType)
-                    .Invoke(null, new object[] { entityInstance});
-                propertyEntity.SetValue(responseInstance, convertedValue);
-            }
-
-            if (propertyEntity.PropertyType.BaseType == typeof(EntityResponse))
-            {
-                var convertedValue = typeof(EntityConverter).GetMethod(nameof(ConvertEntityToResponse))!
-                    .MakeGenericMethod(value!.GetType(), propertyEntity.PropertyType)
-                    .Invoke(null, new object[] { value });
-
+                    .MakeGenericMethod(value.GetType(), propertyEntity.PropertyType)
+                    .Invoke(null, new[] { value });
                 propertyEntity.SetValue(responseInstance, convertedValue);
                 continue;
             }
 
-            propertyEntity.SetValue(responseInstance,
-                propertyResponse.Name == "Id" ? (value as Id<Entity>)!.Value : value);
+            if (propertyResponse.Name == nameof(Entity.Id))
+            {
+                propertyEntity.SetValue(responseInstance, (value as Id<Entity>)!.ToId().Value);
+                continue;
+            }
+
+            propertyEntity.SetValue(responseInstance, value);
         }
 
         return responseInstance!;

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using EntityArchitect.CRUD.Attributes;
 using EntityArchitect.Entities;
 using EntityArchitect.Entities.Context;
@@ -8,7 +9,8 @@ using EntityArchitect.Results.Abstracts;
 namespace EntityArchitect.CRUD;
 
 public class DelegateBuilder<TEntity, TEntityCreateRequest, TEntityUpdateRequest, TEntityResponse>
-    where TEntity : Entity where TEntityResponse : class, new()
+    where TEntity : Entity 
+    where TEntityResponse : EntityResponse, new()
 {
     private readonly IServiceProvider _provider;
     private readonly string _entityName = typeof(TEntity).Name;
@@ -16,7 +18,10 @@ public class DelegateBuilder<TEntity, TEntityCreateRequest, TEntityUpdateRequest
 
     public static DelegateBuilder<TE, TEcrq, TEurq, TErs> Create<TE, TEcrq, TEurq, TErs>(IServiceProvider provider)
         where TE : Entity
-        where TErs : class, new() => new(provider);
+        where TEcrq : class, new()
+        where TEurq : class, new()
+        where TErs : EntityResponse, new()
+         => new(provider);
 
     public Func<TEntityCreateRequest, CancellationToken, ValueTask<Result<TEntityResponse>>> PostDelegate =>
         async (body, cancellationToken) =>
@@ -77,12 +82,19 @@ public class DelegateBuilder<TEntity, TEntityCreateRequest, TEntityUpdateRequest
                 .Where(x => x.CustomAttributes.Any(c => c.AttributeType == typeof(IncludeInGetAttribute)))
                 .Select(x => x.Name)
                 .ToList();
+            
             var spec = new SpecificationGetById<TEntity>(x => x.Id == id, properties);
             
-            var entity = await service.GetBySpecificationAsync(spec, cancellationToken);
+            var entity = await service.GetBySpecificationIdAsync(spec, cancellationToken);
             
-            return entity is null
+            Stopwatch sq = new();
+            sq.Start();
+            var response = entity is null
                 ? Result.Failure<TEntityResponse>(Error.NotFound(id, _entityName))
                 : entity.ConvertEntityToResponse<TEntity, TEntityResponse>();
+            sq.Stop();
+            Console.WriteLine(sq.ElapsedMilliseconds);
+
+            return response;
         };
 }

@@ -10,7 +10,9 @@ public interface IRepository<TEntity> where TEntity : Entity
     void Remove(TEntity entity);
     void Update(TEntity entity);
     ValueTask<TEntity?> GetByIdAsync(Id<TEntity> id, CancellationToken cancellationToken = default);
-    Task<TEntity?> GetBySpecificationAsync(ISpecification<TEntity> specification,
+    Task<TEntity?> GetBySpecificationIdAsync(SpecificationGetById<TEntity> specification,
+        CancellationToken cancellationToken = default);
+    Task<List<TEntity>> GetBySpecificationAsync(ISpecification<TEntity> specification,
         CancellationToken cancellationToken = default);
     Task<int> ExecuteSqlAsync(string sql, CancellationToken cancellationToken = default);
 }

@@ -20,9 +20,28 @@ public class Repository<TEntity>(ApplicationDbContext context) :
     public ValueTask<TEntity?> GetByIdAsync(Id<TEntity> id, CancellationToken cancellationToken = default) =>
         context.Set<TEntity>().FindAsync(new object[] { id.ToId() }, cancellationToken);
 
-    public Task<TEntity?> GetBySpecificationAsync(ISpecification<TEntity> specification,
-        CancellationToken cancellationToken = default) =>
-        context.Set<TEntity>().FirstOrDefaultAsync(specification.SpecExpression, cancellationToken);
+    public Task<TEntity?> GetBySpecificationIdAsync(SpecificationGetById<TEntity> specification,
+        CancellationToken cancellationToken = default)
+    {
+        var query = context.Set<TEntity>().AsQueryable();
+        foreach (var include in specification.IncludeStrings)
+        {
+            query = query.Include(include);
+        }
+        return query.FirstOrDefaultAsync(specification.SpecExpression, cancellationToken);
+    }
+
+    public Task<List<TEntity>> GetBySpecificationAsync(ISpecification<TEntity> specification,
+        CancellationToken cancellationToken = default)
+    {
+        var query = context.Set<TEntity>().AsQueryable();
+        foreach (var include in specification.IncludeStrings)
+        {
+            query = query.Include(include);
+        }
+        return query.Where(specification.SpecExpression)
+            .ToListAsync(cancellationToken);
+    }
 
     public Task<int> ExecuteSqlAsync(string sql, CancellationToken cancellationToken = default) =>
         context.Database.ExecuteSqlRawAsync(sql, cancellationToken);
