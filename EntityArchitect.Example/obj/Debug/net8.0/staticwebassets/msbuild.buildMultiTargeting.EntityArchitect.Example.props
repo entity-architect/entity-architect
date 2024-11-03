@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="../build/EntityArchitect.Example.props" />
+</Project>

@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="../buildMultiTargeting/EntityArchitect.Example.props" />
+</Project>

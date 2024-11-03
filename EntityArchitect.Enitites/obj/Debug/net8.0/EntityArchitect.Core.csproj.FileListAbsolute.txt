@@ -1,0 +1,14 @@
+/Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Core/bin/Debug/net8.0/EntityArchitect.Core.deps.json
+/Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Core/bin/Debug/net8.0/EntityArchitect.Core.runtimeconfig.json
+/Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Core/bin/Debug/net8.0/EntityArchitect.Core.dll
+/Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Core/bin/Debug/net8.0/EntityArchitect.Core.pdb
+/Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Core/obj/Debug/net8.0/EntityArchitect.Core.csproj.AssemblyReference.cache
+/Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Core/obj/Debug/net8.0/EntityArchitect.Core.GeneratedMSBuildEditorConfig.editorconfig
+/Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Core/obj/Debug/net8.0/EntityArchitect.Core.AssemblyInfoInputs.cache
+/Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Core/obj/Debug/net8.0/EntityArchitect.Core.AssemblyInfo.cs
+/Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Core/obj/Debug/net8.0/EntityArchitect.Core.csproj.CoreCompileInputs.cache
+/Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Core/obj/Debug/net8.0/EntityArchitect.Core.dll
+/Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Core/obj/Debug/net8.0/refint/EntityArchitect.Core.dll
+/Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Core/obj/Debug/net8.0/EntityArchitect.Core.pdb
+/Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Core/obj/Debug/net8.0/EntityArchitect.Core.genruntimeconfig.cache
+/Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Core/obj/Debug/net8.0/ref/EntityArchitect.Core.dll
