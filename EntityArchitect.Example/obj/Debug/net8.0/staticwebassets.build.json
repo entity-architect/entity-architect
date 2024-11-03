@@ -1,0 +1,23 @@
+{
+  "Version": 1,
+  "Hash": "0zTbeN1+9cOD1FJdqquhkQfcMPpIY9GGLmiIRZL+SS4=",
+  "Source": "EntityArchitect.Example",
+  "BasePath": "_content/EntityArchitect.Example",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [
+    {
+      "Identity": "/Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.CRUD/EntityArchitect.CRUD.csproj",
+      "Version": 2,
+      "Source": "EntityArchitect.CRUD",
+      "GetPublishAssetsTargets": "ComputeReferencedStaticWebAssetsPublishManifest;GetCurrentProjectPublishStaticWebAssetItems",
+      "AdditionalPublishProperties": "Configuration=Debug;Platform=AnyCPU",
+      "AdditionalPublishPropertiesToRemove": "WebPublishProfileFile;TargetFramework",
+      "GetBuildAssetsTargets": "GetCurrentProjectBuildStaticWebAssetItems",
+      "AdditionalBuildProperties": "Configuration=Debug;Platform=AnyCPU",
+      "AdditionalBuildPropertiesToRemove": "WebPublishProfileFile;TargetFramework"
+    }
+  ],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}
