@@ -15,4 +15,5 @@ public interface IRepository<TEntity> where TEntity : Entity
     Task<List<TEntity>> GetBySpecificationAsync(ISpecification<TEntity> specification,
         CancellationToken cancellationToken = default);
     Task<int> ExecuteSqlAsync(string sql, CancellationToken cancellationToken = default);
+    Task<List<TEntity>> GetLightListAsync(CancellationToken cancellationToken);
 }

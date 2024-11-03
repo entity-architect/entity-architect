@@ -3,7 +3,7 @@ using EntityArchitect.CRUD.Attributes;
 using EntityArchitect.Entities.Attributes;
 using EntityArchitect.Entities.Entities;
 
-namespace EntityArchitect.CRUD;
+namespace EntityArchitect.CRUD.TypeBuilders;
 
 public class TypeBuilder(int maxIncludingDeep = 1)
 {
@@ -220,6 +220,33 @@ public class TypeBuilder(int maxIncludingDeep = 1)
         if (isList)
             resultType = typeof(List<>).MakeGenericType(resultType);
         
+        return resultType;
+    }
+
+    public Type BuildLightListProperty(Type entityType)
+    {
+        var typeName = entityType.FullName + "LightListResponse";
+        var typeBuilder = TypeBuilderExtension.GetTypeBuilder(typeName, typeof(EntityResponse));
+        typeBuilder.DefineDefaultConstructor(MethodAttributes.Public | MethodAttributes.SpecialName |
+                                             MethodAttributes.RTSpecialName);
+        
+        var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
+        foreach (var property in properties)
+        {
+            if (property.PropertyType.BaseType != typeof(Object) &&
+                property.CustomAttributes.Any(c =>c.AttributeType == typeof(LightListPropertyAttribute)))
+                throw new Exception("Property in light list response must be a simple type");
+            
+            if(property.Name is nameof(Entity.Id))
+                TypeBuilderExtension.CreateProperty(typeBuilder, property.Name, typeof(Guid));
+
+            if(property.CustomAttributes.Any(c =>c.AttributeType == typeof(LightListPropertyAttribute)))
+                TypeBuilderExtension.CreateProperty(typeBuilder, property.Name, property.PropertyType);
+            
+        }
+        
+        var resultType = typeBuilder.CreateType();
+        _types.Add(resultType);
         return resultType;
     }
 }

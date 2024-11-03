@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 using EntityArchitect.CRUD.Attributes;
+using EntityArchitect.CRUD.TypeBuilders;
 using EntityArchitect.Entities.Entities;
 
 namespace EntityArchitect.CRUD;
@@ -11,7 +12,7 @@ public static partial class DependencyInjection
     {
     }
 
-    public static WebApplication MapEntityArchitectCrud(this WebApplication app, Assembly assembly)
+    public static WebApplication MapEntityArchitectCrud(this WebApplication app, Assembly assembly,string basePath = "")
     {
         var enumerable = assembly.ExportedTypes.Where(c => c.BaseType == typeof(Entity)).ToList();
         var typeBuilder = new TypeBuilder();
@@ -23,42 +24,53 @@ public static partial class DependencyInjection
             var requestPostType = typeBuilder.BuildCreateRequestFromEntity(entity);
             var requestUpdateType = typeBuilder.BuildUpdateRequestFromEntity(entity);
             var responseType = typeBuilder.BuildResponseFromEntity(entity);
-
-            var delegateBuilder = typeof(DelegateBuilder<,,,>)
-                .MakeGenericType(entity, requestPostType, requestUpdateType, responseType)
+            var lightListResponseType = typeBuilder.BuildLightListProperty(entity);
+            
+            var group = app.MapGroup(Path.Combine(basePath, name));
+            
+            var delegateBuilder = typeof(DelegateBuilder<,,,,>)
+                .MakeGenericType(entity, requestPostType, requestUpdateType, responseType, lightListResponseType)
                 .GetMethod("Create")?
-                .MakeGenericMethod(entity, requestPostType, requestUpdateType, responseType)
+                .MakeGenericMethod(entity, requestPostType, requestUpdateType, responseType, lightListResponseType)
                 .Invoke(null, new object[] { app.Services });
 
             if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotCreateAttribute)))
             {
                 var postHandler =
                     delegateBuilder!.GetType().GetProperty("PostDelegate")!.GetValue(delegateBuilder) as Delegate;
-                app.MapPost("/" + name, postHandler!);
+                group.MapPost("",postHandler!);
             }
 
             if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotUpdateAttribute)))
             {
                 var updateHandler =
                     delegateBuilder!.GetType().GetProperty("UpdateDelegate")!.GetValue(delegateBuilder) as Delegate;
-                app.MapPut("/" + name, updateHandler!);
+                group.MapPut("", updateHandler!);
             }
 
             if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotDeleteAttribute)))
             {
                 var deleteHandler =
                     delegateBuilder!.GetType().GetProperty("DeleteDelegate")!.GetValue(delegateBuilder) as Delegate;
-                app.MapDelete("/" + name + "/{id}", deleteHandler!);
+                group.MapDelete("{id}", deleteHandler!);
             }
 
             if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotGetByIdAttribute)))
             {
                 var getByIdHandler =
                     delegateBuilder!.GetType().GetProperty("GetByIdDelegate")!.GetValue(delegateBuilder) as Delegate;
-                app.MapGet("/" + name + "/{id}", getByIdHandler!);
+                group.MapGet("{id}", getByIdHandler!);
             }
+            
+            if (entity.CustomAttributes.Any(c => c.AttributeType == typeof(HasLightListAttribute)))
+            {
+                var getLightListDelegate =
+                    delegateBuilder!.GetType().GetProperty("GetLightListDelegate")!.GetValue(delegateBuilder) as Delegate;
+                group.MapGet("light-list", getLightListDelegate!);
+            }
+            group.WithTags(name);
         }
-
+        
         return app;
     }
 

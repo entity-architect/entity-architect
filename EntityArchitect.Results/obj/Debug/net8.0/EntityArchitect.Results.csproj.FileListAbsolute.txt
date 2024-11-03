@@ -9,3 +9,4 @@
 /Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Results/obj/Debug/net8.0/refint/EntityArchitect.Results.dll
 /Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Results/obj/Debug/net8.0/EntityArchitect.Results.pdb
 /Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Results/obj/Debug/net8.0/ref/EntityArchitect.Results.dll
+/Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Results/obj/Debug/net8.0/EntityArchitect.Results.sourcelink.json

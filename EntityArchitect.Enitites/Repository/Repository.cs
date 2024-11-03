@@ -45,4 +45,7 @@ public class Repository<TEntity>(ApplicationDbContext context) :
 
     public Task<int> ExecuteSqlAsync(string sql, CancellationToken cancellationToken = default) =>
         context.Database.ExecuteSqlRawAsync(sql, cancellationToken);
+
+    public Task<List<TEntity>> GetLightListAsync(CancellationToken cancellationToken) => 
+        context.Set<TEntity>().ToListAsync(cancellationToken);
 }

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using EntityArchitect.CRUD.Attributes;
+using EntityArchitect.CRUD.TypeBuilders;
 using EntityArchitect.Entities;
 using EntityArchitect.Entities.Context;
 using EntityArchitect.Entities.Entities;
@@ -8,7 +9,12 @@ using EntityArchitect.Results.Abstracts;
 
 namespace EntityArchitect.CRUD;
 
-public class DelegateBuilder<TEntity, TEntityCreateRequest, TEntityUpdateRequest, TEntityResponse>
+public class DelegateBuilder<
+        TEntity, 
+        TEntityCreateRequest,
+        TEntityUpdateRequest,
+        TEntityResponse,
+        TLightListResponse>
     where TEntity : Entity 
     where TEntityResponse : EntityResponse, new()
 {
@@ -16,7 +22,7 @@ public class DelegateBuilder<TEntity, TEntityCreateRequest, TEntityUpdateRequest
     private readonly string _entityName = typeof(TEntity).Name;
     private DelegateBuilder(IServiceProvider provider) => _provider = provider;
 
-    public static DelegateBuilder<TE, TEcrq, TEurq, TErs> Create<TE, TEcrq, TEurq, TErs>(IServiceProvider provider)
+    public static DelegateBuilder<TE, TEcrq, TEurq, TErs,TLlr> Create<TE, TEcrq, TEurq, TErs, TLlr>(IServiceProvider provider)
         where TE : Entity
         where TEcrq : class, new()
         where TEurq : class, new()
@@ -86,14 +92,24 @@ public class DelegateBuilder<TEntity, TEntityCreateRequest, TEntityUpdateRequest
             var spec = new SpecificationGetById<TEntity>(x => x.Id == id, properties);
             
             var entity = await service.GetBySpecificationIdAsync(spec, cancellationToken);
-            
-            Stopwatch sq = new();
-            sq.Start();
             var response = entity is null
                 ? Result.Failure<TEntityResponse>(Error.NotFound(id, _entityName))
                 : entity.ConvertEntityToResponse<TEntity, TEntityResponse>();
-            sq.Stop();
-            Console.WriteLine(sq.ElapsedMilliseconds);
+
+            return response;
+        };
+
+    public Func<CancellationToken, ValueTask<Result<List<TLightListResponse>>>> GetLightListDelegate =>
+        async (cancellationToken) =>
+        {
+            using var scope = _provider.CreateScope();
+            var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
+            
+            var entities = await service.GetLightListAsync(cancellationToken);
+            var response
+                = entities.Select(c =>
+                        c.ConvertEntityToLightListResponse<TEntity, TLightListResponse>())
+                    .ToList();
 
             return response;
         };

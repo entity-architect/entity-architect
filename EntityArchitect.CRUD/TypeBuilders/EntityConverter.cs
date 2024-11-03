@@ -2,7 +2,7 @@ using System.Collections;
 using EntityArchitect.Entities.Attributes;
 using EntityArchitect.Entities.Entities;
 
-namespace EntityArchitect.CRUD;
+namespace EntityArchitect.CRUD.TypeBuilders;
 
 public static class EntityConverter
 {
@@ -106,5 +106,28 @@ public static class EntityConverter
         }
 
         return responseInstance!;
+    }
+
+    public static TResponse ConvertEntityToLightListResponse<TEntity, TResponse>(this TEntity entityInstance)
+    {
+        var responseInstance = Activator.CreateInstance<TResponse>();
+        var responseProperties = typeof(TResponse).GetProperties();
+        var entityProperties = entityInstance!.GetType().GetProperties();
+
+        foreach (var propertyEntity in responseProperties)
+        {
+            var propertyResponse = Array.Find(entityProperties, p => p.Name == propertyEntity.Name);
+            if (propertyResponse == null || !propertyResponse.CanRead) continue;
+            var value = propertyResponse.GetValue(entityInstance);
+            if (propertyResponse.Name == nameof(Entity.Id))
+            {
+                propertyEntity.SetValue(responseInstance, (value as Id<Entity>)!.ToId().Value);
+                continue;
+            }
+            
+            propertyEntity.SetValue(responseInstance, value);
+        }
+        
+        return responseInstance;
     }
 }

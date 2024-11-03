@@ -1,10 +1,9 @@
-using System.Reflection;
 using System.Text.RegularExpressions;
 using EntityArchitect.Entities.Entities;
 
 namespace EntityArchitect.CRUD;
 
-public static class CrudSqlBuilder
+public static partial class CrudSqlBuilder
 {
     internal static string BuildPostSql<TEntity>(TEntity entity, string entityName) where TEntity : Entity
     {
@@ -37,11 +36,11 @@ public static class CrudSqlBuilder
             if (property.PropertyType == typeof(int))
                 sql += property.GetValue(entity)+", ";
             else if (property.CustomAttributes.Any(c => c.AttributeType.Name.Contains("RelationOneToManyAttribute")))
-                sql += "'" + (property.GetValue(entity) as Entity).Id.Value + "', ";
+                sql += "'" + ((property.GetValue(entity) as Entity)!).Id.Value + "', ";
             else if(property.PropertyType == typeof(DateTime))
-                sql += "'" + ((DateTime) property.GetValue(entity)).ToString("yyyy-MM-dd HH:mm:ss") + "', ";
+                sql += "'" + ((DateTime) property.GetValue(entity)!).ToString("yyyy-MM-dd HH:mm:ss") + "', ";
             else if(property.PropertyType == typeof(bool))
-                sql += (bool) property.GetValue(entity) ? "true, " : "false, ";
+                sql += (bool) property.GetValue(entity)! ? "true, " : "false, ";
             else if(property.Name == nameof(Entity.Id))
                 sql += "'" + entity.Id.Value + "', ";
             else
@@ -57,8 +56,11 @@ public static class CrudSqlBuilder
     {
         if (string.IsNullOrEmpty(input))
             return input;
-        string result = Regex.Replace(input, "(?<!^)([A-Z])", "_$1").ToLower();
+        var result = SnakeCaseRegex().Replace(input, "_$1").ToLower();
 
         return result;
     }
+
+    [GeneratedRegex("(?<!^)([A-Z])")]
+    private static partial Regex SnakeCaseRegex();
 }

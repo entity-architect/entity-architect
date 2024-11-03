@@ -4,6 +4,7 @@ using EntityArchitect.Entities.Entities;
 
 namespace EntityArchitect.Example;
 
+[HasLightList]
 public class Author : Entity
 {
     public string Name { get; private set; }

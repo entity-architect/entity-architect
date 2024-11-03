@@ -130,3 +130,4 @@
 /Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Example/obj/Debug/net8.0/EntityArchitect.Example.MvcApplicationPartsAssemblyInfo.cs
 /Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.Results.dll
 /Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.Results.pdb
+/Users/janrzepisko/RiderProjects/EntityArchitect/EntityArchitect.Example/obj/Debug/net8.0/EntityArchitect.Example.sourcelink.json
