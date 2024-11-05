@@ -9,74 +9,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a7e25d53-55ec-4fb2-9fa1-b99c1352c133" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/Attributes/CannotCreateAttribute.cs" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/Attributes/CannotCreateAttribute.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/DelegateBuilder.cs" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/DelegateBuilder.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/DependencyInjection.cs" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/DependencyInjection.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/EntityConverter.cs" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/TypeBuilders/EntityConverter.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/TypeBuilder.cs" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/TypeBuilders/TypeBuilder.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/TypeBuilderExtension.cs" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/TypeBuilders/TypeBuilderExtension.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/bin/Debug/net8.0/EntityArchitect.CRUD.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/bin/Debug/net8.0/EntityArchitect.CRUD.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/bin/Debug/net8.0/EntityArchitect.CRUD.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/bin/Debug/net8.0/EntityArchitect.CRUD.pdb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/bin/Debug/net8.0/EntityArchitect.Enitites.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/bin/Debug/net8.0/EntityArchitect.Enitites.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/bin/Debug/net8.0/EntityArchitect.Enitites.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/bin/Debug/net8.0/EntityArchitect.Enitites.pdb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/bin/Debug/net8.0/EntityArchitect.Results.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/bin/Debug/net8.0/EntityArchitect.Results.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/bin/Debug/net8.0/EntityArchitect.Results.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/bin/Debug/net8.0/EntityArchitect.Results.pdb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/EntityArchitect.CRUD.AssemblyInfo.cs" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/EntityArchitect.CRUD.AssemblyInfo.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/EntityArchitect.CRUD.AssemblyInfoInputs.cache" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/EntityArchitect.CRUD.AssemblyInfoInputs.cache" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/EntityArchitect.CRUD.csproj.AssemblyReference.cache" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/EntityArchitect.CRUD.csproj.AssemblyReference.cache" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/EntityArchitect.CRUD.csproj.CoreCompileInputs.cache" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/EntityArchitect.CRUD.csproj.CoreCompileInputs.cache" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/EntityArchitect.CRUD.csproj.FileListAbsolute.txt" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/EntityArchitect.CRUD.csproj.FileListAbsolute.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/EntityArchitect.CRUD.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/EntityArchitect.CRUD.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/EntityArchitect.CRUD.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/EntityArchitect.CRUD.pdb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/ref/EntityArchitect.CRUD.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/ref/EntityArchitect.CRUD.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/refint/EntityArchitect.CRUD.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/Debug/net8.0/refint/EntityArchitect.CRUD.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/rider.project.model.nuget.info" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/rider.project.model.nuget.info" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/rider.project.restore.info" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.CRUD/obj/rider.project.restore.info" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Enitites/Repository/IRepository.cs" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Enitites/Repository/IRepository.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Enitites/Repository/Repository.cs" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Enitites/Repository/Repository.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Enitites/bin/Debug/net8.0/EntityArchitect.Enitites.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Enitites/bin/Debug/net8.0/EntityArchitect.Enitites.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Enitites/bin/Debug/net8.0/EntityArchitect.Enitites.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Enitites/bin/Debug/net8.0/EntityArchitect.Enitites.pdb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/Debug/net8.0/EntityArchitect.Enitites.AssemblyInfo.cs" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/Debug/net8.0/EntityArchitect.Enitites.AssemblyInfo.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/Debug/net8.0/EntityArchitect.Enitites.AssemblyInfoInputs.cache" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/Debug/net8.0/EntityArchitect.Enitites.AssemblyInfoInputs.cache" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/Debug/net8.0/EntityArchitect.Enitites.csproj.FileListAbsolute.txt" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/Debug/net8.0/EntityArchitect.Enitites.csproj.FileListAbsolute.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/Debug/net8.0/EntityArchitect.Enitites.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/Debug/net8.0/EntityArchitect.Enitites.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/Debug/net8.0/EntityArchitect.Enitites.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/Debug/net8.0/EntityArchitect.Enitites.pdb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/Debug/net8.0/ref/EntityArchitect.Enitites.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/Debug/net8.0/ref/EntityArchitect.Enitites.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/Debug/net8.0/refint/EntityArchitect.Enitites.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/Debug/net8.0/refint/EntityArchitect.Enitites.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/rider.project.model.nuget.info" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/rider.project.model.nuget.info" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/rider.project.restore.info" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Enitites/obj/rider.project.restore.info" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/Author.cs" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/Author.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.CRUD.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.CRUD.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.CRUD.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.CRUD.pdb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.Enitites.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.Enitites.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.Enitites.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.Enitites.pdb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.Example.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.Example.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.Example.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.Example.pdb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.Results.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.Results.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.Results.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/bin/Debug/net8.0/EntityArchitect.Results.pdb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/obj/Debug/net8.0/EntityArchitect.Example.AssemblyInfo.cs" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/obj/Debug/net8.0/EntityArchitect.Example.AssemblyInfo.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/obj/Debug/net8.0/EntityArchitect.Example.AssemblyInfoInputs.cache" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/obj/Debug/net8.0/EntityArchitect.Example.AssemblyInfoInputs.cache" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/obj/Debug/net8.0/EntityArchitect.Example.csproj.AssemblyReference.cache" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/obj/Debug/net8.0/EntityArchitect.Example.csproj.AssemblyReference.cache" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/obj/Debug/net8.0/EntityArchitect.Example.csproj.FileListAbsolute.txt" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/obj/Debug/net8.0/EntityArchitect.Example.csproj.FileListAbsolute.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/obj/Debug/net8.0/EntityArchitect.Example.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/obj/Debug/net8.0/EntityArchitect.Example.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/obj/Debug/net8.0/EntityArchitect.Example.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/obj/Debug/net8.0/EntityArchitect.Example.pdb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/obj/Debug/net8.0/ref/EntityArchitect.Example.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/obj/Debug/net8.0/ref/EntityArchitect.Example.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/obj/Debug/net8.0/refint/EntityArchitect.Example.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/obj/Debug/net8.0/refint/EntityArchitect.Example.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/obj/rider.project.model.nuget.info" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/obj/rider.project.model.nuget.info" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Example/obj/rider.project.restore.info" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Example/obj/rider.project.restore.info" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Results/bin/Debug/net8.0/EntityArchitect.Results.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Results/bin/Debug/net8.0/EntityArchitect.Results.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Results/bin/Debug/net8.0/EntityArchitect.Results.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Results/bin/Debug/net8.0/EntityArchitect.Results.pdb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Results/obj/Debug/net8.0/EntityArchitect.Results.AssemblyInfo.cs" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Results/obj/Debug/net8.0/EntityArchitect.Results.AssemblyInfo.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Results/obj/Debug/net8.0/EntityArchitect.Results.AssemblyInfoInputs.cache" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Results/obj/Debug/net8.0/EntityArchitect.Results.AssemblyInfoInputs.cache" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Results/obj/Debug/net8.0/EntityArchitect.Results.csproj.FileListAbsolute.txt" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Results/obj/Debug/net8.0/EntityArchitect.Results.csproj.FileListAbsolute.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Results/obj/Debug/net8.0/EntityArchitect.Results.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Results/obj/Debug/net8.0/EntityArchitect.Results.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Results/obj/Debug/net8.0/EntityArchitect.Results.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Results/obj/Debug/net8.0/EntityArchitect.Results.pdb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Results/obj/Debug/net8.0/ref/EntityArchitect.Results.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Results/obj/Debug/net8.0/ref/EntityArchitect.Results.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Results/obj/Debug/net8.0/refint/EntityArchitect.Results.dll" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Results/obj/Debug/net8.0/refint/EntityArchitect.Results.dll" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Results/obj/rider.project.model.nuget.info" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Results/obj/rider.project.model.nuget.info" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/EntityArchitect.Results/obj/rider.project.restore.info" beforeDir="false" afterPath="$PROJECT_DIR$/EntityArchitect.Results/obj/rider.project.restore.info" afterDir="false" />
-    </list>
+    <list default="true" id="a7e25d53-55ec-4fb2-9fa1-b99c1352c133" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -100,29 +33,29 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    ".NET Launch Settings Profile.EntityArchitect.Example: http.executor": "Debug",
-    ".NET Launch Settings Profile.EntityArchitect.Example: https.executor": "Debug",
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "dev",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "editor.preferences.fonts.default",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;.NET Launch Settings Profile.EntityArchitect.Example: http.executor&quot;: &quot;Debug&quot;,
+    &quot;.NET Launch Settings Profile.EntityArchitect.Example: https.executor&quot;: &quot;Debug&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;dev&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;editor.preferences.fonts.default&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   },
-  "keyToStringList": {
-    "rider.external.source.directories": [
-      "/Users/janrzepisko/Library/Application Support/JetBrains/Rider2023.3/resharper-host/DecompilerCache",
-      "/Users/janrzepisko/Library/Application Support/JetBrains/Rider2023.3/resharper-host/SourcesCache",
-      "/Users/janrzepisko/.local/share/Symbols/src"
+  &quot;keyToStringList&quot;: {
+    &quot;rider.external.source.directories&quot;: [
+      &quot;/Users/janrzepisko/Library/Application Support/JetBrains/Rider2023.3/resharper-host/DecompilerCache&quot;,
+      &quot;/Users/janrzepisko/Library/Application Support/JetBrains/Rider2023.3/resharper-host/SourcesCache&quot;,
+      &quot;/Users/janrzepisko/.local/share/Symbols/src&quot;
     ]
   }
-}]]></component>
+}</component>
   <component name="RunManager" selected=".NET Launch Settings Profile.EntityArchitect.Example: http">
     <configuration name="EntityArchitect.CRUD" type="DotNetProject" factoryName=".NET Project">
       <option name="EXE_PATH" value="" />
@@ -183,7 +116,7 @@
       <updated>1729674661941</updated>
       <workItem from="1729674672900" duration="26912000" />
       <workItem from="1730218681292" duration="17343000" />
-      <workItem from="1730288764874" duration="53959000" />
+      <workItem from="1730288764874" duration="62997000" />
     </task>
     <servers />
   </component>
@@ -194,6 +127,23 @@
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
   </component>
   <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/EntityArchitect.CRUD/DelegateBuilder.cs</url>
+          <line>153</line>
+          <properties documentPath="$PROJECT_DIR$/EntityArchitect.CRUD/DelegateBuilder.cs" initialLine="151" containingFunctionPresentation="">
+            <startOffsets>
+              <option value="6657" />
+            </startOffsets>
+            <endOffsets>
+              <option value="6756" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="181" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
     <pin-to-top-manager>
       <pinned-members>
         <PinnedItemInfo parentTag="Type#EntityArchitect.Example.BookResponse" memberName="Author" />

@@ -1,33 +1,34 @@
-using System.Diagnostics;
 using EntityArchitect.CRUD.Attributes;
 using EntityArchitect.CRUD.TypeBuilders;
 using EntityArchitect.Entities;
 using EntityArchitect.Entities.Context;
 using EntityArchitect.Entities.Entities;
 using EntityArchitect.Entities.Repository;
+using EntityArchitect.Results;
 using EntityArchitect.Results.Abstracts;
 
 namespace EntityArchitect.CRUD;
 
 public class DelegateBuilder<
-        TEntity, 
-        TEntityCreateRequest,
-        TEntityUpdateRequest,
-        TEntityResponse,
-        TLightListResponse>
-    where TEntity : Entity 
+    TEntity,
+    TEntityCreateRequest,
+    TEntityUpdateRequest,
+    TEntityResponse,
+    TLightListResponse>
+    where TEntity : Entity
     where TEntityResponse : EntityResponse, new()
 {
     private readonly IServiceProvider _provider;
     private readonly string _entityName = typeof(TEntity).Name;
     private DelegateBuilder(IServiceProvider provider) => _provider = provider;
 
-    public static DelegateBuilder<TE, TEcrq, TEurq, TErs,TLlr> Create<TE, TEcrq, TEurq, TErs, TLlr>(IServiceProvider provider)
+    public static DelegateBuilder<TE, TEcrq, TEurq, TErs, TLlr> Create<TE, TEcrq, TEurq, TErs, TLlr>(
+        IServiceProvider provider)
         where TE : Entity
         where TEcrq : class, new()
         where TEurq : class, new()
         where TErs : EntityResponse, new()
-         => new(provider);
+        => new(provider);
 
     public Func<TEntityCreateRequest, CancellationToken, ValueTask<Result<TEntityResponse>>> PostDelegate =>
         async (body, cancellationToken) =>
@@ -39,6 +40,7 @@ public class DelegateBuilder<
                 var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
                 await service.ExecuteSqlAsync(sql, cancellationToken);
             }
+
             var res = entity.ConvertEntityToResponse<TEntity, TEntityResponse>();
             return Result.Success(res);
         };
@@ -83,34 +85,73 @@ public class DelegateBuilder<
         {
             using var scope = _provider.CreateScope();
             var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
-            
+
             var properties = typeof(TEntity).GetProperties()
                 .Where(x => x.CustomAttributes.Any(c => c.AttributeType == typeof(IncludeInGetAttribute)))
                 .Select(x => x.Name)
                 .ToList();
-            
+
             var spec = new SpecificationGetById<TEntity>(x => x.Id == id, properties);
-            
+
             var entity = await service.GetBySpecificationIdAsync(spec, cancellationToken);
-            var response = entity is null
-                ? Result.Failure<TEntityResponse>(Error.NotFound(id, _entityName))
-                : entity.ConvertEntityToResponse<TEntity, TEntityResponse>();
+            var response =
+
+                entity?.ConvertEntityToResponse<TEntity, TEntityResponse>() ??
+                Result.Failure<TEntityResponse>(Error.NotFound(id, _entityName));
 
             return response;
         };
 
-    public Func<CancellationToken, ValueTask<Result<List<TLightListResponse>>>> GetLightListDelegate =>
-        async (cancellationToken) =>
+    public Func<int, CancellationToken, ValueTask<Result<List<TLightListResponse>>>> GetLightListDelegate =>
+        async (page, cancellationToken) =>
         {
             using var scope = _provider.CreateScope();
             var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
-            
-            var entities = await service.GetLightListAsync(cancellationToken);
+
+            var itemCount = (int)typeof(TEntity).CustomAttributes
+                .First(c => c.AttributeType == typeof(GetListPaginatedAttribute)).ConstructorArguments.First().Value!;
+
+            var properties = typeof(TEntity).GetProperties()
+                .Where(x => x.CustomAttributes.Any(c => c.AttributeType == typeof(IncludeInGetAttribute)))
+                .Select(x => x.Name)
+                .ToList();
+
+            var entities = await service.GetAllPaginatedAsync(page, itemCount, properties, cancellationToken);
             var response
                 = entities.Select(c =>
                         c.ConvertEntityToLightListResponse<TEntity, TLightListResponse>())
                     .ToList();
 
             return response;
+        };
+
+    public Func<int, CancellationToken, ValueTask<Result<PaginatedResult<TEntityResponse>>>> GetListDelegate =>
+        async (page, cancellationToken) =>
+        {
+            using var scope = _provider.CreateScope();
+            var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
+
+            var itemCount = (int)typeof(TEntity).CustomAttributes
+                .First(c => c.AttributeType == typeof(GetListPaginatedAttribute)).ConstructorArguments.First().Value!;
+
+            var properties = typeof(TEntity).GetProperties()
+                .Where(x => x.CustomAttributes.Any(c => c.AttributeType == typeof(IncludeInGetAttribute)))
+                .Select(x => x.Name)
+                .ToList();
+
+            var entities = await service.GetAllPaginatedAsync(page, itemCount, properties, cancellationToken);
+            var response
+                = entities.Select(c =>
+                        c.ConvertEntityToResponse<TEntity, TEntityResponse>())
+                    .ToList();
+            
+            var totalCount = await service.GetCountAsync(cancellationToken);
+            var pageCount = (int)Math.Round((double)totalCount / (double)itemCount, MidpointRounding.ToEven);
+            var leftPages = pageCount - (page + 1);
+            if(pageCount == 0) 
+                leftPages = 0;
+            
+            var paginatedResponse = new PaginatedResult<TEntityResponse>(response, page, leftPages, pageCount);
+            return paginatedResponse;
         };
 }

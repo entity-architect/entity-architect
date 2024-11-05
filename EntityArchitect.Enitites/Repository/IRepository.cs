@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Runtime.CompilerServices;
 using EntityArchitect.Entities.Entities;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
@@ -16,4 +17,6 @@ public interface IRepository<TEntity> where TEntity : Entity
         CancellationToken cancellationToken = default);
     Task<int> ExecuteSqlAsync(string sql, CancellationToken cancellationToken = default);
     Task<List<TEntity>> GetLightListAsync(CancellationToken cancellationToken);
+    Task<List<TEntity>> GetAllPaginatedAsync(int page, int itemCount, List<string> includingProperties, CancellationToken cancellationToken);
+    Task<int> GetCountAsync(CancellationToken cancellationToken);
 }
