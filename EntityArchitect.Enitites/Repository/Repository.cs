@@ -48,4 +48,19 @@ public class Repository<TEntity>(ApplicationDbContext context) :
 
     public Task<List<TEntity>> GetLightListAsync(CancellationToken cancellationToken) => 
         context.Set<TEntity>().ToListAsync(cancellationToken);
+
+    public Task<List<TEntity>> GetAllPaginatedAsync(int page, int itemCount, List<string> includingProperties, CancellationToken cancellationToken)
+    {
+        var query = context.Set<TEntity>().AsQueryable();
+        foreach (var include in includingProperties)
+        {
+            query = query.Include(include);
+        }
+        return query.Skip(page * itemCount)
+            .Take(itemCount)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<int> GetCountAsync(CancellationToken cancellationToken) => 
+        context.Set<TEntity>().CountAsync(cancellationToken);
 }

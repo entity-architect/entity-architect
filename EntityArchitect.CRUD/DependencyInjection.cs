@@ -67,6 +67,13 @@ public static partial class DependencyInjection
                 var getLightListDelegate =
                     delegateBuilder!.GetType().GetProperty("GetLightListDelegate")!.GetValue(delegateBuilder) as Delegate;
                 group.MapGet("light-list", getLightListDelegate!);
+            } 
+            
+            if (entity.CustomAttributes.Any(c => c.AttributeType== typeof(GetListPaginatedAttribute)))
+            {
+                var getLightListDelegate =
+                    delegateBuilder!.GetType().GetProperty("GetListDelegate")!.GetValue(delegateBuilder) as Delegate;
+                group.MapGet("list/{page}", getLightListDelegate!);
             }
             group.WithTags(name);
         }
