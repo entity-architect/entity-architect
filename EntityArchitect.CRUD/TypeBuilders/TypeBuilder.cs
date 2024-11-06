@@ -5,7 +5,7 @@ using EntityArchitect.Entities.Entities;
 
 namespace EntityArchitect.CRUD.TypeBuilders;
 
-public class TypeBuilder(int maxIncludingDeep = 1)
+public class TypeBuilder()
 {
     private readonly List<Type> _types = [];
     public Type BuildCreateRequestFromEntity(Type entityType, Type? parentType = null)
@@ -164,6 +164,8 @@ public class TypeBuilder(int maxIncludingDeep = 1)
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
+            var maxIncludingDeep = (int)(property.CustomAttributes.FirstOrDefault(c => c.AttributeType == typeof(IncludeInGetAttribute))?.ConstructorArguments[0].Value ?? 0);
+
             if (parentType is not null &&
                 parentType.Count > 0 &&
                 property.PropertyType == parentType.Last() ||

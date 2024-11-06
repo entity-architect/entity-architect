@@ -9,6 +9,6 @@ public class Author : Entity
 {
     public string Name { get; private set; }
 
-    [RelationManyToOne<Book>(nameof(Book.Author)), IgnorePostRequest, IgnorePutRequest,IncludeInGet]
+    [RelationManyToOne<Book>(nameof(Book.Author)), IgnorePostRequest, IgnorePutRequest, IncludeInGet]
     public List<Book> Books { get; private set; }
 }
