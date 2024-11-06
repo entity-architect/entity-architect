@@ -9,6 +9,6 @@ public class Book : Entity
 {
     public string? Title { get; private set; }
     
-    [RelationOneToMany<Author>(nameof(Author.Books)), IncludeInGet]
+    [RelationOneToMany<Author>(nameof(Author.Books)), IncludeInGet(1)]
     public Author Author { get;private set; }
 }
