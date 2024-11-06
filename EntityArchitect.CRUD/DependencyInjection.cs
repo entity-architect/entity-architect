@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.OpenApi;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using EntityArchitect.CRUD.Attributes;
@@ -113,7 +112,7 @@ public static partial class DependencyInjection
                 var getLightListDelegate =
                     delegateBuilder!.GetType().GetProperty("GetLightListDelegate")!.GetValue(delegateBuilder) as Delegate;
                 var endpoint = group.MapGet("light-list", getLightListDelegate!);
-                endpoint.WithSummary($"Get light list of {entity.Name}s. Only includes Id and {string.Join(",", lightListProperties)}.");
+                endpoint.WithSummary($"Get light list of {entity.Name}s. Only includes Id and {string.Join(",", lightListProperties)}");
             } 
             
             if (entity.CustomAttributes.Any(c => c.AttributeType== typeof(GetListPaginatedAttribute)))
