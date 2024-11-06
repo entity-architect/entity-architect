@@ -6,6 +6,7 @@ using EntityArchitect.Entities.Entities;
 using EntityArchitect.Entities.Repository;
 using EntityArchitect.Results;
 using EntityArchitect.Results.Abstracts;
+using Microsoft.AspNetCore.Mvc;
 
 namespace EntityArchitect.CRUD;
 
@@ -80,7 +81,7 @@ public class DelegateBuilder<
             return Result.Success();
         };
 
-    public Func<Guid, CancellationToken, ValueTask<Result<TEntityResponse>>> GetByIdDelegate =>
+    public Func<Guid, CancellationToken, ValueTask<IActionResult>> GetByIdDelegate =>
         async (id, cancellationToken) =>
         {
             using var scope = _provider.CreateScope();
@@ -94,12 +95,12 @@ public class DelegateBuilder<
             var spec = new SpecificationGetById<TEntity>(x => x.Id == id, properties);
 
             var entity = await service.GetBySpecificationIdAsync(spec, cancellationToken);
-            var response =
+            if (entity is not null)
+            {
+                return new OkObjectResult(entity?.ConvertEntityToResponse<TEntity, TEntityResponse>());
+            }
 
-                entity?.ConvertEntityToResponse<TEntity, TEntityResponse>() ??
-                Result.Failure<TEntityResponse>(Error.NotFound(id, _entityName));
-
-            return response;
+            return new NotFoundObjectResult(Result.Failure<TEntityResponse>(Error.NotFound(id, _entityName)));
         };
 
     public Func<int, CancellationToken, ValueTask<Result<List<TLightListResponse>>>> GetLightListDelegate =>
@@ -124,7 +125,8 @@ public class DelegateBuilder<
 
             return response;
         };
-
+    
+    /// <param name="page">Page of list. Indexing starts form 0</param>
     public Func<int, CancellationToken, ValueTask<Result<PaginatedResult<TEntityResponse>>>> GetListDelegate =>
         async (page, cancellationToken) =>
         {
