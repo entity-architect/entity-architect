@@ -6,6 +6,7 @@ using EntityArchitect.Entities.Entities;
 using EntityArchitect.Entities.Repository;
 using EntityArchitect.Results;
 using EntityArchitect.Results.Abstracts;
+using Microsoft.AspNetCore.Mvc;
 
 namespace EntityArchitect.CRUD;
 
@@ -22,15 +23,16 @@ public class DelegateBuilder<
     private readonly string _entityName = typeof(TEntity).Name;
     private DelegateBuilder(IServiceProvider provider) => _provider = provider;
 
-    public static DelegateBuilder<TE, TEcrq, TEurq, TErs, TLlr> Create<TE, TEcrq, TEurq, TErs, TLlr>(
+    public static DelegateBuilder<TE, TEcRq, TEuRq, TErs, TLlr> 
+        Create<TE, TEcRq, TEuRq, TErs, TLlr>(
         IServiceProvider provider)
         where TE : Entity
-        where TEcrq : class, new()
-        where TEurq : class, new()
+        where TEcRq : class, new()
+        where TEuRq : class, new()
         where TErs : EntityResponse, new()
         => new(provider);
 
-    public Func<TEntityCreateRequest, CancellationToken, ValueTask<Result<TEntityResponse>>> PostDelegate =>
+    public Func<TEntityCreateRequest, CancellationToken, ValueTask<IActionResult>> PostDelegate =>
         async (body, cancellationToken) =>
         {
             var entity = body.ConvertRequestToEntity<TEntity, TEntityCreateRequest>();
@@ -42,10 +44,10 @@ public class DelegateBuilder<
             }
 
             var res = entity.ConvertEntityToResponse<TEntity, TEntityResponse>();
-            return Result.Success(res);
+            return new OkObjectResult(Result.Success(res));
         };
 
-    public Func<TEntityUpdateRequest, CancellationToken, ValueTask<Result<TEntityResponse>>> UpdateDelegate =>
+    public Func<TEntityUpdateRequest, CancellationToken, ValueTask<IActionResult>> UpdateDelegate =>
         async (body, cancellationToken) =>
         {
             var entity = body.ConvertRequestToEntity<TEntity, TEntityUpdateRequest>();
@@ -58,10 +60,10 @@ public class DelegateBuilder<
             }
 
             var res = entity.ConvertEntityToResponse<TEntity, TEntityResponse>();
-            return Result.Success(res);
+            return new OkObjectResult(Result.Success(res));
         };
 
-    public Func<Guid, CancellationToken, ValueTask<Result>> DeleteDelegate =>
+    public Func<Guid, CancellationToken, ValueTask<IActionResult>> DeleteDelegate =>
         async (id, cancellationToken) =>
         {
             using (var scope = _provider.CreateScope())
@@ -71,16 +73,16 @@ public class DelegateBuilder<
 
                 var entity = await service.GetByIdAsync(id, cancellationToken);
                 if (entity is null)
-                    return Result.Failure(Error.NotFound(id, _entityName));
+                    return new NotFoundObjectResult(Result.Failure(Error.NotFound(id, _entityName)));
 
                 service.Remove(entity);
                 await unitOfWork.SaveChangesAsync(cancellationToken);
             }
 
-            return Result.Success();
+            return new OkObjectResult(Result.Success());
         };
 
-    public Func<Guid, CancellationToken, ValueTask<Result<TEntityResponse>>> GetByIdDelegate =>
+    public Func<Guid, CancellationToken, ValueTask<IActionResult>> GetByIdDelegate =>
         async (id, cancellationToken) =>
         {
             using var scope = _provider.CreateScope();
@@ -94,15 +96,15 @@ public class DelegateBuilder<
             var spec = new SpecificationGetById<TEntity>(x => x.Id == id, properties);
 
             var entity = await service.GetBySpecificationIdAsync(spec, cancellationToken);
-            var response =
+            if (entity is not null)
+            {
+                return new OkObjectResult(entity.ConvertEntityToResponse<TEntity, TEntityResponse>());
+            }
 
-                entity?.ConvertEntityToResponse<TEntity, TEntityResponse>() ??
-                Result.Failure<TEntityResponse>(Error.NotFound(id, _entityName));
-
-            return response;
+            return new NotFoundObjectResult(Result.Failure<TEntityResponse>(Error.NotFound(id, _entityName)));
         };
 
-    public Func<int, CancellationToken, ValueTask<Result<List<TLightListResponse>>>> GetLightListDelegate =>
+    public Func<int, CancellationToken, ValueTask<IActionResult>> GetLightListDelegate =>
         async (page, cancellationToken) =>
         {
             using var scope = _provider.CreateScope();
@@ -122,10 +124,10 @@ public class DelegateBuilder<
                         c.ConvertEntityToLightListResponse<TEntity, TLightListResponse>())
                     .ToList();
 
-            return response;
+            return new OkObjectResult(response);
         };
-
-    public Func<int, CancellationToken, ValueTask<Result<PaginatedResult<TEntityResponse>>>> GetListDelegate =>
+    
+    public Func<int, CancellationToken, ValueTask<IActionResult>> GetListDelegate =>
         async (page, cancellationToken) =>
         {
             using var scope = _provider.CreateScope();
@@ -146,12 +148,12 @@ public class DelegateBuilder<
                     .ToList();
             
             var totalCount = await service.GetCountAsync(cancellationToken);
-            var pageCount = (int)Math.Round((double)totalCount / (double)itemCount, MidpointRounding.ToEven);
+            var pageCount = (int)Math.Round((double)totalCount / itemCount, MidpointRounding.ToEven);
             var leftPages = pageCount - (page + 1);
             if(pageCount == 0) 
                 leftPages = 0;
             
             var paginatedResponse = new PaginatedResult<TEntityResponse>(response, page, leftPages, pageCount);
-            return paginatedResponse;
+            return new  OkObjectResult(paginatedResponse);
         };
 }
