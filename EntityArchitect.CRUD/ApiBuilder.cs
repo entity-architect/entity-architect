@@ -1,6 +1,8 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
+using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.Attributes;
+using EntityArchitect.CRUD.Helpers;
 using EntityArchitect.CRUD.TypeBuilders;
 using EntityArchitect.Entities.Entities;
 using EntityArchitect.Results;
@@ -8,7 +10,7 @@ using EntityArchitect.Results.Abstracts;
 
 namespace EntityArchitect.CRUD;
 
-public static partial class DependencyInjection
+public static partial class ApiBuilder
 {
     public static void Main()
     {

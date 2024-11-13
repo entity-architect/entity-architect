@@ -9,6 +9,7 @@
     <ItemGroup>
       <ProjectReference Include="..\EntityArchitect.CRUD\EntityArchitect.CRUD.csproj" />
       <ProjectReference Include="..\EntityArchitect.Enitites\EntityArchitect.Enitites.csproj" />
+      <ProjectReference Include="..\EntityArchitect.Enitites\EntityArchitect.Enitites.csproj" />
     </ItemGroup>
 
     <ItemGroup>
