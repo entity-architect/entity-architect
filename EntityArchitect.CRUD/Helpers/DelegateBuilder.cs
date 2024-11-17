@@ -118,20 +118,13 @@ public class DelegateBuilder<
             return new NotFoundObjectResult(Result.Failure<TEntityResponse>(Error.NotFound(id, _entityName)));
         };
 
-    public Func<int, CancellationToken, ValueTask<IActionResult>> GetLightListDelegate =>
+    public Func<CancellationToken, ValueTask<IActionResult>> GetLightListDelegate =>
         async (cancellationToken) =>
         {
             using var scope = _provider.CreateScope();
             var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
-            var itemCount = (int)typeof(TEntity).CustomAttributes
-                .First(c => c.AttributeType == typeof(GetListPaginatedAttribute)).ConstructorArguments.First().Value!;
-
-            var properties = typeof(TEntity).GetProperties()
-                .Where(x => x.CustomAttributes.Any(c => c.AttributeType == typeof(IncludeInGetAttribute)))
-                .Select(x => x.Name)
-                .ToList();
-
-            var entities = await service.GetLightListAsync(properties, cancellationToken);
+            
+            var entities = await service.GetLightListAsync(cancellationToken);
             
             var response
                 = entities.Select(c =>
