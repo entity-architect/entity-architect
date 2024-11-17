@@ -41,7 +41,7 @@ namespace EntityArchitect.Results.Abstracts
             _errors = errors;
         }
 
-        public bool IsSuccess { get; }
+        public bool IsSuccess { get; protected set; }
         public bool IsFailure => !IsSuccess;
 
         private List<Error> _errors = new();
