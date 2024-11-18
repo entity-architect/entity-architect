@@ -7,7 +7,9 @@ using EntityArchitect.Entities.Entities;
 using EntityArchitect.Entities.Repository;
 using EntityArchitect.Results;
 using EntityArchitect.Results.Abstracts;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Migrations.Operations;
 
 namespace EntityArchitect.CRUD.Helpers;
 

@@ -1,6 +1,5 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
-using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.Attributes;
 using EntityArchitect.CRUD.Helpers;
 using EntityArchitect.CRUD.TypeBuilders;
@@ -16,7 +15,7 @@ public static partial class ApiBuilder
     {
     }
 
-    public static WebApplication MapEntityArchitectCrud(this WebApplication app, Assembly assembly,string basePath = "")
+    public static IApplicationBuilder MapEntityArchitectCrud(this IApplicationBuilder app, Assembly assembly,string basePath = "")
     {
         var enumerable = assembly.ExportedTypes.Where(c => c.BaseType == typeof(Entity)).ToList();
         var typeBuilder = new TypeBuilder();
@@ -29,110 +28,119 @@ public static partial class ApiBuilder
             var requestUpdateType = typeBuilder.BuildUpdateRequestFromEntity(entity);
             var responseType = typeBuilder.BuildResponseFromEntity(entity);
             var lightListResponseType = typeBuilder.BuildLightListProperty(entity);
-            
-            var group = app.MapGroup(Path.Combine(basePath, name));
-            
-            var delegateBuilder = typeof(DelegateBuilder<,,,,>)
-                .MakeGenericType(entity, requestPostType, requestUpdateType, responseType, lightListResponseType)
-                .GetMethod("Create")?
-                .MakeGenericMethod(entity, requestPostType, requestUpdateType, responseType, lightListResponseType)
-                .Invoke(null, new object[] { app.Services });
-
-            if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotCreateAttribute)))
+            app.UseRouting();
+            app.UseEndpoints(endpoints =>
             {
-                var postHandler =
-                    delegateBuilder!.GetType().GetProperty("PostDelegate")!.GetValue(delegateBuilder) as Delegate;
-                var endpoint = group.MapPost("",postHandler!);
-                
-                endpoint.WithSummary($"Create {entity.Name}");
-                endpoint.WithDisplayName($"Create {entity.Name}");
-                endpoint.Produces(201, typeof(Result<>).MakeGenericType(responseType));
-                endpoint.Produces(400, typeof(Result));
-                endpoint.Produces(500, typeof(Result));
-            }
+                var group = endpoints.MapGroup(Path.Combine(basePath, name));
 
-            if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotUpdateAttribute)))
-            {
-                var updateHandler =
-                    delegateBuilder!.GetType().GetProperty("UpdateDelegate")!.GetValue(delegateBuilder) as Delegate;
-                var endpoint = group.MapPut("", updateHandler!);
-                
-                endpoint.WithSummary($"Update {entity.Name}");
-                endpoint.WithDisplayName($"Update {entity.Name}");
-                endpoint.Produces(200, typeof(Result<>).MakeGenericType(responseType));
-                endpoint.Produces(404, typeof(Result));
-                endpoint.Produces(500, typeof(Result));
-            }
+                var delegateBuilder = typeof(DelegateBuilder<,,,,>)
+                    .MakeGenericType(entity, requestPostType, requestUpdateType, responseType, lightListResponseType)
+                    .GetMethod("Create")?
+                    .MakeGenericMethod(entity, requestPostType, requestUpdateType, responseType, lightListResponseType)
+                    .Invoke(null, new object[] { endpoints.ServiceProvider });
 
-            if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotDeleteAttribute)))
-            {
-                var deleteHandler =
-                    delegateBuilder!.GetType().GetProperty("DeleteDelegate")!.GetValue(delegateBuilder) as Delegate;
-                var endpoint = group.MapDelete("{id}", deleteHandler!);
-                
-                endpoint.WithSummary($"Delete {entity.Name} by Id");
-                endpoint.WithDisplayName($"Delete {entity.Name} by Id");
-                endpoint.Produces(200, typeof(Result));
-                endpoint.Produces(404, typeof(Result));
-                endpoint.Produces(500, typeof(Result));
-                endpoint.WithOpenApi(op =>
+                if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotCreateAttribute)))
                 {
-                    op.Parameters.First(c => c.Name == "id").Description = "Id of the entity";
-                    return op;
-                });
-            }
+                    var postHandler =
+                        delegateBuilder!.GetType().GetProperty("PostDelegate")!.GetValue(delegateBuilder) as Delegate;
+                    var endpoint = group.MapPost("", postHandler!);
 
-            if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotGetByIdAttribute)))
-            {
-                var getByIdHandler =
-                    delegateBuilder!.GetType().GetProperty("GetByIdDelegate")!.GetValue(delegateBuilder) as Delegate;
-                
-                var endpoint = group.MapGet("{id}", getByIdHandler!);
-                
-                endpoint.WithSummary($"Get {entity.Name} by Id");
-                endpoint.WithDisplayName($"Get {entity.Name} by Id");
-                endpoint.Produces(200, typeof(Result<>).MakeGenericType(responseType));
-                endpoint.Produces(404, typeof(Result));
-                endpoint.Produces(500, typeof(Result));
-                endpoint.WithOpenApi(op =>
+                    endpoint.WithSummary($"Create {entity.Name}");
+                    endpoint.WithDisplayName($"Create {entity.Name}");
+                    endpoint.Produces(200, typeof(Result<>).MakeGenericType(responseType));
+                    endpoint.Produces(400, typeof(Result));
+                    endpoint.Produces(500, typeof(Result));
+                }
+
+                if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotUpdateAttribute)))
                 {
-                    op.Parameters.First(c => c.Name == "id").Description = "Id of the entity";
-                    return op;
-                });
-            }
-            
-            if (entity.CustomAttributes.Any(c => c.AttributeType == typeof(HasLightListAttribute)))
-            {
-                var lightListProperties = 
-                    entity.GetProperties()
-                    .Where(c =>c.CustomAttributes
-                        .Select(attributeData => attributeData.AttributeType)
-                        .Contains(typeof(LightListPropertyAttribute)))
-                    .Select(c=> c.Name)
-                    .ToList();
-                
-                var getLightListDelegate =
-                    delegateBuilder!.GetType().GetProperty("GetLightListDelegate")!.GetValue(delegateBuilder) as Delegate;
-                var endpoint = group.MapGet("light-list", getLightListDelegate!);
-                endpoint.WithSummary($"Get light list of {entity.Name}s. Only includes Id and {string.Join(",", lightListProperties)}");
-            } 
-            
-            if (entity.CustomAttributes.Any(c => c.AttributeType== typeof(GetListPaginatedAttribute)))
-            {
-                var getLightListDelegate =
-                    delegateBuilder!.GetType().GetProperty("GetListDelegate")!.GetValue(delegateBuilder) as Delegate;
-                var endpoint = group.MapGet("list/{page}", getLightListDelegate!);
-                endpoint.WithSummary($"Get list of {entity.Name}s paginated");
-                endpoint.WithOpenApi(op =>
+                    var updateHandler =
+                        delegateBuilder!.GetType().GetProperty("UpdateDelegate")!.GetValue(delegateBuilder) as Delegate;
+                    var endpoint = group.MapPut("", updateHandler!);
+
+                    endpoint.WithSummary($"Update {entity.Name}");
+                    endpoint.WithDisplayName($"Update {entity.Name}");
+                    endpoint.Produces(200, typeof(Result<>).MakeGenericType(responseType));
+                    endpoint.Produces(404, typeof(Result));
+                    endpoint.Produces(500, typeof(Result));
+                }
+
+                if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotDeleteAttribute)))
                 {
-                    op.Parameters.First(c => c.Name == "page").Description = "Page number, indexing starts from 0";
-                    return op;
-                });
-                endpoint.WithDisplayName($"Get paginated list of {entity.Name}s");
-                endpoint.Produces(200, typeof(Result<>).MakeGenericType(typeof(PaginatedResult<>).MakeGenericType(responseType)));
-                endpoint.Produces(500, typeof(Result));
-            }
-            group.WithTags(name);
+                    var deleteHandler =
+                        delegateBuilder!.GetType().GetProperty("DeleteDelegate")!.GetValue(delegateBuilder) as Delegate;
+                    var endpoint = group.MapDelete("{id}", deleteHandler!);
+
+                    endpoint.WithSummary($"Delete {entity.Name} by Id");
+                    endpoint.WithDisplayName($"Delete {entity.Name} by Id");
+                    endpoint.Produces(200, typeof(Result));
+                    endpoint.Produces(404, typeof(Result));
+                    endpoint.Produces(500, typeof(Result));
+                    endpoint.WithOpenApi(op =>
+                    {
+                        op.Parameters.First(c => c.Name == "id").Description = "Id of the entity";
+                        return op;
+                    });
+                }
+
+                if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotGetByIdAttribute)))
+                {
+                    var getByIdHandler =
+                        delegateBuilder!.GetType().GetProperty("GetByIdDelegate")!
+                            .GetValue(delegateBuilder) as Delegate;
+
+                    var endpoint = group.MapGet("{id}", getByIdHandler!);
+
+                    endpoint.WithSummary($"Get {entity.Name} by Id");
+                    endpoint.WithDisplayName($"Get {entity.Name} by Id");
+                    endpoint.Produces(200, typeof(Result<>).MakeGenericType(responseType));
+                    endpoint.Produces(404, typeof(Result));
+                    endpoint.Produces(500, typeof(Result));
+                    endpoint.WithOpenApi(op =>
+                    {
+                        op.Parameters.First(c => c.Name == "id").Description = "Id of the entity";
+                        return op;
+                    });
+                }
+
+                if (entity.CustomAttributes.Any(c => c.AttributeType == typeof(HasLightListAttribute)))
+                {
+                    var lightListProperties =
+                        entity.GetProperties()
+                            .Where(c => c.CustomAttributes
+                                .Select(attributeData => attributeData.AttributeType)
+                                .Contains(typeof(LightListPropertyAttribute)))
+                            .Select(c => c.Name)
+                            .ToList();
+
+                    var getLightListDelegate =
+                        delegateBuilder!.GetType().GetProperty("GetLightListDelegate")!.GetValue(delegateBuilder) as
+                            Delegate;
+                    var endpoint = group.MapGet("light-list", getLightListDelegate!);
+                    endpoint.WithSummary(
+                        $"Get light list of {entity.Name}s. Only includes Id and {string.Join(",", lightListProperties)}");
+                }
+
+                if (entity.CustomAttributes.Any(c => c.AttributeType == typeof(GetListPaginatedAttribute)))
+                {
+                    var getLightListDelegate =
+                        delegateBuilder!.GetType().GetProperty("GetListDelegate")!
+                            .GetValue(delegateBuilder) as Delegate;
+                    var endpoint = group.MapGet("list/{page}", getLightListDelegate!);
+                    endpoint.WithSummary($"Get list of {entity.Name}s paginated");
+                    endpoint.WithOpenApi(op =>
+                    {
+                        op.Parameters.First(c => c.Name == "page").Description = "Page number, indexing starts from 0";
+                        return op;
+                    });
+                    endpoint.WithDisplayName($"Get paginated list of {entity.Name}s");
+                    endpoint.Produces(200,
+                        typeof(Result<>).MakeGenericType(typeof(PaginatedResult<>).MakeGenericType(responseType)));
+                    endpoint.Produces(500, typeof(Result));
+                }
+
+                group.WithTags(name);
+            });
         }
         
         return app;

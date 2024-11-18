@@ -10,9 +10,8 @@ namespace EntityArchitect.Entities;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddEntityArchitect(this IServiceCollection services, Assembly entityAssembly, IConfiguration configuration)
+    public static IServiceCollection AddEntityArchitect(this IServiceCollection services, Assembly entityAssembly, string connectionString)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
         services.AddSingleton(entityAssembly);
         
         services.AddDbContext<ApplicationDbContext>(opt =>
@@ -31,9 +30,16 @@ public static class DependencyInjection
             
             services.AddScoped(repositoryType, repositoryImplementationType);
         }
-        
+
+        using (var scope = services.BuildServiceProvider().CreateScope())
+        {
+            if (string.IsNullOrEmpty(connectionString)) return services;
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            dbContext.Database.Migrate();
+        }
+
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
-        
+
         return services;
     }
 }
