@@ -1,14 +1,13 @@
 using EntityArchitect.CRUD.TypeBuilders;
 using EntityArchitect.Entities.Entities;
 using Newtonsoft.Json;
-using Xunit;
 
-namespace EntityArchitect.Testing;
+namespace EntityArchitect.Testing.TestAttributes;
 
 [AttributeUsage(AttributeTargets.Method)]
-public sealed class TestAttribute<TEntity> : BaseTestAttribute where TEntity : Entity
+public sealed class SingleTestAttribute<TEntity> : BaseTestAttribute where TEntity : Entity
 {
-    public TestAttribute(string testDataFileName)
+    public SingleTestAttribute(string testDataFileName)
     {
         if (!File.Exists(testDataFileName))
             throw new Exception("Test file does not exist");
