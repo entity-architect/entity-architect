@@ -1,9 +1,20 @@
-{
-  "testName": "PostTest_Success_1",
-  "entityName": "Author",
-  "method": "POST",
-  "ExpectedStatusCode": 200,
-  "request": {
-    "name": "string 2"
+[
+  {
+    "testName": "PostTest_Success",
+    "entityName": "Author",
+    "method": "POST",
+    "ExpectedStatusCode": 200,
+    "request": {
+      "name": "Author 1"
+    }
+  },
+  {
+    "testName": "PutTest_Success",
+    "entityName": "Author",
+    "method": "PUT",
+    "ExpectedStatusCode": 200,
+    "request": {
+      "name": "Author 2"
+    }
   }
-}
+]

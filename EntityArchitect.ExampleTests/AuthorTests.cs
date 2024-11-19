@@ -10,6 +10,6 @@ public class AuthorTests(IntegrationTestWebAppFactory<Startup> factory) : AppFix
 {
     [SingleTest<Author>("testData.json")]
     public Task Test1() => Client.RunTest<AuthorTests>();
-    [SingleTest<Author>("testData1.json")]
+    [MultiTest<Author>("testData1.json")]
     public Task Test2() => Client.RunTest<AuthorTests>();
 }

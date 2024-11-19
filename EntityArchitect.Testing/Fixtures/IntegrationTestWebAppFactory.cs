@@ -19,7 +19,6 @@ namespace EntityArchitect.Testing.Fixtures
             .WithDatabase("db")
             .WithUsername("admin")
             .WithPassword("admin")
-            .WithPortBinding(55000)
             .Build();
 
         public Task InitializeAsync()

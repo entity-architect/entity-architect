@@ -1,4 +1,4 @@
-namespace EntityArchitect.Testing;
+namespace EntityArchitect.Testing.TestModels;
 
 public class TestModel<TRequest> : TestModelData
 {

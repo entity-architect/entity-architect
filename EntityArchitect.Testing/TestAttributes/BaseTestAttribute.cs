@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace EntityArchitect.Testing;
+namespace EntityArchitect.Testing.TestAttributes;
 
 public class BaseTestAttribute : FactAttribute
 {

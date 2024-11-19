@@ -1,5 +1,6 @@
 using EntityArchitect.CRUD.TypeBuilders;
 using EntityArchitect.Entities.Entities;
+using EntityArchitect.Testing.TestModels;
 using Newtonsoft.Json;
 
 namespace EntityArchitect.Testing.TestAttributes;
