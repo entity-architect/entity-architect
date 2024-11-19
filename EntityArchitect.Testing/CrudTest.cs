@@ -14,6 +14,9 @@ public static class CrudTest
     [Fact]
     public static async Task RunTest<T>(this HttpClient client, [CallerMemberName] string methodName = "")
     {
+        List<(string testName, object response)> responses = [];
+        if (responses == null) throw new ArgumentNullException(nameof(responses));
+
         var type = typeof(T);
         var method = type.GetMethod(methodName);
 
@@ -21,11 +24,17 @@ public static class CrudTest
         var path = attribute.ConstructorArguments[0].Value as string;
         TypeBuilder typeBuilder = new();
         var requestType = typeBuilder.BuildCreateRequestFromEntity(attribute.AttributeType.GetGenericArguments()[0]);
+        var responseType = typeBuilder.BuildCreateRequestFromEntity(attribute.AttributeType.GetGenericArguments()[0]);
 
         var testDataString = await File.ReadAllTextAsync(path!);
 
         var testModelType = typeof(TestModel<>).MakeGenericType(requestType);
-        if (attribute.AttributeType == typeof(MultiTestAttribute<>).MakeGenericType(attribute.AttributeType.GetGenericArguments()[0]) )
+        bool isMultiTest = attribute.AttributeType ==
+                           typeof(MultiTestAttribute<>).MakeGenericType(
+                               attribute.AttributeType.GetGenericArguments()[0]);
+
+        //TODO antoher request for put
+        if (isMultiTest)
         {
             testModelType = typeof(List<>).MakeGenericType(testModelType);
         }
@@ -35,107 +44,138 @@ public static class CrudTest
             throw new Exception("Test data is not json");
 
         List<object> testModels;
-        if (attribute.AttributeType == typeof(MultiTestAttribute<>).MakeGenericType(attribute.AttributeType.GetGenericArguments()[0]))
+        if (isMultiTest)
         {
-            testModels = (testModel as List<object>)!;
+            testModels = (testModel as IEnumerable<object>)?.ToList() ??
+                         throw new Exception("Failed to cast to List<object>");
         }
         else
         {
-            testModels = [(TestModelData)testModel];
+            testModels = [testModel];
         }
+
 
         foreach (var model in testModels)
         {
             var jsonRequest = JsonConvert.SerializeObject(model);
             var jsonObject = JObject.Parse(jsonRequest);
-            var requestData = (jsonObject["Request"] ?? jsonObject["Request"]!).ToString();
+            var requestData = (jsonObject["Request"] ?? throw new Exception("Request data is missing")).ToString();
 
-            switch ((model as TestModelData).Method)
+            requestData = requestData.Replace("Guid:Random", Guid.NewGuid().ToString());
+            requestData = requestData.Replace("\"Int:Random\"", new Random().NextInt64().ToString());
+            requestData = requestData.Replace("DateTime:Now", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+
+            switch ((model as TestModelData)?.Method)
             {
                 case "POST":
-                    await Post(client, model, requestData);
+                    responses.Add(new ValueTuple<string, object>((model as TestModelData)!.EntityName,
+                        await Post(client, model, requestData)));
                     break;
                 case "GET":
-                    await Get(client, model as TestModelGet);
+                    responses.Add(new ValueTuple<string, object>((model as TestModelData)!.EntityName,
+                        await Get(client, model as TestModelGet)));
                     break;
                 case "PUT":
-                    await Put(client, model, requestData);
+                    responses.Add(new ValueTuple<string, object>((model as TestModelData)!.EntityName,
+                        await Put(client, model, requestData)));
                     break;
                 case "DELETE":
                     await Delete(client, model, requestData);
                     break;
                 case "PAGINATED_GET":
-                    await PaginatedGet(client, (model as TestModelPaginatedGet)!);
+                    responses.Add(new ValueTuple<string, object>((model as TestModelData)!.EntityName,
+                        await PaginatedGet(client, (model as TestModelPaginatedGet)!)));
                     break;
+                default:
+                    throw new InvalidOperationException("Invalid method type");
             }
         }
     }
 
-    private static async Task Post(HttpClient client, object testModel, string requestData)
+
+    private static async Task<string> Post(HttpClient client, object testModel, string requestData)
     {
         var httpMessage = new HttpRequestMessage
         {
             Method = HttpMethod.Post,
-            RequestUri = new Uri($"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{(testModel as TestModelData)!.EntityName.ToLower()}/"),
+            RequestUri =
+                new Uri(
+                    $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{(testModel as TestModelData)!.EntityName.ToLower()}/"),
             Content = new StringContent(requestData, Encoding.UTF8, "application/json")
         };
         var response = await client.SendAsync(httpMessage);
+
         var statusCodeResponse = response.EnsureSuccessStatusCode();
-        
+
         Assert.Equal((testModel as TestModelData)!.ExpectedStatusCode, (int)statusCodeResponse.StatusCode);
+
+        return await response.Content.ReadAsStringAsync();
     }
-    
-    private static async Task Put(HttpClient client, object testModel, string requestData)
+
+    private static async Task<string> Put(HttpClient client, object testModel, string requestData)
     {
         var httpMessage = new HttpRequestMessage
         {
             Method = HttpMethod.Put,
-            RequestUri = new Uri($"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{(testModel as TestModelData)!.EntityName.ToLower()}/"),
+            RequestUri =
+                new Uri(
+                    $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{(testModel as TestModelData)!.EntityName.ToLower()}/"),
             Content = new StringContent(requestData, Encoding.UTF8, "application/json")
         };
         var response = await client.SendAsync(httpMessage);
         var statusCodeResponse = response.EnsureSuccessStatusCode();
-        
+
         Assert.Equal((testModel as TestModelData)!.ExpectedStatusCode, (int)statusCodeResponse.StatusCode);
+
+        return await response.Content.ReadAsStringAsync();
     }
-    
+
     private static async Task Delete(HttpClient client, object testModel, string requestData)
     {
         var httpMessage = new HttpRequestMessage
         {
             Method = HttpMethod.Delete,
-            RequestUri = new Uri($"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{(testModel as TestModelData)!.EntityName.ToLower()}/"),
+            RequestUri =
+                new Uri(
+                    $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{(testModel as TestModelData)!.EntityName.ToLower()}/"),
             Content = new StringContent(requestData, Encoding.UTF8, "application/json")
         };
         var response = await client.SendAsync(httpMessage);
         var statusCodeResponse = response.EnsureSuccessStatusCode();
-        
+
         Assert.Equal((testModel as TestModelData)!.ExpectedStatusCode, (int)statusCodeResponse.StatusCode);
     }
 
-    private static async Task Get(HttpClient client, TestModelGet? testModel)
+    private static async Task<string> Get(HttpClient client, TestModelGet? testModel)
     {
         var httpMessage = new HttpRequestMessage
         {
             Method = HttpMethod.Get,
-            RequestUri = new Uri($"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel!.EntityName.ToLower()}/{testModel.Id}"),
+            RequestUri =
+                new Uri(
+                    $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel!.EntityName.ToLower()}/{testModel.Id}"),
         };
         var response = await client.SendAsync(httpMessage);
         var statusCodeResponse = response.EnsureSuccessStatusCode();
-        
+
         Assert.Equal(testModel.ExpectedStatusCode, (int)statusCodeResponse.StatusCode);
+        return await response.Content.ReadAsStringAsync();
     }
-    
-    private static async Task PaginatedGet(HttpClient client, TestModelPaginatedGet testModel)
+
+    private static async Task<string> PaginatedGet(HttpClient client, TestModelPaginatedGet testModel)
     {
         var httpMessage = new HttpRequestMessage
         {
             Method = HttpMethod.Get,
-            RequestUri = new Uri($"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel   .EntityName.ToLower()}/?page={testModel.Page}"),
+            RequestUri =
+                new Uri(
+                    $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel.EntityName.ToLower()}/?page={testModel.Page}"),
         };
         var response = await client.SendAsync(httpMessage);
         var statusCodeResponse = response.EnsureSuccessStatusCode();
-        
+
         Assert.Equal(testModel.ExpectedStatusCode, (int)statusCodeResponse.StatusCode);
+
+        return await response.Content.ReadAsStringAsync();
     }
 }

@@ -6,7 +6,7 @@
     "ExpectedStatusCode": 200,
     "request": {
       "name": "Author 1"
-    }
+    }   
   },
   {
     "testName": "PutTest_Success",
@@ -14,6 +14,7 @@
     "method": "PUT",
     "ExpectedStatusCode": 200,
     "request": {
+      "id": "Guid:Random",
       "name": "Author 2"
     }
   }
