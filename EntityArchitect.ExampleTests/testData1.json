@@ -1,6 +1,6 @@
 [
   {
-    "testName": "PostTest_Success",
+    "testName": "PostTest",
     "entityName": "Author",
     "method": "POST",
     "ExpectedStatusCode": 200,
@@ -9,12 +9,12 @@
     }   
   },
   {
-    "testName": "PutTest_Success",
+    "testName": "PutTest",
     "entityName": "Author",
     "method": "PUT",
     "ExpectedStatusCode": 200,
     "request": {
-      "id": "Guid:Random",
+      "id": "PostTest.Id",
       "name": "Author 2"
     }
   }

@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 using EntityArchitect.CRUD.TypeBuilders;
+using EntityArchitect.Testing.Helpers;
 using EntityArchitect.Testing.TestAttributes;
 using EntityArchitect.Testing.TestModels;
 using Newtonsoft.Json;
@@ -23,12 +24,12 @@ public static class CrudTest
         var attribute = method!.CustomAttributes.First(c => c.AttributeType.BaseType == typeof(BaseTestAttribute));
         var path = attribute.ConstructorArguments[0].Value as string;
         TypeBuilder typeBuilder = new();
-        var requestType = typeBuilder.BuildCreateRequestFromEntity(attribute.AttributeType.GetGenericArguments()[0]);
-        var responseType = typeBuilder.BuildCreateRequestFromEntity(attribute.AttributeType.GetGenericArguments()[0]);
+        var postRequestType = typeBuilder.BuildCreateRequestFromEntity(attribute.AttributeType.GetGenericArguments()[0]);
+        var putRequestType = typeBuilder.BuildUpdateRequestFromEntity(attribute.AttributeType.GetGenericArguments()[0]);
 
         var testDataString = await File.ReadAllTextAsync(path!);
 
-        var testModelType = typeof(TestModel<>).MakeGenericType(requestType);
+        var testModelType = typeof(TestModel<object>);
         bool isMultiTest = attribute.AttributeType ==
                            typeof(MultiTestAttribute<>).MakeGenericType(
                                attribute.AttributeType.GetGenericArguments()[0]);
@@ -54,7 +55,6 @@ public static class CrudTest
             testModels = [testModel];
         }
 
-
         foreach (var model in testModels)
         {
             var jsonRequest = JsonConvert.SerializeObject(model);
@@ -65,27 +65,40 @@ public static class CrudTest
             requestData = requestData.Replace("\"Int:Random\"", new Random().NextInt64().ToString());
             requestData = requestData.Replace("DateTime:Now", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
 
+            var testName = (model as TestModelData)!.TestName;
             switch ((model as TestModelData)?.Method)
             {
                 case "POST":
-                    responses.Add(new ValueTuple<string, object>((model as TestModelData)!.EntityName,
-                        await Post(client, model, requestData)));
+                {
+                    requestData.FormatRequest(responses);
+                    var result = await Post(client, model, requestData);
+                    responses.Add(new ValueTuple<string, object>(testName ,result));
                     break;
+                }
                 case "GET":
-                    responses.Add(new ValueTuple<string, object>((model as TestModelData)!.EntityName,
-                        await Get(client, model as TestModelGet)));
+                {
+                    var result = await Get(client, model as TestModelGet);
+                    responses.Add(new ValueTuple<string, object>(testName, result));
                     break;
+                }
                 case "PUT":
-                    responses.Add(new ValueTuple<string, object>((model as TestModelData)!.EntityName,
-                        await Put(client, model, requestData)));
+                {
+                    requestData.FormatRequest(responses);
+                    var result = await Put(client, model, requestData);
+                    responses.Add(new ValueTuple<string, object>(testName, result));
                     break;
+                }
                 case "DELETE":
+                {
                     await Delete(client, model, requestData);
                     break;
+                }
                 case "PAGINATED_GET":
-                    responses.Add(new ValueTuple<string, object>((model as TestModelData)!.EntityName,
-                        await PaginatedGet(client, (model as TestModelPaginatedGet)!)));
+                {
+                    var result =  await PaginatedGet(client, (model as TestModelPaginatedGet)!);
+                    responses.Add(new ValueTuple<string, object>(testName, result));
                     break;
+                }
                 default:
                     throw new InvalidOperationException("Invalid method type");
             }
