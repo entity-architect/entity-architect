@@ -45,7 +45,7 @@ public class DelegateBuilder<
             {
                 var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
                 var actions =scope.GetEndpointActionsAsync<TEntity>();
-
+                entity.SetCreatedDate();
                 entity = await actions!.InvokeBeforePostAsync(entity, cancellationToken);
                 await service.ExecuteSqlAsync(sql, cancellationToken);
                 entity = await actions!.InvokeAfterPostAsync(entity, cancellationToken);
@@ -113,11 +113,15 @@ public class DelegateBuilder<
             var entity = await service.GetBySpecificationIdAsync(spec, cancellationToken);
             if (entity is not null)
             {
-                entity =  await actions.InvokeAfterGetByIdAsync(entity, cancellationToken);
+                entity = await actions.InvokeAfterGetByIdAsync(entity, cancellationToken);
                 return new OkObjectResult(entity.ConvertEntityToResponse<TEntity, TEntityResponse>());
             }
-
-            return new NotFoundObjectResult(Result.Failure<TEntityResponse>(Error.NotFound(id, _entityName)));
+            
+            var result = Result.Failure(Error.NotFound(id, _entityName));
+            return new ObjectResult(result)
+            {
+                StatusCode = 404 
+            };        
         };
 
     public Func<CancellationToken, ValueTask<IActionResult>> GetLightListDelegate =>

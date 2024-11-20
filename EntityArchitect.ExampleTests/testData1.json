@@ -14,8 +14,29 @@
     "method": "PUT",
     "ExpectedStatusCode": 200,
     "request": {
-      "id": "PostTest.Id",
+      "id": "{PostTest.Id}",
       "name": "Author 2"
     }
-  }
+  },
+    {
+        "testName": "GetTest",
+        "entityName": "Author",
+        "method": "GET",
+        "ExpectedStatusCode": 200,
+        "id": "{PutTest.Id}"
+    },
+    {
+        "testName": "DeleteTest",
+        "entityName": "Author",
+        "method": "DELETE",
+        "ExpectedStatusCode": 200,
+        "id": "{GetTest.Id}"
+    },
+    {
+        "testName": "GetTest",
+        "entityName": "Author",
+        "method": "GET",
+        "ExpectedStatusCode": 404,
+        "id": "{PutTest.Id}"
+    }
 ]

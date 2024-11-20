@@ -3,7 +3,6 @@ using EntityArchitect.Entities.Context;
 using EntityArchitect.Entities.Entities;
 using EntityArchitect.Entities.Repository;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EntityArchitect.Entities;

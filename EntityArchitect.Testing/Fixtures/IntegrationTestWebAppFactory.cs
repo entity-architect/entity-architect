@@ -5,8 +5,10 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -42,10 +44,23 @@ namespace EntityArchitect.Testing.Fixtures
                 {
                     services.Remove(descriptor);
                 }
+                services.AddLogging(builder =>
+                {
+                    builder.AddFilter("Microsoft.AspNetCore", LogLevel.None); // Wyłączenie EF Core
+                });
+                
+                services.AddDbContext<ApplicationDbContext>(options =>
+                {
+                    options.UseNpgsql(connectionString);
+                    options.UseLoggerFactory(LoggerFactory.Create(builder =>
+                    {
+                        builder.SetMinimumLevel(LogLevel.Critical); 
+                    }));
+                    options.UseSnakeCaseNamingConvention();
+                }
+                    );
 
-                services.AddDbContext<ApplicationDbContext>(options => 
-                    options.UseNpgsql(connectionString)
-                        .UseSnakeCaseNamingConvention());
+                services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
                 
                 using (var scope = services.BuildServiceProvider().CreateScope())
                 {
