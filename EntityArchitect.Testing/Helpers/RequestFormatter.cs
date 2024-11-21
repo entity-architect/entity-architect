@@ -5,13 +5,18 @@ namespace EntityArchitect.Testing.Helpers;
 
 public static class RequestFormatter
 {
-    public static string FormatRequest(this string request, List<(string testName, object response)> responses)
+    public static string? FormatRequest(this string? request, List<(string testName, object response)> responses)
     {
-        if (string.IsNullOrEmpty(request) || responses == null || !responses.Any())
+        if (string.IsNullOrEmpty(request) || responses.Count == 0)
             return request;
 
         var regex = new System.Text.RegularExpressions.Regex(@"{(\w+)\.(.+)}");
 
+        request = request.Replace("Guid:Random", Guid.NewGuid().ToString());
+        request = request.Replace("\"Int:Random\"", new Random().NextInt64().ToString());
+        request = request.Replace("DateTime:Now", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+
+        
         request = regex.Replace(request, match =>
         {
             var testName = match.Groups[1].Value; 
@@ -31,14 +36,7 @@ public static class RequestFormatter
                 if (jsonObject == null)
                     return match.Value;
 
-                if (jsonObject["value"]["value"] != null)
-                {
-                    jsonObject = jsonObject["value"]["value"];
-                }
-                else
-                {
-                    jsonObject = jsonObject["value"];
-                }
+                jsonObject = jsonObject["value"]?["value"] ?? jsonObject["value"];
 
                 if (jsonObject == null)
                     return match.Value;
@@ -48,14 +46,13 @@ public static class RequestFormatter
                 {
                     currentNode = jsonObject?[ToCamelCase(propertyName)];
                     if (currentNode is not null)
-                        request=request.Replace(testName + "." + "testName", currentNode.ToString());
+                        request = request.Replace(testName + "." + "testName", currentNode.ToString());
                 }
 
                 return currentNode?.ToString() ?? match.Value;
             }
             catch (JsonException)
             {
-                // Handle invalid JSON
                 return match.Value;
             }
         });

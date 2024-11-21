@@ -1,16 +1,11 @@
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
-using EFCore.NamingConventions.Internal;
-using EntityArchitect.CRUD.TypeBuilders;
 using EntityArchitect.Testing.Helpers;
 using EntityArchitect.Testing.TestAttributes;
 using EntityArchitect.Testing.TestModels;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Serialization;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace EntityArchitect.Testing;
 
@@ -61,19 +56,16 @@ public static class CrudTest
             var jsonObject = JObject.Parse(jsonRequest);
             var requestData = jsonObject["request".ToCamelCase()]?.ToString() ?? null;
 
-            if (requestData is not null)
-            {
-                requestData = requestData.Replace("Guid:Random", Guid.NewGuid().ToString());
-                requestData = requestData.Replace("\"Int:Random\"", new Random().NextInt64().ToString());
-                requestData = requestData.Replace("DateTime:Now", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-            }
-
-            var modelData = JsonConvert.DeserializeObject<TestModelData>(model.ToString());
+            var modelData = JsonConvert.DeserializeObject<TestModelData>(model.ToString() ?? "{}");
             var testName = modelData?.TestName;
+            if (testName is null)
+                throw new Exception("Test name is null");
             switch (modelData?.Method)
             {
                 case "POST":
                 {
+                    if (requestData is null)
+                        throw new Exception("Request is null");
                     requestData.FormatRequest(responses);
                     var result = await Post(client, modelData, requestData);
                     responses.Add(new ValueTuple<string, object>(testName ,result));
@@ -82,10 +74,16 @@ public static class CrudTest
                 case "GET":
                 {
                     var id = jsonObject["id"]?.ToString();
+                    if (id is null)
+                        throw new Exception("Id is null");
                     id = id.FormatRequest(responses);
-                    var formattedModel = model as JObject;
+
+                    if (model is not JObject formattedModel)
+                        throw new Exception("Model is not JObject");
                     formattedModel["id"] = id;
                     var getModelData = JsonConvert.DeserializeObject<TestModelGet>(formattedModel.ToString()!);
+                    if (getModelData is null)
+                        throw new Exception("Model is not ModelTestGet");
                     var result = await Get(client, getModelData);
                     responses.Add(new ValueTuple<string, object>(testName, result));
                     break;
@@ -93,6 +91,8 @@ public static class CrudTest
                 case "PUT":
                 {
                     requestData = requestData.FormatRequest(responses);
+                    if (requestData is null)
+                        throw new Exception("Request is null");
                     var result = await Put(client, modelData, requestData);
                     responses.Add(new ValueTuple<string, object>(testName, result));
                     break;
@@ -100,10 +100,17 @@ public static class CrudTest
                 case "DELETE":
                 {
                     var id = jsonObject["id"]?.ToString();
+                    if (id is null)
+                        throw new Exception("Id is null");
                     id = id.FormatRequest(responses);
-                    var formattedModel = model as JObject;
+
+                    if (model is not JObject formattedModel)
+                        throw new Exception("Model is not JObject");
                     formattedModel["id"] = id;
                     var getModelData = JsonConvert.DeserializeObject<TestModelGet>(formattedModel.ToString()!);
+                    if (getModelData is null)
+                        throw new Exception("Model is not ModelTestGet");
+                    
                     await Delete(client, getModelData);
                     break;
                 }
@@ -116,8 +123,6 @@ public static class CrudTest
                 default:
                     throw new InvalidOperationException("Invalid method type");
             }
-            
-            Console.WriteLine($"* {testName} passed");
         }
     }
 
@@ -129,14 +134,14 @@ public static class CrudTest
             Method = HttpMethod.Post,
             RequestUri =
                 new Uri(
-                    $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{(testModel as TestModelData)!.EntityName.ToLower()}/"),
+                    $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel.EntityName.ToLower()}/"),
             Content = new StringContent(requestData, Encoding.UTF8, "application/json")
         };
         var response = await client.SendAsync(httpMessage);
 
         var statusCodeResponse = response.EnsureSuccessStatusCode();
 
-        Assert.Equal((testModel as TestModelData)!.ExpectedStatusCode, (int)statusCodeResponse.StatusCode);
+        Assert.Equal(testModel.ExpectedStatusCode, (int)statusCodeResponse.StatusCode);
 
         return await response.Content.ReadAsStringAsync();
     }
@@ -148,13 +153,13 @@ public static class CrudTest
             Method = HttpMethod.Put,
             RequestUri =
                 new Uri(
-                    $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel!.EntityName.ToLower()}/"),
+                    $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel.EntityName.ToLower()}/"),
             Content = new StringContent(requestData, Encoding.UTF8, "application/json")
         };
         var response = await client.SendAsync(httpMessage);
         var statusCodeResponse = response.EnsureSuccessStatusCode();
 
-        Assert.Equal((testModel as TestModelData)!.ExpectedStatusCode, (int)statusCodeResponse.StatusCode);
+        Assert.Equal(testModel.ExpectedStatusCode, (int)statusCodeResponse.StatusCode);
 
         return await response.Content.ReadAsStringAsync();
     }
@@ -166,12 +171,12 @@ public static class CrudTest
             Method = HttpMethod.Delete,
             RequestUri =
                 new Uri(
-                    $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel!.EntityName.ToLower()}/{testModel.Id}"),
+                    $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel.EntityName.ToLower()}/{testModel.Id}"),
         };
         var response = await client.SendAsync(httpMessage);
         var statusCodeResponse = response.EnsureSuccessStatusCode();
 
-        Assert.Equal((testModel as TestModelData)!.ExpectedStatusCode, (int)statusCodeResponse.StatusCode);
+        Assert.Equal(testModel.ExpectedStatusCode, (int)statusCodeResponse.StatusCode);
     }
 
     private static async Task<string> Get(HttpClient client, TestModelGet? testModel)
@@ -187,7 +192,7 @@ public static class CrudTest
         var statusCodeResponse = response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
         Assert.Equal(testModel.ExpectedStatusCode, (int)statusCodeResponse.StatusCode);
-        return content ;
+        return content;
     }
 
     private static async Task<string> PaginatedGet(HttpClient client, TestModelPaginatedGet testModel)
