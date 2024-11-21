@@ -114,14 +114,11 @@ public class DelegateBuilder<
             if (entity is not null)
             {
                 entity = await actions.InvokeAfterGetByIdAsync(entity, cancellationToken);
-                return new OkObjectResult(entity.ConvertEntityToResponse<TEntity, TEntityResponse>());
+                return new OkObjectResult(Result.Success(entity.ConvertEntityToResponse<TEntity, TEntityResponse>()));
             }
             
             var result = Result.Failure(Error.NotFound(id, _entityName));
-            return new ObjectResult(result)
-            {
-                StatusCode = 404 
-            };        
+            return new NotFoundObjectResult(result);
         };
 
     public Func<CancellationToken, ValueTask<IActionResult>> GetLightListDelegate =>

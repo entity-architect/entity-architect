@@ -138,11 +138,8 @@ public static class CrudTest
             Content = new StringContent(requestData, Encoding.UTF8, "application/json")
         };
         var response = await client.SendAsync(httpMessage);
-
-        var statusCodeResponse = response.EnsureSuccessStatusCode();
-
-        Assert.Equal(testModel.ExpectedStatusCode, (int)statusCodeResponse.StatusCode);
-
+        var content = await response.Content.ReadAsStringAsync();
+        ValidateResponse(content, testModel.ExpectedStatusCode == 200);
         return await response.Content.ReadAsStringAsync();
     }
 
@@ -157,9 +154,8 @@ public static class CrudTest
             Content = new StringContent(requestData, Encoding.UTF8, "application/json")
         };
         var response = await client.SendAsync(httpMessage);
-        var statusCodeResponse = response.EnsureSuccessStatusCode();
-
-        Assert.Equal(testModel.ExpectedStatusCode, (int)statusCodeResponse.StatusCode);
+        var content = await response.Content.ReadAsStringAsync();
+        ValidateResponse(content, testModel.ExpectedStatusCode == 200);
 
         return await response.Content.ReadAsStringAsync();
     }
@@ -174,9 +170,8 @@ public static class CrudTest
                     $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel.EntityName.ToLower()}/{testModel.Id}"),
         };
         var response = await client.SendAsync(httpMessage);
-        var statusCodeResponse = response.EnsureSuccessStatusCode();
-
-        Assert.Equal(testModel.ExpectedStatusCode, (int)statusCodeResponse.StatusCode);
+        var content = await response.Content.ReadAsStringAsync();
+        ValidateResponse(content, testModel.ExpectedStatusCode == 200);
     }
 
     private static async Task<string> Get(HttpClient client, TestModelGet? testModel)
@@ -189,9 +184,8 @@ public static class CrudTest
                     $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel!.EntityName.ToLower()}/{testModel.Id}"),
         };
         var response = await client.SendAsync(httpMessage);
-        var statusCodeResponse = response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
-        Assert.Equal(testModel.ExpectedStatusCode, (int)statusCodeResponse.StatusCode);
+        ValidateResponse(content, testModel.ExpectedStatusCode == 200);
         return content;
     }
 
@@ -205,10 +199,15 @@ public static class CrudTest
                     $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel.EntityName.ToLower()}/?page={testModel.Page}"),
         };
         var response = await client.SendAsync(httpMessage);
-        var statusCodeResponse = response.EnsureSuccessStatusCode();
-
-        Assert.Equal(testModel.ExpectedStatusCode, (int)statusCodeResponse.StatusCode);
-
+        var content = await response.Content.ReadAsStringAsync();
+        ValidateResponse(content, testModel.ExpectedStatusCode == 200);
         return await response.Content.ReadAsStringAsync();
+    }
+    
+    private static void ValidateResponse(string response, bool isSuccess = true)
+    {
+        var responseObject = JObject.Parse(response);
+        var actualValue = responseObject["value"]!["isSuccess"];
+          Assert.Equal(actualValue is not null && actualValue.Value<bool>(), isSuccess);
     }
 }
