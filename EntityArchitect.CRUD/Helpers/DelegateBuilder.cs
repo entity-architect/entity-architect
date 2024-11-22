@@ -7,9 +7,7 @@ using EntityArchitect.Entities.Entities;
 using EntityArchitect.Entities.Repository;
 using EntityArchitect.Results;
 using EntityArchitect.Results.Abstracts;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Migrations.Operations;
 
 namespace EntityArchitect.CRUD.Helpers;
 
@@ -165,9 +163,7 @@ public class DelegateBuilder<
             if(pageCount == 0) 
                 leftPages = 0;
             
-            
-            
-            var paginatedResponse = new PaginatedResult<TEntityResponse>(response, page, leftPages, pageCount);
+            var paginatedResponse = new PaginatedResult<TEntityResponse>(response, page, leftPages, pageCount, itemCount);
             return new  OkObjectResult(paginatedResponse);
         };
 }

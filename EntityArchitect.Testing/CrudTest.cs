@@ -1,5 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text;
+using EntityArchitect.Entities.Entities;
+using EntityArchitect.Results;
 using EntityArchitect.Testing.Helpers;
 using EntityArchitect.Testing.TestAttributes;
 using EntityArchitect.Testing.TestModels;
@@ -116,7 +118,25 @@ public static class CrudTest
                 }
                 case "PAGINATED_GET":
                 {
-                    var result =  await PaginatedGet(client, (model as TestModelPaginatedGet)!);
+                    var page = jsonObject["page"]?.ToString();
+                    if (page is null)
+                        throw new Exception("page is null");
+                    page.FormatRequest(responses);
+                    
+                    var exceptedTotalElementCountString= jsonObject["exceptedTotalElementCount"]?.ToString();
+                    if (exceptedTotalElementCountString is null)
+                        throw new Exception("exceptedTotalElementCount is null");
+                    exceptedTotalElementCountString.FormatRequest(responses);
+
+                    if (model is not JObject formattedModel)
+                        throw new Exception("Model is not JObject");
+                    formattedModel["Page"] = int.Parse(page);
+                    var exceptedTotalElementCount= int.Parse(exceptedTotalElementCountString);
+                    formattedModel["ExceptedTotalElementCount"] = exceptedTotalElementCount;
+                    var modelObject =
+                        JsonConvert.DeserializeObject<TestModelPaginatedGet>(formattedModel.ToString());
+                    var result =  await PaginatedGet(client, modelObject!);
+                    Assert.Equal(exceptedTotalElementCount, JsonConvert.DeserializeObject<PaginatedResult<EntityResponse>>(result).TotalElementCount);
                     responses.Add(new ValueTuple<string, object>(testName, result));
                     break;
                 }
@@ -125,8 +145,6 @@ public static class CrudTest
             }
         }
     }
-
-
     private static async Task<string> Post(HttpClient client, TestModelData testModel, string requestData)
     {
         var httpMessage = new HttpRequestMessage

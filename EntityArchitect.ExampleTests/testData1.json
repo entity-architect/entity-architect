@@ -18,25 +18,33 @@
       "name": "Author 2"
     }
   },
-    {
-        "testName": "GetTest",
-        "entityName": "Author",
-        "method": "GET",
-        "ExpectedStatusCode": 200,
-        "id": "{PutTest.Id}"
-    },
-    {
-        "testName": "DeleteTest",
-        "entityName": "Author",
-        "method": "DELETE",
-        "ExpectedStatusCode": 200,
-        "id": "{GetTest.Id}"
-    },
-    {
-        "testName": "GetTest",
-        "entityName": "Author",
-        "method": "GET",
-        "ExpectedStatusCode": 404,
-        "id": "{PutTest.Id}"
-    }
+  {
+    "testName": "GetTest",
+    "entityName": "Author",
+    "method": "GET",
+    "ExpectedStatusCode": 200,
+    "id": "{PutTest.Id}"
+  } ,
+  {
+    "testName": "GetPaginatedTest",
+    "entityName": "Author",
+    "method": "PAGINATED_GET",
+    "expectedStatusCode": 200,
+    "page": 1,
+    "exceptedTotalElementCount": 1
+  },
+  {
+    "testName": "DeleteTest",
+    "entityName": "Author",
+    "method": "DELETE",
+    "ExpectedStatusCode": 200,
+    "id": "{GetTest.Id}"
+  },
+  {
+    "testName": "GetTest",
+    "entityName": "Author",
+    "method": "GET", 
+    "ExpectedStatusCode": 404,
+    "id": "{PutTest.Id}"
+  }
 ]
