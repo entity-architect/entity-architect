@@ -30,7 +30,7 @@
     "entityName": "Author",
     "method": "PAGINATED_GET",
     "expectedStatusCode": 200,
-    "page": 1,
+    "page": 0,
     "exceptedTotalElementCount": 1
   },
   {

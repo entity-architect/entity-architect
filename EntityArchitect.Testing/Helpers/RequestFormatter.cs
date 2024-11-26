@@ -1,81 +1,83 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using EntityArchitect.Testing.TestModels;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using JsonException = System.Text.Json.JsonException;
 
 namespace EntityArchitect.Testing.Helpers;
 
 public static class RequestFormatter
 {
-    public static string? FormatRequest(this string? request, List<(string testName, object response)> responses)
+    public static string? FormatRequest(this string? request, List<(string testName, string response)> responses, Type requestType)
     {
         if (string.IsNullOrEmpty(request) || responses.Count == 0)
             return request;
 
-        var regex = new System.Text.RegularExpressions.Regex(@"{(\w+)\.(.+)}");
+        var regex = new System.Text.RegularExpressions.Regex(@"{(\w+)\.(.+?)(?=})}");
 
         request = request.Replace("Guid:Random", Guid.NewGuid().ToString());
         request = request.Replace("\"Int:Random\"", new Random().NextInt64().ToString());
         request = request.Replace("DateTime:Now", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
 
-        
+
         request = regex.Replace(request, match =>
         {
-            var testName = match.Groups[1].Value; 
-            var propertyPath = match.Groups[2].Value; 
+            var testName = match.Groups[1].Value;
+            var propertyPath = match.Groups[2].Value;
 
             var matchingResponse = responses.FirstOrDefault(r => r.testName == testName);
             if (matchingResponse.response == null)
                 return match.Value;
 
-            try
-            {
-                var jsonString = matchingResponse.response as string;
-                if (string.IsNullOrEmpty(jsonString))
-                    return match.Value;
-
-                var jsonObject = JsonNode.Parse(jsonString);
-                if (jsonObject == null)
-                    return match.Value;
-
-                jsonObject = jsonObject["value"]?["value"] ?? jsonObject["value"];
-
-                if (jsonObject == null)
-                    return match.Value;
-                
-                var currentNode = jsonObject;
-                foreach (var propertyName in propertyPath.Split('.'))
-                {
-                    currentNode = jsonObject?[ToCamelCase(propertyName)];
-                    if (currentNode is not null)
-                        request = request.Replace(testName + "." + "testName", currentNode.ToString());
-                }
-
-                return currentNode?.ToString() ?? match.Value;
-            }
-            catch (JsonException)
-            {
+            var currentNode = JsonConvert.DeserializeObject(matchingResponse.response, requestType);
+            if (currentNode == null)
                 return match.Value;
+            foreach (var propertyName in propertyPath.Split('.'))
+            {
+                currentNode = currentNode.GetType().GetProperty(propertyName).GetValue(currentNode);
+                if (currentNode is not null)
+                    request = request.Replace(testName + "." + propertyName, currentNode.ToString());
             }
+
+            return currentNode?.ToString() ?? match.Value;
+
         });
         
         return request;
     }
 
-    internal static string ToCamelCase(this string input)
+    public static TestModelGet? FormatGetRequest(this string? request, List<(string testName, string response)> responses, Type responseType)
     {
-        if (string.IsNullOrWhiteSpace(input))
-            return string.Empty;
-        var words = input
-            .Split(new[] { ' ', '_', '-' }, StringSplitOptions.RemoveEmptyEntries);
+        if (string.IsNullOrEmpty(request) || responses.Count == 0)
+            return null;
 
-        if (words.Length == 0)
-            return string.Empty;
-
-        var camelCase = words[0].ToLowerInvariant();
-        for (int i = 1; i < words.Length; i++)
+        var regex = new System.Text.RegularExpressions.Regex(@"{(\w+)\.(.+?)(?=})}");
+        
+        request = regex.Replace(request, match =>
         {
-            camelCase += char.ToUpperInvariant(words[i][0]) + words[i].Substring(1).ToLowerInvariant();
-        }
+            var testName = match.Groups[1].Value;
+            var propertyPath = match.Groups[2].Value;
 
-        return camelCase;
+            var matchingResponse = responses.FirstOrDefault(r => r.testName == testName);
+            if (matchingResponse.response == null)
+                return match.Value;
+
+            var currentNode = JsonConvert.DeserializeObject(matchingResponse.response, responseType);
+            if (currentNode == null)
+                return match.Value;
+            foreach (var propertyName in propertyPath.Split('.'))
+            {
+                currentNode = currentNode.GetType().GetProperty(propertyName).GetValue(currentNode);
+                if (currentNode is not null)
+                    request = request.Replace(testName + "." + propertyName, currentNode.ToString());
+            }
+
+            return currentNode?.ToString() ?? match.Value;
+
+        });
+        
+        return request == null ? null : JsonConvert.DeserializeObject<TestModelGet>(request);
     }
+ 
 }

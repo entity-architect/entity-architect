@@ -1,2 +1,2 @@
 namespace EntityArchitect.Entities.Entities;
-public abstract class EntityRequest;
+public class EntityRequest;

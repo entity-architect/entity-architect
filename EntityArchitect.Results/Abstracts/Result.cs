@@ -81,4 +81,10 @@ namespace EntityArchitect.Results.Abstracts
 
         public static implicit operator Result<TValue>(TValue? value) => Create(value);
     }
+    
+    public class ResultModel
+    {
+        public bool IsSuccess { get; set; }
+        public List<Error> Errors { get; set; }
+    }
 }

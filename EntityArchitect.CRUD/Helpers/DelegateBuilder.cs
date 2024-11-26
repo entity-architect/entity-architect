@@ -163,7 +163,7 @@ public class DelegateBuilder<
             if(pageCount == 0) 
                 leftPages = 0;
             
-            var paginatedResponse = new PaginatedResult<TEntityResponse>(response, page, leftPages, pageCount, itemCount);
+            var paginatedResponse = new PaginatedResult<TEntityResponse>(response, page, leftPages, pageCount, totalCount);
             return new  OkObjectResult(paginatedResponse);
         };
 }

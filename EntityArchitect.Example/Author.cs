@@ -7,6 +7,7 @@ using ILogger = EntityArchitect.Example.Services.Logger.ILogger;
 namespace EntityArchitect.Example;
 
 [HasLightList]
+[GetListPaginated(3)]
 public class Author : Entity
 {
     [LightListProperty]

@@ -1,7 +1,9 @@
 using System.Runtime.CompilerServices;
 using System.Text;
+using EntityArchitect.CRUD.TypeBuilders;
 using EntityArchitect.Entities.Entities;
 using EntityArchitect.Results;
+using EntityArchitect.Results.Abstracts;
 using EntityArchitect.Testing.Helpers;
 using EntityArchitect.Testing.TestAttributes;
 using EntityArchitect.Testing.TestModels;
@@ -17,7 +19,7 @@ public static class CrudTest
     [Fact]
     public static async Task RunTest<T>(this HttpClient client, [CallerMemberName] string methodName = "")
     {
-        List<(string testName, object response)> responses = [];
+        List<(string testName, string response)> responses = [];
         if (responses == null) throw new ArgumentNullException(nameof(responses));
 
         var type = typeof(T);
@@ -32,6 +34,7 @@ public static class CrudTest
                           typeof(MultiTestAttribute<>).MakeGenericType(
                               attribute.AttributeType.GetGenericArguments()[0]);
 
+        var entity = attribute.AttributeType.GetGenericArguments()[0];
         if (isMultiTest)
         {
             testModelType = typeof(List<>).MakeGenericType(testModelType);
@@ -44,8 +47,7 @@ public static class CrudTest
         List<object> testModels;
         if (isMultiTest)
         {
-            testModels = (testModel as IEnumerable<object>)?.ToList() ??
-                         throw new Exception("Failed to cast to List<object>");
+            testModels = (testModel as IEnumerable<object>)?.ToList() ?? throw new Exception("Failed to cast to List<object>");
         }
         else
         {
@@ -54,90 +56,96 @@ public static class CrudTest
 
         foreach (var model in testModels)
         {
-            var jsonRequest = JsonConvert.SerializeObject(model);
-            var jsonObject = JObject.Parse(jsonRequest);
-            var requestData = jsonObject["request".ToCamelCase()]?.ToString() ?? null;
-
-            var modelData = JsonConvert.DeserializeObject<TestModelData>(model.ToString() ?? "{}");
-            var testName = modelData?.TestName;
+            var jsonModel = JsonConvert.SerializeObject(model);
+            if(jsonModel is null)
+                throw new Exception("Failed to serialize model");
+            TypeBuilder typeBuilder = new();
+            
+            var modelData = JsonConvert.DeserializeObject<TestModelData>(jsonModel);
+            if (modelData == null) throw new Exception("Model data is null");
+            var testName = modelData.TestName;
             if (testName is null)
                 throw new Exception("Test name is null");
-            switch (modelData?.Method)
+            switch (modelData.Method)
             {
                 case "POST":
                 {
+                    var requestType = typeBuilder.BuildCreateRequestFromEntity(entity);
+                    jsonModel = jsonModel.FormatRequest(responses, requestType);
+
+                    var testModelObject = JsonConvert.DeserializeObject(jsonModel, typeof(TestModel<>).MakeGenericType(requestType));
+                    if (testModelObject is null)
+                        throw new Exception("Failed to deserialize json object");
+                    var requestData = JsonConvert.SerializeObject(testModelObject.GetType().GetProperty(nameof(TestModel<EntityRequest>.Request))?.GetValue(testModelObject));
                     if (requestData is null)
                         throw new Exception("Request is null");
-                    requestData.FormatRequest(responses);
+                    
+                    requestData.FormatRequest(responses, requestType);
                     var result = await Post(client, modelData, requestData);
-                    responses.Add(new ValueTuple<string, object>(testName ,result));
+                    responses.Add(new ValueTuple<string, string>(testName, ExtractContent(result)));
                     break;
                 }
                 case "GET":
                 {
-                    var id = jsonObject["id"]?.ToString();
-                    if (id is null)
-                        throw new Exception("Id is null");
-                    id = id.FormatRequest(responses);
+                    var response = typeBuilder.BuildResponseFromEntity(typeof(Entity));
+                    if(jsonModel is null)
+                        throw new Exception("Failed to format request");
+                    var testModelObject = jsonModel.FormatGetRequest(responses,response);
+                    if (testModelObject is null)
+                        throw new Exception("Failed to deserialize json object");
 
-                    if (model is not JObject formattedModel)
-                        throw new Exception("Model is not JObject");
-                    formattedModel["id"] = id;
-                    var getModelData = JsonConvert.DeserializeObject<TestModelGet>(formattedModel.ToString()!);
-                    if (getModelData is null)
-                        throw new Exception("Model is not ModelTestGet");
-                    var result = await Get(client, getModelData);
-                    responses.Add(new ValueTuple<string, object>(testName, result));
+                    var result = await Get(client, testModelObject);
+                    responses.Add(new ValueTuple<string, string>(testName, ExtractContent(result)));
                     break;
                 }
                 case "PUT":
                 {
-                    requestData = requestData.FormatRequest(responses);
+                    var requestType = typeBuilder.BuildUpdateRequestFromEntity(entity);
+                    jsonModel = jsonModel.FormatRequest(responses, requestType);
+
+                    var testModelObject = JsonConvert.DeserializeObject(jsonModel, typeof(TestModel<>).MakeGenericType(requestType));
+                    if (testModelObject is null)
+                        throw new Exception("Failed to deserialize json object");
+                    var requestData = JsonConvert.SerializeObject(testModelObject.GetType().GetProperty(nameof(TestModel<EntityRequest>.Request))?.GetValue(testModelObject));
                     if (requestData is null)
                         throw new Exception("Request is null");
+                    
                     var result = await Put(client, modelData, requestData);
-                    responses.Add(new ValueTuple<string, object>(testName, result));
+                    responses.Add(new ValueTuple<string, string>(testName, ExtractContent(result)));
                     break;
                 }
                 case "DELETE":
                 {
-                    var id = jsonObject["id"]?.ToString();
-                    if (id is null)
-                        throw new Exception("Id is null");
-                    id = id.FormatRequest(responses);
-
-                    if (model is not JObject formattedModel)
-                        throw new Exception("Model is not JObject");
-                    formattedModel["id"] = id;
-                    var getModelData = JsonConvert.DeserializeObject<TestModelGet>(formattedModel.ToString()!);
-                    if (getModelData is null)
-                        throw new Exception("Model is not ModelTestGet");
+                    var response = typeBuilder.BuildResponseFromEntity(typeof(Entity));
+                    if(jsonModel is null)
+                        throw new Exception("Failed to format request");
+                    var testModelObject = jsonModel.FormatGetRequest(responses, response);
+                    if (testModelObject is null)
+                        throw new Exception("Failed to deserialize json object");
                     
-                    await Delete(client, getModelData);
+                    await Delete(client, testModelObject);
                     break;
                 }
                 case "PAGINATED_GET":
                 {
-                    var page = jsonObject["page"]?.ToString();
-                    if (page is null)
-                        throw new Exception("page is null");
-                    page.FormatRequest(responses);
+                    var responseType = typeBuilder.BuildResponseFromEntity(entity);
                     
-                    var exceptedTotalElementCountString= jsonObject["exceptedTotalElementCount"]?.ToString();
-                    if (exceptedTotalElementCountString is null)
-                        throw new Exception("exceptedTotalElementCount is null");
-                    exceptedTotalElementCountString.FormatRequest(responses);
+                    if(jsonModel is null)
+                        throw new Exception("Failed to format request");
+                    if (JsonConvert.DeserializeObject(jsonModel, 
+                            typeof(TestModelPaginatedGet)) 
+                        is not TestModelPaginatedGet testModelObject)
+                        throw new Exception("Failed to deserialize json object");
 
-                    if (model is not JObject formattedModel)
-                        throw new Exception("Model is not JObject");
-                    formattedModel["Page"] = int.Parse(page);
-                    var exceptedTotalElementCount= int.Parse(exceptedTotalElementCountString);
-                    formattedModel["ExceptedTotalElementCount"] = exceptedTotalElementCount;
-                    var modelObject =
-                        JsonConvert.DeserializeObject<TestModelPaginatedGet>(formattedModel.ToString());
-                    var result =  await PaginatedGet(client, modelObject!);
-                    Assert.Equal(exceptedTotalElementCount, JsonConvert.DeserializeObject<PaginatedResult<EntityResponse>>(result).TotalElementCount);
-                    responses.Add(new ValueTuple<string, object>(testName, result));
+                    var entityResponseType = typeBuilder.BuildResponseFromEntity(entity);
+                    var result =  await PaginatedGet(client, testModelObject, entityResponseType);
+                    result = ExtractContent(result);
+                    var getResponse = JsonConvert.DeserializeObject(result, typeof(PaginatedResult<>).MakeGenericType(responseType));
+                    if(getResponse is null)
+                        throw new Exception("Failed to deserialize response");
+                    
+                    Assert.Equal(testModelObject.ExceptedTotalElementCount, getResponse.GetType().GetProperty(nameof(PaginatedResult<EntityResponse>.TotalElementCount))?.GetValue(getResponse));
+                    responses.Add(new ValueTuple<string, string>(testName, ExtractContent(result)));
                     break;
                 }
                 default:
@@ -189,6 +197,7 @@ public static class CrudTest
         };
         var response = await client.SendAsync(httpMessage);
         var content = await response.Content.ReadAsStringAsync();
+        
         ValidateResponse(content, testModel.ExpectedStatusCode == 200);
     }
 
@@ -207,25 +216,70 @@ public static class CrudTest
         return content;
     }
 
-    private static async Task<string> PaginatedGet(HttpClient client, TestModelPaginatedGet testModel)
+    private static async Task<string> PaginatedGet(HttpClient client, TestModelPaginatedGet testModel, Type entityResponseType)
     {
+        var url = $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel.EntityName.ToLower()}/list/{testModel.Page}";
         var httpMessage = new HttpRequestMessage
         {
             Method = HttpMethod.Get,
             RequestUri =
-                new Uri(
-                    $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel.EntityName.ToLower()}/?page={testModel.Page}"),
+                new Uri(url),
         };
+        
+        
         var response = await client.SendAsync(httpMessage);
         var content = await response.Content.ReadAsStringAsync();
-        ValidateResponse(content, testModel.ExpectedStatusCode == 200);
+        content = ExtractContent(content);
+        var paginatedResponse = JsonConvert.DeserializeObject(content, typeof(PaginatedResult<>).MakeGenericType(entityResponseType));
+        paginatedResponse = paginatedResponse.GetType().GetProperty(nameof(PaginatedResult<EntityResponse>.TotalElementCount))?.GetValue(paginatedResponse);
+        Assert.Equal(testModel.ExceptedTotalElementCount, paginatedResponse);
         return await response.Content.ReadAsStringAsync();
     }
     
     private static void ValidateResponse(string response, bool isSuccess = true)
     {
-        var responseObject = JObject.Parse(response);
-        var actualValue = responseObject["value"]!["isSuccess"];
-          Assert.Equal(actualValue is not null && actualValue.Value<bool>(), isSuccess);
+        Result? result = null;
+        if (JsonConvert.DeserializeObject(response)?.GetType().GetProperty(nameof(Result<object>.Value)) is null)
+        {
+            var singleValueWithoutValueResult = JsonConvert.DeserializeObject<TestModelWithoutValue?>(response);
+            Assert.Equal(singleValueWithoutValueResult is not null && singleValueWithoutValueResult.Value.IsSuccess, isSuccess);
+            return;
+        }
+
+        var singleValueResult = JsonConvert.DeserializeObject<TestResult?>(response); 
+        if(singleValueResult is not null)
+            result = singleValueResult.Value;
+        else
+        {
+            var doubleValueResult = JsonConvert.DeserializeObject<TestModelDoubleValue>(response);
+            if(doubleValueResult is not null)
+                result = doubleValueResult.Value.Value;
+        }
+                               
+        Assert.Equal(result is not null && result.IsSuccess, isSuccess);
+    }
+    
+    private static string ExtractContent(string json)
+    {
+        try
+        {
+            var jsonObject = JObject.Parse(json);
+            var value = jsonObject["value"];
+            if (value is JObject valueObject && valueObject["value"] != null)
+            {
+                return valueObject["value"].ToString();
+            }
+
+            if (value != null)
+            {
+                return value.ToString();
+            }
+
+            throw new Exception("Failed to extract content");
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
+        }
     }
 }
