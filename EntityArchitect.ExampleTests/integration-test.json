@@ -26,6 +26,23 @@
     "id": "{PutTest.Id}"
   } ,
   {
+    "testName": "CheckTest",
+    "method": "ASSERT",
+    "operation": "EQUAL",
+    "componentA" : "{GetTest.Id}",
+    "componentB" : "{PostTest.Id}"
+  },
+  {
+    "testName": "PostTestBook",
+    "entityName": "Book",
+    "method": "POST",
+    "ExpectedStatusCode": 200,
+    "request": {
+      "title": "Book 1",
+      "authorId": "{GetTest.Id}"
+    }
+  },
+  {
     "testName": "GetPaginatedTest",
     "entityName": "Author",
     "method": "PAGINATED_GET",
@@ -41,7 +58,7 @@
     "id": "{GetTest.Id}"
   },
   {
-    "testName": "GetTest",
+    "testName": "GetTestNotFound",
     "entityName": "Author",
     "method": "GET", 
     "ExpectedStatusCode": 404,

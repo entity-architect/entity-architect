@@ -17,7 +17,7 @@ public sealed class SingleTestAttribute<TEntity> : BaseTestAttribute where TEnti
         var requestType = typeBuilder.BuildCreateRequestFromEntity(typeof(TEntity));
             
         var testDataString = File.ReadAllText(testDataFileName);  
-        var testModelType = typeof(TestModel<>).MakeGenericType(requestType!);
+        var testModelType = typeof(EndpointTestModel<>).MakeGenericType(requestType!);
 
         var testModel = JsonConvert.DeserializeObject(testDataString, testModelType);
         if(testModel == null)

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using EntityArchitect.CRUD.TypeBuilders;
 using EntityArchitect.Testing.TestModels;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -9,9 +10,10 @@ namespace EntityArchitect.Testing.Helpers;
 
 public static class RequestFormatter
 {
-    public static string? FormatRequest(this string? request, List<(string testName, string response)> responses, Type requestType)
+    public static string? FormatRequest(this string? request,
+        List<(string testName, string response, Type entityType)> responses)
     {
-        if (string.IsNullOrEmpty(request) || responses.Count == 0)
+        if (string.IsNullOrEmpty(request))
             return request;
 
         var regex = new System.Text.RegularExpressions.Regex(@"{(\w+)\.(.+?)(?=})}");
@@ -30,24 +32,27 @@ public static class RequestFormatter
             if (matchingResponse.response == null)
                 return match.Value;
 
-            var currentNode = JsonConvert.DeserializeObject(matchingResponse.response, requestType);
+
+            TypeBuilder typeBuilder = new();
+            var responseType = typeBuilder.BuildResponseFromEntity(matchingResponse.entityType);
+            var currentNode = JsonConvert.DeserializeObject(matchingResponse.response, responseType);
             if (currentNode == null)
                 return match.Value;
             foreach (var propertyName in propertyPath.Split('.'))
             {
                 currentNode = currentNode.GetType().GetProperty(propertyName).GetValue(currentNode);
                 if (currentNode is not null)
-                    request = request.Replace(testName + "." + propertyName, currentNode.ToString());
+                    request = request.Replace("{" + testName + "." + propertyName + "}", currentNode.ToString());
             }
 
             return currentNode?.ToString() ?? match.Value;
 
         });
-        
+
         return request;
     }
 
-    public static TestModelGet? FormatGetRequest(this string? request, List<(string testName, string response)> responses, Type responseType)
+    public static TestModelGet? FormatGetRequest(this string? request, List<(string testName, string response, Type entityType)> responses, Type responseType)
     {
         if (string.IsNullOrEmpty(request) || responses.Count == 0)
             return null;

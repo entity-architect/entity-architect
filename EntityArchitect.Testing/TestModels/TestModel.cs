@@ -1,8 +1,8 @@
-using EntityArchitect.Entities.Entities;
-
 namespace EntityArchitect.Testing.TestModels;
 
-public class TestModel<TRequest> : TestModelData where TRequest : EntityRequest
+public class TestModel 
 {
-    public TRequest Request { get; set; }
+    public string TestName { get; set; }
+    public string Method { get; set; } 
+    public string EntityName { get; set; }
 }

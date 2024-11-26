@@ -8,8 +8,6 @@ namespace EntityArchitect.ExampleTests;
 
 public class AuthorTests(IntegrationTestWebAppFactory<Startup> factory) : AppFixture<Startup>(factory)
 {
-    [SingleTest<Author>("testData.json")]
-    public Task Test1() => Client.RunTest<AuthorTests>();
-    [MultiTest<Author>("testData1.json")]
-    public Task Test2() => Client.RunTest<AuthorTests>();
+    [MultiTest<Startup>("integration-test.json")]
+    public Task Test() => Client.RunTest<AuthorTests>();
 }

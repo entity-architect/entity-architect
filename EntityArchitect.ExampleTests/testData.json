@@ -1,9 +1,0 @@
-{
-  "testName": "PostTest_Success_1",
-  "entityName": "Author",
-  "method": "POST",
-  "ExpectedStatusCode": 200,
-  "request": {
-    "name": "string"
-  }
-}

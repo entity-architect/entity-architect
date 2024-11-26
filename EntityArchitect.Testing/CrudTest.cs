@@ -19,7 +19,7 @@ public static class CrudTest
     [Fact]
     public static async Task RunTest<T>(this HttpClient client, [CallerMemberName] string methodName = "")
     {
-        List<(string testName, string response)> responses = [];
+        List<(string testName, string response, Type entityType)> responses = [];
         if (responses == null) throw new ArgumentNullException(nameof(responses));
 
         var type = typeof(T);
@@ -34,7 +34,7 @@ public static class CrudTest
                           typeof(MultiTestAttribute<>).MakeGenericType(
                               attribute.AttributeType.GetGenericArguments()[0]);
 
-        var entity = attribute.AttributeType.GetGenericArguments()[0];
+        var assembly = attribute.AttributeType.GetGenericArguments()[0].Assembly.GetTypes().Where(c => c.BaseType == typeof(Entity)).ToList();
         if (isMultiTest)
         {
             testModelType = typeof(List<>).MakeGenericType(testModelType);
@@ -43,7 +43,7 @@ public static class CrudTest
         var testModel = JsonConvert.DeserializeObject(testDataString, testModelType);
         if (testModel == null)
             throw new Exception("Test data is not json");
-
+        
         List<object> testModels;
         if (isMultiTest)
         {
@@ -60,29 +60,32 @@ public static class CrudTest
             if(jsonModel is null)
                 throw new Exception("Failed to serialize model");
             TypeBuilder typeBuilder = new();
-            
             var modelData = JsonConvert.DeserializeObject<TestModelData>(jsonModel);
             if (modelData == null) throw new Exception("Model data is null");
             var testName = modelData.TestName;
             if (testName is null)
                 throw new Exception("Test name is null");
+            
+            var entity = assembly.FirstOrDefault(c => c.Name == modelData.EntityName);
+            if (entity is null && modelData.Method != "ASSERT")
+                throw new Exception("Entity is null");
             switch (modelData.Method)
             {
                 case "POST":
                 {
                     var requestType = typeBuilder.BuildCreateRequestFromEntity(entity);
-                    jsonModel = jsonModel.FormatRequest(responses, requestType);
+                    jsonModel = jsonModel.FormatRequest(responses);
 
-                    var testModelObject = JsonConvert.DeserializeObject(jsonModel, typeof(TestModel<>).MakeGenericType(requestType));
+                    var testModelObject = JsonConvert.DeserializeObject(jsonModel, typeof(EndpointTestModel<>).MakeGenericType(requestType));
                     if (testModelObject is null)
                         throw new Exception("Failed to deserialize json object");
-                    var requestData = JsonConvert.SerializeObject(testModelObject.GetType().GetProperty(nameof(TestModel<EntityRequest>.Request))?.GetValue(testModelObject));
+                    var requestData = JsonConvert.SerializeObject(testModelObject.GetType().GetProperty(nameof(EndpointTestModel<EntityRequest>.Request))?.GetValue(testModelObject));
                     if (requestData is null)
                         throw new Exception("Request is null");
                     
-                    requestData.FormatRequest(responses, requestType);
+                    requestData.FormatRequest(responses);
                     var result = await Post(client, modelData, requestData);
-                    responses.Add(new ValueTuple<string, string>(testName, ExtractContent(result)));
+                    responses.Add(new ValueTuple<string, string, Type>(testName, ExtractContent(result), entity));
                     break;
                 }
                 case "GET":
@@ -95,23 +98,23 @@ public static class CrudTest
                         throw new Exception("Failed to deserialize json object");
 
                     var result = await Get(client, testModelObject);
-                    responses.Add(new ValueTuple<string, string>(testName, ExtractContent(result)));
+                    responses.Add(new ValueTuple<string, string, Type>(testName, ExtractContent(result), entity));
                     break;
                 }
                 case "PUT":
                 {
                     var requestType = typeBuilder.BuildUpdateRequestFromEntity(entity);
-                    jsonModel = jsonModel.FormatRequest(responses, requestType);
+                    jsonModel = jsonModel.FormatRequest(responses);
 
-                    var testModelObject = JsonConvert.DeserializeObject(jsonModel, typeof(TestModel<>).MakeGenericType(requestType));
+                    var testModelObject = JsonConvert.DeserializeObject(jsonModel, typeof(EndpointTestModel<>).MakeGenericType(requestType));
                     if (testModelObject is null)
                         throw new Exception("Failed to deserialize json object");
-                    var requestData = JsonConvert.SerializeObject(testModelObject.GetType().GetProperty(nameof(TestModel<EntityRequest>.Request))?.GetValue(testModelObject));
+                    var requestData = JsonConvert.SerializeObject(testModelObject.GetType().GetProperty(nameof(EndpointTestModel<EntityRequest>.Request))?.GetValue(testModelObject));
                     if (requestData is null)
                         throw new Exception("Request is null");
                     
                     var result = await Put(client, modelData, requestData);
-                    responses.Add(new ValueTuple<string, string>(testName, ExtractContent(result)));
+                    responses.Add(new ValueTuple<string, string, Type>(testName, ExtractContent(result), entity));
                     break;
                 }
                 case "DELETE":
@@ -145,7 +148,38 @@ public static class CrudTest
                         throw new Exception("Failed to deserialize response");
                     
                     Assert.Equal(testModelObject.ExceptedTotalElementCount, getResponse.GetType().GetProperty(nameof(PaginatedResult<EntityResponse>.TotalElementCount))?.GetValue(getResponse));
-                    responses.Add(new ValueTuple<string, string>(testName, ExtractContent(result)));
+                    responses.Add(new ValueTuple<string, string, Type>(testName, ExtractContent(result), entity));
+                    break;
+                }
+                case "ASSERT":
+                {
+                    jsonModel = jsonModel.FormatRequest(responses);
+                    
+                    if (JsonConvert.DeserializeObject(jsonModel, 
+                            typeof(AssertModel)) 
+                        is not AssertModel assertModel)
+                        throw new Exception("Failed to deserialize json object");
+
+                    switch (assertModel.Operation)
+                    {
+                        case "EQUAL":
+                        {
+                            var componentA = assertModel.ComponentA;
+                            var componentB = assertModel.ComponentB;
+                            Assert.Equal(componentA, componentB);
+                            break;
+                        }
+                        case "NOT_EQUAL":
+                        {
+                            var componentA = assertModel.ComponentA;
+                            var componentB = assertModel.ComponentB;
+                            Assert.NotEqual(componentA, componentB);
+                            break;
+                        }
+                        default:
+                            throw new InvalidOperationException("Invalid method type");
+                    }
+                    
                     break;
                 }
                 default:

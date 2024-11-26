@@ -45,7 +45,7 @@ public class DelegateBuilder<
                 var actions =scope.GetEndpointActionsAsync<TEntity>();
                 entity.SetCreatedDate();
                 entity = await actions!.InvokeBeforePostAsync(entity, cancellationToken);
-                await service.ExecuteSqlAsync(sql, cancellationToken);
+                  await service.ExecuteSqlAsync(sql, cancellationToken);
                 entity = await actions!.InvokeAfterPostAsync(entity, cancellationToken);
             }
 

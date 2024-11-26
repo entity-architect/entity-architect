@@ -6,7 +6,7 @@ using Newtonsoft.Json;
 namespace EntityArchitect.Testing.TestAttributes;
 
 [AttributeUsage(AttributeTargets.Method)]
-public sealed class MultiTestAttribute<TEntity> : BaseTestAttribute where TEntity : Entity
+public sealed class MultiTestAttribute<TEntity> : BaseTestAttribute
 {
     public MultiTestAttribute(string testDataFileName, [CallerMemberName] string methodName = "")
     {
