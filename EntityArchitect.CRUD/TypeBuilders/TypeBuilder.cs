@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Reflection.Emit;
 using EntityArchitect.CRUD.Attributes;
 using EntityArchitect.Entities.Attributes;
 using EntityArchitect.Entities.Entities;
@@ -22,9 +23,12 @@ public class TypeBuilder()
         if (_types.Any(c => c.FullName == typeName))
             return _types.First(c => c.FullName == typeName);
 
-        var typeBuilder = TypeBuilderExtension.GetTypeBuilder(typeName, typeof(EntityRequest));
+
+        var customAttributeBuilder = new CustomAttributeBuilder(typeof(EntityRequestAttribute).GetConstructor(new[]{typeof(Type)} )!, new object[] { entityType });
+        var typeBuilder = TypeBuilderExtension.GetTypeBuilder(typeName, typeof(EntityRequest), customAttributeBuilder);
         typeBuilder.DefineDefaultConstructor(MethodAttributes.Public | MethodAttributes.SpecialName |
                                              MethodAttributes.RTSpecialName);
+        
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
@@ -104,6 +108,15 @@ public class TypeBuilder()
             if (property.Name is "CreatedAt" or "UpdatedAt" ||
                 property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(IgnorePutRequest)))
                 continue;
+            
+            var attributeType = typeof(RelationOneToManyAttribute<>)
+                .MakeGenericType(property.PropertyType);
+
+            if (property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType))
+            {
+                TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid));
+                continue;
+            }
 
             TypeBuilderExtension.CreateProperty(typeBuilder, property.Name, property.Name == "Id" ? typeof(Guid) : property.PropertyType);
 

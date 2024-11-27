@@ -5,7 +5,7 @@ namespace EntityArchitect.CRUD.Actions;
 
 public static class ActionsBuilder
 {
-    public static WebApplicationBuilder UseActions(this WebApplicationBuilder builder, Assembly assembly)
+    public static IServiceCollection UseActions(this IServiceCollection services, Assembly assembly)
     {
         var entities = assembly.GetTypes().Where(c => c.BaseType == typeof(Entity)).ToList();
 
@@ -18,15 +18,15 @@ public static class ActionsBuilder
                     .ToList();
 
             actions.ForEach(action =>
-                builder.Services.AddScoped(action));
+                services.AddScoped(action));
         }
 
-        return builder;
+        return services;
     }
 
-    public static WebApplicationBuilder UseActions(this WebApplicationBuilder builder)
+    public static IServiceCollection UseActions(this IServiceCollection services)
     {
-        return UseActions(builder, Assembly.GetEntryAssembly()!);
+        return UseActions(services, Assembly.GetEntryAssembly()!);
     }
 
     public static async IAsyncEnumerable<EndpointAction<TEntity>> GetEndpointActionsAsync<TEntity>(

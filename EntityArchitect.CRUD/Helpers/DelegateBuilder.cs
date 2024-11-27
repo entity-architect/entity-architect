@@ -43,9 +43,9 @@ public class DelegateBuilder<
             {
                 var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
                 var actions =scope.GetEndpointActionsAsync<TEntity>();
-
+                entity.SetCreatedDate();
                 entity = await actions!.InvokeBeforePostAsync(entity, cancellationToken);
-                await service.ExecuteSqlAsync(sql, cancellationToken);
+                  await service.ExecuteSqlAsync(sql, cancellationToken);
                 entity = await actions!.InvokeAfterPostAsync(entity, cancellationToken);
             }
 
@@ -63,7 +63,13 @@ public class DelegateBuilder<
                 var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var actions = scope.GetEndpointActionsAsync<TEntity>();
                 entity = await actions!.InvokeBeforePutAsync(entity, cancellationToken);
-                service.Update(entity);
+
+                var oldEntity = await service.GetByIdAsync(new Id<TEntity?>(entity.Id.Value), cancellationToken);
+                if (oldEntity is null)
+                    return new NotFoundObjectResult(Result.Failure(Error.NotFound(entity.Id.Value, _entityName)));
+
+                oldEntity = entity;
+                
                 await unitOfWork.SaveChangesAsync(cancellationToken);
                 entity = await actions!.InvokeAfterPutAsync(entity, cancellationToken);
             }
@@ -111,11 +117,12 @@ public class DelegateBuilder<
             var entity = await service.GetBySpecificationIdAsync(spec, cancellationToken);
             if (entity is not null)
             {
-                entity =  await actions.InvokeAfterGetByIdAsync(entity, cancellationToken);
-                return new OkObjectResult(entity.ConvertEntityToResponse<TEntity, TEntityResponse>());
+                entity = await actions.InvokeAfterGetByIdAsync(entity, cancellationToken);
+                return new OkObjectResult(Result.Success(entity.ConvertEntityToResponse<TEntity, TEntityResponse>()));
             }
-
-            return new NotFoundObjectResult(Result.Failure<TEntityResponse>(Error.NotFound(id, _entityName)));
+            
+            var result = Result.Failure(Error.NotFound(id, _entityName));
+            return new NotFoundObjectResult(result);
         };
 
     public Func<CancellationToken, ValueTask<IActionResult>> GetLightListDelegate =>
@@ -162,9 +169,7 @@ public class DelegateBuilder<
             if(pageCount == 0) 
                 leftPages = 0;
             
-            
-            
-            var paginatedResponse = new PaginatedResult<TEntityResponse>(response, page, leftPages, pageCount);
+            var paginatedResponse = new PaginatedResult<TEntityResponse>(response, page, leftPages, pageCount, totalCount);
             return new  OkObjectResult(paginatedResponse);
         };
 }

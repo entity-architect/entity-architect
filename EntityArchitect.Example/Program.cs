@@ -1,23 +1,11 @@
-using EntityArchitect.CRUD;
-using EntityArchitect.CRUD.Actions;
-using EntityArchitect.Entities;
-using EntityArchitect.Example.Services.Logger;
-using ILogger = EntityArchitect.Example.Services.Logger.ILogger;
+using EntityArchitect.Example;
 
-var builder = WebApplication.CreateBuilder(args);
+CreateHostBuilder(args).Build().Run();
+return;
 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-builder.Services.AddEntityArchitect(typeof(Program).Assembly, builder.Configuration);
-builder.UseActions(typeof(Program).Assembly);
-builder.Services.AddScoped<ILogger, Logger>();
-
-var app = builder.Build();
-
-app.UseSwagger();
-app.UseSwaggerUI();
-
-app.MapEntityArchitectCrud(typeof(Program).Assembly);
-
-app.Run();
+static IHostBuilder CreateHostBuilder(string[] args) =>
+    Host.CreateDefaultBuilder(args)
+        .ConfigureWebHostDefaults(webBuilder =>
+        {
+            webBuilder.UseStartup<Startup>();
+        });
