@@ -63,7 +63,13 @@ public class DelegateBuilder<
                 var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var actions = scope.GetEndpointActionsAsync<TEntity>();
                 entity = await actions!.InvokeBeforePutAsync(entity, cancellationToken);
-                service.Update(entity);
+
+                var oldEntity = await service.GetByIdAsync(new Id<TEntity?>(entity.Id.Value), cancellationToken);
+                if (oldEntity is null)
+                    return new NotFoundObjectResult(Result.Failure(Error.NotFound(entity.Id.Value, _entityName)));
+
+                oldEntity = entity;
+                
                 await unitOfWork.SaveChangesAsync(cancellationToken);
                 entity = await actions!.InvokeAfterPutAsync(entity, cancellationToken);
             }

@@ -14,8 +14,11 @@ public class Repository<TEntity>(ApplicationDbContext context) :
     public void Remove(TEntity entity) =>
         context.Set<TEntity>().Remove(entity);
 
-    public void Update(TEntity entity) =>
+    public void Update(TEntity entity)
+    {
+        
         context.Set<TEntity>().Update(entity);
+    }
 
     public ValueTask<TEntity?> GetByIdAsync(Id<TEntity> id, CancellationToken cancellationToken = default) =>
         context.Set<TEntity>().FindAsync(new object[] { id.ToId() }, cancellationToken);

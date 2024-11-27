@@ -108,6 +108,15 @@ public class TypeBuilder()
             if (property.Name is "CreatedAt" or "UpdatedAt" ||
                 property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(IgnorePutRequest)))
                 continue;
+            
+            var attributeType = typeof(RelationOneToManyAttribute<>)
+                .MakeGenericType(property.PropertyType);
+
+            if (property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType))
+            {
+                TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid));
+                continue;
+            }
 
             TypeBuilderExtension.CreateProperty(typeBuilder, property.Name, property.Name == "Id" ? typeof(Guid) : property.PropertyType);
 

@@ -17,8 +17,6 @@ public static partial class ApiBuilder
 
     public static IApplicationBuilder MapEntityArchitectCrud(this IApplicationBuilder app, Assembly assembly,string basePath = "")
     {
-        app.UseStatusCodePages();
-
         var enumerable = assembly.ExportedTypes.Where(c => c.BaseType == typeof(Entity)).ToList();
         var typeBuilder = new TypeBuilder();
         foreach (var entity in enumerable)
