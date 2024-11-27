@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using EntityArchitect.CRUD.Attributes;
 using EntityArchitect.CRUD.Helpers;
+using EntityArchitect.CRUD.Queries;
 using EntityArchitect.CRUD.TypeBuilders;
 using EntityArchitect.Entities.Entities;
 using EntityArchitect.Results;
@@ -139,6 +140,12 @@ public static partial class ApiBuilder
                     endpoint.Produces(500, typeof(Result));
                 }
 
+                var queries = assembly.GetTypes().Where(c => c.BaseType == typeof(Query<>).MakeGenericType(entity));
+                foreach (var query in queries)
+                {
+                       
+                }
+                
                 group.WithTags(name);
             });
         }

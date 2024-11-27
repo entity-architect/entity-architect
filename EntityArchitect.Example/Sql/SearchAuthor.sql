@@ -1,0 +1,1 @@
+SELECT id, name, books FROM authors WHERE name LIKE {AuthorName} ORDER BY name ASC;

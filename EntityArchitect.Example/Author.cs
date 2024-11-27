@@ -1,5 +1,7 @@
+using System.Runtime.CompilerServices;
 using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.Attributes;
+using EntityArchitect.CRUD.Queries;
 using EntityArchitect.Entities.Attributes;
 using EntityArchitect.Entities.Entities;
 using ILogger = EntityArchitect.Example.Services.Logger.ILogger;
@@ -20,6 +22,17 @@ public class Author : Entity
     public void AddToName(string addedByAction)
     {
         Name += addedByAction;
+    }
+}
+
+public class AuthorQuery : Query<Author>
+{
+    protected AuthorQuery()
+    {
+        Sql = new List<string>
+        {
+            "Sql/SearchAuthor.sql"
+        };
     }
 }
 
