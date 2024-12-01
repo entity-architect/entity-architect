@@ -21,12 +21,17 @@ internal static class TypeBuilderExtension
     }
 
     internal static void CreateProperty(System.Reflection.Emit.TypeBuilder typeBuilder, string propertyName,
-        Type propertyType)
+        Type propertyType, List<CustomAttributeBuilder>? customAttributeBuilders = null)
     {
         var fieldBuilder = typeBuilder.DefineField($"_{propertyName}", propertyType, FieldAttributes.Private);
 
         var propertyBuilder =
             typeBuilder.DefineProperty(propertyName, PropertyAttributes.HasDefault, propertyType, null);
+        
+        if(customAttributeBuilders is not null)
+            foreach (var customAttributeBuilder in customAttributeBuilders)
+                propertyBuilder.SetCustomAttribute(customAttributeBuilder);
+        
         var getMethodBuilder = typeBuilder.DefineMethod($"get_{propertyName}",
             MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
             propertyType, Type.EmptyTypes);

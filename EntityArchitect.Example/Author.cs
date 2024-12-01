@@ -15,27 +15,15 @@ public class Author : Entity
     [LightListProperty]
     public string Name { get; private set; }
 
-    [RelationManyToOne<Book>(nameof(Book.Author)), 
-     IgnorePostRequest, IgnorePutRequest, IncludeInGet(1)]
+    [RelationManyToOne<Book>(nameof(Book.Author)), IgnorePostRequest, IgnorePutRequest, IncludeInGet(1)]
     public List<Book> Books { get; private set; }
-
     public void AddToName(string addedByAction)
     {
         Name += addedByAction;
     }
 }
-
-public class AuthorQuery : Query<Author>
-{
-    protected AuthorQuery()
-    {
-        Sql = new List<string>
-        {
-            "Sql/SearchAuthor.sql"
-        };
-    }
-}
-
+public class AuthorSearchQuery() : Query<Author>("SELECT id, name FROM author WHERE name LIKE @AuthorName:STRING:2 ORDER BY name ASC;");
+public class AuthorCountQuery() : Query<Author>("sql/count.sql", true);
 public class AuthorCreateAction(ILogger logger) : EndpointAction<Author>
 {
     protected override ValueTask<Author> BeforePostAsync(Author entity, CancellationToken cancellationToken = default)
@@ -44,5 +32,4 @@ public class AuthorCreateAction(ILogger logger) : EndpointAction<Author>
         logger.Log("Some logic before post");
         return base.BeforePostAsync(entity, cancellationToken);
     }
-    
 }

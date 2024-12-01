@@ -1,0 +1,1 @@
+SELECT a.id, a.name, b.title FROM author a left join book b on b.author_id = a.id;

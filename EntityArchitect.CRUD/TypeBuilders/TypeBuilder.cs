@@ -1,12 +1,14 @@
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Text.RegularExpressions;
 using EntityArchitect.CRUD.Attributes;
+using EntityArchitect.CRUD.Queries;
 using EntityArchitect.Entities.Attributes;
 using EntityArchitect.Entities.Entities;
 
 namespace EntityArchitect.CRUD.TypeBuilders;
 
-public class TypeBuilder()
+public partial class TypeBuilder()
 {
     private readonly List<Type> _types = [];
     public Type BuildCreateRequestFromEntity(Type entityType, Type? parentType = null)
@@ -264,4 +266,70 @@ public class TypeBuilder()
         _types.Add(resultType);
         return resultType;
     }
+    
+    public Type BuildQueryRequest(string sql, string requestName)
+    {
+        var properties  = GetProperties(sql);
+        var typeName = "Query" + requestName;
+        var typeBuilder = TypeBuilderExtension.GetTypeBuilder(typeName, typeof(EntityRequest));
+        typeBuilder.DefineDefaultConstructor(MethodAttributes.Public | MethodAttributes.SpecialName |
+                                             MethodAttributes.RTSpecialName);
+        
+        foreach (var (type, name, sqlParameterPosition) in properties)
+        {
+            List<CustomAttributeBuilder> customAttributeBuilders = new();
+            var attributeBuilder = 
+                (new CustomAttributeBuilder(typeof(SqlParameterPositionTypeAttribute).GetConstructor(new[]{typeof(SqlParameterPosition)})!,
+                    new object[] { sqlParameterPosition }));
+            
+            customAttributeBuilders.Add(attributeBuilder);
+
+            TypeBuilderExtension.CreateProperty(typeBuilder, name, type, customAttributeBuilders);
+        }
+        
+        var resultType = typeBuilder.CreateType();
+        _types.Add(resultType);
+        return resultType;
+    }
+    
+    private static List<(Type type, string name, SqlParameterPosition sqlParameterPosition)> GetProperties(string sql)
+    {
+        var getProperties = new List<(Type type, string name, SqlParameterPosition sqlParameterPosition)>();
+        var matches = GetPropertiesFromSqlRegex().Matches(sql);
+
+        foreach (Match match in matches)
+        {
+            if (!match.Success) continue;
+            var name = match.Groups[1].Value.Trim();
+            var type = match.Groups[2].Value.Trim();
+
+            SqlParameterPosition sqlParameterPosition;
+            if (int.TryParse(match.Groups[3].Value, out int sqlParameterPositionInt))
+                sqlParameterPosition = (SqlParameterPosition)sqlParameterPositionInt;
+            else
+                sqlParameterPosition = SqlParameterPosition.Exact;
+
+            var parsedType = type switch
+            {
+                "INT" => typeof(int),
+                "STRING" => typeof(string),
+                "DATETIME" => typeof(DateTime),
+                "GUID" => typeof(Guid),
+                "DECIMAL" => typeof(decimal),
+                "FLOAT" => typeof(float),
+                "DOUBLE" => typeof(double),
+                "BOOL" => typeof(bool),
+                "BOOLEAN" => typeof(bool),
+                "BYTE" => typeof(byte),
+                _ => typeof(string)
+            };
+            
+            getProperties.Add((parsedType, name, sqlParameterPosition));
+        }
+
+        return getProperties;
+    }
+    
+    [GeneratedRegex(@"@(\w+):([A-Z]+)(?::(\d))?")]
+    private static partial Regex GetPropertiesFromSqlRegex();
 }

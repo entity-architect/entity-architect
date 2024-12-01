@@ -30,7 +30,7 @@ public static partial class ApiBuilder
             var responseType = typeBuilder.BuildResponseFromEntity(entity);
             var lightListResponseType = typeBuilder.BuildLightListProperty(entity);
             app.UseRouting();
-            app.UseEndpoints(endpoints =>
+            app.UseEndpoints(async endpoints =>
             {
                 var group = endpoints.MapGroup(Path.Combine(basePath, name));
 
@@ -143,9 +143,24 @@ public static partial class ApiBuilder
                 var queries = assembly.GetTypes().Where(c => c.BaseType == typeof(Query<>).MakeGenericType(entity));
                 foreach (var query in queries)
                 {
-                       
+                    var instance = Activator.CreateInstance(query);
+                    var sql = query.GetProperty(nameof(Query<Entity>.Sql))?.GetValue(instance) ;
+                    if(sql is null) continue;
+                    
+                    if ((bool)query.GetProperty(nameof(Query<Entity>.UseSqlFile))?.GetValue(instance)!)
+                    {
+                        sql = await File.ReadAllTextAsync((string)sql);
+                    }
+                    
+                    var queryType = typeBuilder.BuildQueryRequest((sql as string)!, query.Name);
+                    var mi = typeof(ApiBuilder)
+                        .GetMethod("MapGetEndpoint")?
+                        .MakeGenericMethod(queryType, query, entity);
+                    
+
+                    mi!.Invoke(group, new object[] { group, query.Name, app});
                 }
-                
+
                 group.WithTags(name);
             });
         }
@@ -153,6 +168,25 @@ public static partial class ApiBuilder
         return app;
     }
 
+    public static void MapGetEndpoint<TParam, TQuery, TEntity>(IEndpointRouteBuilder group, string endpointName, IApplicationBuilder app) 
+        where TEntity : Entity
+        where TQuery : Query<TEntity>
+        where TParam : class
+    {
+        QueryHandler<TParam, TEntity> queryHandler = new();
+        var query = Activator.CreateInstance<TQuery>();
+        var result = ConvertEndpointNameRegex().Replace(endpointName, "$1-$2");
+
+        var endpoint = group.MapGet(result.ToLower(), ([AsParameters] TParam param) =>
+        {
+            var context = app.ApplicationServices.GetService<IConfiguration>();
+            var connectionString = context.GetConnectionString("DefaultConnection");
+            var result = queryHandler.HandleAsync(query, param, connectionString, cancellationToken: default);
+            return result;
+        });
+    }
+
     [GeneratedRegex("([a-z])([A-Z])")]
     private static partial Regex ConvertEndpointNameRegex();
 }
+
