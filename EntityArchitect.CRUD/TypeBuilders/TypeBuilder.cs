@@ -339,4 +339,46 @@ public partial class TypeBuilder()
             _ => typeof(string)
         };
     }
+
+    public Type[] BuildQueryTypes(List<SqlParser.Field> parameterFields, string queryName, out string splitOn)
+    {
+        splitOn = "";
+        var queryTypes = new List<Type>();
+        var baseType = TypeBuilderExtension.GetTypeBuilder(queryName);
+        baseType.DefineDefaultConstructor(MethodAttributes.Public | MethodAttributes.SpecialName |
+                                          MethodAttributes.RTSpecialName);
+        foreach (var field in parameterFields)
+        {
+            if (field.Fields.Count == 0)
+            {
+                var propertyType = ParseType(field.Type);
+                TypeBuilderExtension.CreateProperty(baseType, field.Name, propertyType);
+            }
+            else
+            {
+                var complexType = TypeBuilderExtension.GetTypeBuilder(queryName + field.Type);
+                complexType.DefineDefaultConstructor(MethodAttributes.Public | MethodAttributes.SpecialName |
+                                                     MethodAttributes.RTSpecialName);
+                
+                splitOn += field.Fields[0].Name + ", ";
+                foreach (var complexField in field.Fields)
+                {
+                    var propertyType = ParseType(complexField.Type);
+                    TypeBuilderExtension.CreateProperty(complexType, complexField.Name, propertyType);
+                }
+
+                var resultType = complexType.CreateType();
+                _types.Add(resultType);
+                queryTypes.Add(resultType);
+                TypeBuilderExtension.CreateProperty(baseType, field.Name, resultType);
+            }
+        }
+        
+        var queryType = baseType.CreateType();
+        _types.Add(queryType);
+        queryTypes.Add(queryType);
+        splitOn = splitOn[..^2];
+        
+        return queryTypes.ToArray();
+    }
 }

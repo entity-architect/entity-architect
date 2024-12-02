@@ -55,12 +55,12 @@ internal class QueryHandler<TParam, TEntity>
                         break;
                 }
             }
+            
+            var parametersFields = SqlParser.ParseSql(sql);
             dbConnection.Open();
             try
             {
-                var type = new List<Type> {};
-
-                var result = QueryWithDynamicSplit(dbConnection, sql, type.ToArray(), query.SplitOn, param);
+                var result = QueryWithDynamicSplit(dbConnection, sql, parametersFields, param, query.GetType().Name);
                 return Result.Success(result);
             }
             catch (Exception e)
@@ -70,9 +70,14 @@ internal class QueryHandler<TParam, TEntity>
         }
     }
 
-    private static IEnumerable<object> QueryWithDynamicSplit(IDbConnection connection, string sql, Type[] types, string splitOn, object parameters)
+    private static IEnumerable<object> QueryWithDynamicSplit(IDbConnection connection, string sql, List<SqlParser.Field> parameterFields, object parameters, string queryName)
     {
-        var typeArray = types;
+        //todo: remove my sql syntax
+        //todo: do query with dapper
+        //todo: return lists 
+        TypeBuilder typeBuilder = new();
+        Type[] typeArray = typeBuilder.BuildQueryTypes(parameterFields, queryName, out var splitOn);
+        
         var mapFunc = CreateMapFunction(typeArray);
 
         var result= connection.GetType().GetMethod("QueryAsync")?.MakeGenericMethod(typeArray).Invoke(connection, new[] {sql, mapFunc, parameters, splitOn});

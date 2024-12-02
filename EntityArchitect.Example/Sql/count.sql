@@ -1,5 +1,1 @@
-SELECT a.id as Id, a.name, as Name b.title as Title FROM author a left join book b on b.author_id = a.id;
-
-a.id as Id:STRING:TableName
-id as Id:STRING:TableName
-id:STRING:TableName
+SELECT a.id as Id:GUID, a.name as Name:STRING, books:(b.id:GUID, b.title:STRING)[]:Books FROM author a left join book b on b.author_id = a.id;
