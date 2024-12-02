@@ -3,13 +3,14 @@ using System.Net;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Dapper;
+using EntityArchitect.CRUD.TypeBuilders;
 using EntityArchitect.Entities.Entities;
 using EntityArchitect.Results.Abstracts;
 using Npgsql;
 
 namespace EntityArchitect.CRUD.Queries;
 
-internal partial class QueryHandler<TParam, TEntity>
+internal class QueryHandler<TParam, TEntity>
     where TParam : class
     where TEntity : Entity
 {
@@ -24,6 +25,10 @@ internal partial class QueryHandler<TParam, TEntity>
             }
             else
             {
+                //todo:
+                //query have form name:type:table
+                //or name:(name:type, name:type, name:type) () as type
+                var groups = ParseSqlResponseProperties(sql);
                 sql = RemoveTypes(query.Sql);
             }
 
@@ -50,15 +55,12 @@ internal partial class QueryHandler<TParam, TEntity>
                         break;
                 }
             }
-            
             dbConnection.Open();
             try
             {
-                var type = new List<Type> {typeof(int), typeof(int), typeof(int), };
-                var mapFunc = CreateMapFunction(type.ToArray());
+                var type = new List<Type> {};
 
-                // Wykonujemy Query z dynamicznym splitOn
-                var result = dbConnection.Query(sql, mapFunc, param, splitOn: query.SplitOn);
+                var result = QueryWithDynamicSplit(dbConnection, sql, type.ToArray(), query.SplitOn, param);
                 return Result.Success(result);
             }
             catch (Exception e)
@@ -67,15 +69,13 @@ internal partial class QueryHandler<TParam, TEntity>
             }
         }
     }
-    
-    public static IEnumerable<object> QueryWithDynamicSplit(IDbConnection connection, string sql, Type[] types, string splitOn, object parameters = null)
+
+    private static IEnumerable<object> QueryWithDynamicSplit(IDbConnection connection, string sql, Type[] types, string splitOn, object parameters)
     {
         var typeArray = types;
         var mapFunc = CreateMapFunction(typeArray);
 
-        var result= connection.GetType().GetMethod("QueryAsync")?.MakeGenericMethod(typeArray).Invoke(connection, new[] {sql, mapFunc, parameters, splitOn = splitOn});
-        
-
+        var result= connection.GetType().GetMethod("QueryAsync")?.MakeGenericMethod(typeArray).Invoke(connection, new[] {sql, mapFunc, parameters, splitOn});
         return result as IEnumerable<object>;
     }
     
@@ -98,5 +98,27 @@ internal partial class QueryHandler<TParam, TEntity>
     {
         var pattern = @"(@\w+):\w+(:\w+)?";
         return Regex.Replace(text, pattern, "$1");
+    }
+    
+    public static List<(Type type, string name, string tableName)> ParseSqlResponseProperties(string input)
+    {
+        const string pattern = @"(?:\w+\.)?(\w+)(?: as (\w+))?:(\w+):(\w+)";
+        var matches = Regex.Matches(input, pattern);
+        var resultList = new List<(Type type, string name, string tableName)>();
+
+        foreach (Match match in matches)
+        {
+            if (match.Success)
+            {
+                var name = match.Groups[2].Success ? match.Groups[2].Value : match.Groups[1].Value;
+                var typeString = match.Groups[3].Value;
+                var tableName = match.Groups[4].Value;
+
+                var type = TypeBuilder.ParseType(typeString);
+                resultList.Add((type, name, tableName));
+            }
+        }
+
+        return resultList;
     }
 }

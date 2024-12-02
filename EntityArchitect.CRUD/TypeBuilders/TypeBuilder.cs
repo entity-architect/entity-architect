@@ -303,26 +303,15 @@ public partial class TypeBuilder()
             var name = match.Groups[1].Value.Trim();
             var type = match.Groups[2].Value.Trim();
 
+            var parsedType = ParseType(type);
+
             SqlParameterPosition sqlParameterPosition;
             if (int.TryParse(match.Groups[3].Value, out int sqlParameterPositionInt))
                 sqlParameterPosition = (SqlParameterPosition)sqlParameterPositionInt;
             else
                 sqlParameterPosition = SqlParameterPosition.Exact;
 
-            var parsedType = type switch
-            {
-                "INT" => typeof(int),
-                "STRING" => typeof(string),
-                "DATETIME" => typeof(DateTime),
-                "GUID" => typeof(Guid),
-                "DECIMAL" => typeof(decimal),
-                "FLOAT" => typeof(float),
-                "DOUBLE" => typeof(double),
-                "BOOL" => typeof(bool),
-                "BOOLEAN" => typeof(bool),
-                "BYTE" => typeof(byte),
-                _ => typeof(string)
-            };
+           
             
             getProperties.Add((parsedType, name, sqlParameterPosition));
         }
@@ -332,4 +321,22 @@ public partial class TypeBuilder()
     
     [GeneratedRegex(@"@(\w+):([A-Z]+)(?::(\d))?")]
     private static partial Regex GetPropertiesFromSqlRegex();
+
+    public static Type ParseType(string typeString)
+    {
+        return typeString switch
+        {
+            "INT" => typeof(int),
+            "STRING" => typeof(string),
+            "DATETIME" => typeof(DateTime),
+            "GUID" => typeof(Guid),
+            "DECIMAL" => typeof(decimal),
+            "FLOAT" => typeof(float),
+            "DOUBLE" => typeof(double),
+            "BOOL" => typeof(bool),
+            "BOOLEAN" => typeof(bool),
+            "BYTE" => typeof(byte),
+            _ => typeof(string)
+        };
+    }
 }
