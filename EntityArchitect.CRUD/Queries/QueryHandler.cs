@@ -15,29 +15,25 @@ internal class QueryHandler<TParam, TEntity>
     where TParam : class
     where TEntity : Entity
 {
-    internal async Task<Result> HandleAsync(Query<TEntity> query, TParam param, string connectionString, CancellationToken cancellationToken = default)
+    internal async Task<Result> HandleAsync(Query<TEntity> query, TParam param, string connectionString,
+        CancellationToken cancellationToken = default)
     {
         using (IDbConnection dbConnection = new NpgsqlConnection(connectionString))
         {
-            var sql = "";
+            string sql;
             if (query.UseSqlFile)
             {
                 sql = await File.ReadAllTextAsync(query.Sql, cancellationToken);
             }
             else
             {
-                //todo:
-                //query have form name:type:table
-                //or name:(name:type, name:type, name:type) () as type
-                var groups = ParseSqlResponseProperties(sql);
                 sql = RemoveTypes(query.Sql);
             }
-
-
+            
             foreach (var props in param.GetType().GetProperties())
             {
                 if (props.PropertyType != typeof(string)) continue;
-                
+
                 var sqlParameterPosition = props.GetCustomAttribute<SqlParameterPositionTypeAttribute>()?.Position;
                 switch (sqlParameterPosition)
                 {
@@ -56,7 +52,7 @@ internal class QueryHandler<TParam, TEntity>
                         break;
                 }
             }
-            
+
             var parametersFields = SqlParser.ParseSql(sql);
             dbConnection.Open();
             try
@@ -71,66 +67,71 @@ internal class QueryHandler<TParam, TEntity>
         }
     }
 
-    private static IEnumerable<object> QueryWithDynamicSplit(IDbConnection connection, string sql, List<SqlParser.Field> parameterFields, object parameters, string queryName)
+    private static List<object> QueryWithDynamicSplit(IDbConnection connection, string sql,
+        List<SqlParser.Field> parameterFields, object param, string queryName)
     {
-        //todo: remove my sql syntax
-        //todo: do query with dapper
-        //todo: return lists 
         TypeBuilder typeBuilder = new();
         var typeArray = typeBuilder.BuildQueryTypes(parameterFields, queryName, out var splitOn);
-        
-        var mapFunc = CreateMapFunction(typeArray);
 
-        var result= connection.GetType().GetMethod("QueryAsync")?.MakeGenericMethod(typeArray).Invoke(connection, new[] {sql, mapFunc, parameters, splitOn});
-        return result as IEnumerable<object>;
+        typeArray = typeArray.Reverse().ToArray();
+        var map = CreateMapFunction(typeArray);
+
+        var fullTypeArray = typeArray.ToList();
+        fullTypeArray.Add(typeArray[0]);
+        typeArray = fullTypeArray.ToArray();
+        var dapperExtensions = typeof(SqlMapper);
+
+        var methods = dapperExtensions.GetMethods();
+        var method = methods.FirstOrDefault(m =>
+            m is { Name: "Query", IsGenericMethod: true } && m.GetGenericArguments().Length == typeArray.Length);
+        var genericMethod = method!.MakeGenericMethod(typeArray);
+        using var transaction = connection.BeginTransaction();
+
+        var cleanSql = CleanSqlQuery(sql);
+        try
+        {
+            var task = genericMethod.Invoke(null,
+                new[] { connection, cleanSql, map, param, transaction, false, splitOn, null, null });
+            transaction.Commit();
+            var result = task as IEnumerable<object>;
+            var x = result.ToList();
+            return x;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+
     }
 
     private static Delegate CreateMapFunction(Type[] types)
     {
         var parameters = types.Select((t, i) => Expression.Parameter(t, $"arg{i}")).ToArray();
+        var argumentsArray = Expression.NewArrayInit(typeof(object), parameters);
 
-        var listType = typeof(List<object>);
-        var listAddMethod = listType.GetMethod("Add");
-        var listExpression = Expression.New(listType);
+        var method = typeof(QueryHandlerHelper).GetMethod(nameof(QueryHandlerHelper.BuildResponse));
+        method = method!.MakeGenericMethod(types[0]);
+        var callMethod = Expression.Call(
+            method,
+            argumentsArray
+        );
 
-        var bodyExpressions = new List<Expression> { listExpression };
-        foreach (var parameter in parameters)
-        {
-            var convertToObject = Expression.Convert(parameter, typeof(object));
-            bodyExpressions.Add(Expression.Call(bodyExpressions[0], listAddMethod!, convertToObject));
-        }
-
-        var body = Expression.Block(bodyExpressions);
-        var funcType = Expression.GetFuncType(types.Concat(new[] { types[0] }).ToArray());
-
-        return Expression.Lambda(funcType, body, parameters).Compile();
+        var lambda = Expression.Lambda(callMethod, parameters);
+        return lambda.Compile();
     }
-    
-    private static string RemoveTypes(string text)
+
+
+    static string RemoveTypes(string text)
     {
-        var pattern = @"(@\w+):\w+(:\w+)?";
+        const string pattern = @"(@\w+):\w+(:\w+)?";
         return Regex.Replace(text, pattern, "$1");
     }
-    
-    public static List<(Type type, string name, string tableName)> ParseSqlResponseProperties(string input)
+
+    static string CleanSqlQuery(string query)
     {
-        const string pattern = @"(?:\w+\.)?(\w+)(?: as (\w+))?:(\w+):(\w+)";
-        var matches = Regex.Matches(input, pattern);
-        var resultList = new List<(Type type, string name, string tableName)>();
-
-        foreach (Match match in matches)
-        {
-            if (match.Success)
-            {
-                var name = match.Groups[2].Success ? match.Groups[2].Value : match.Groups[1].Value;
-                var typeString = match.Groups[3].Value;
-                var tableName = match.Groups[4].Value;
-
-                var type = TypeBuilder.ParseType(typeString);
-                resultList.Add((type, name, tableName));
-            }
-        }
-
-        return resultList;
+        var step1 = Regex.Replace(query, @":\w+", "", RegexOptions.IgnoreCase);
+        var step2 = Regex.Replace(step1, @"\w+:\((.*?)\)\[]?", "$1", RegexOptions.IgnoreCase);
+        return step2.Trim();
     }
 }

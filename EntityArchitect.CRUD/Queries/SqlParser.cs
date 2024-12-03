@@ -9,6 +9,7 @@ public abstract class SqlParser
         public string Name { get; set; }
         public string Type { get; set; }
         public List<Field> Fields { get; set; }
+        public bool IsArray { get; set; }
     }
 
     public static List<Field> ParseSql(string sql)
@@ -51,7 +52,6 @@ public abstract class SqlParser
 
     static bool IsComplexClass(string column)
     {
-        // Sprawdza, czy kolumna ma nawiasy ()
         return Regex.IsMatch(column, @":\([\w\.,\s:]+\)");
     }
 
@@ -75,7 +75,7 @@ public abstract class SqlParser
         {
             Name = mainName,
             Type = mainType,
-            Fields = fields
+            Fields = fields,
         };
     }
 

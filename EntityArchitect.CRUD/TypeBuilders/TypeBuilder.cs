@@ -368,6 +368,7 @@ public partial class TypeBuilder()
                 }
 
                 var resultType = complexType.CreateType();
+                
                 _types.Add(resultType);
                 queryTypes.Add(resultType);
                 TypeBuilderExtension.CreateProperty(baseType, field.Name, resultType);
@@ -376,7 +377,7 @@ public partial class TypeBuilder()
         
         var queryType = baseType.CreateType();
         _types.Add(queryType);
-        queryTypes.Add(queryType);
+        queryTypes.Add(queryType); 
         splitOn = splitOn[..^2];
         
         return queryTypes.ToArray();
