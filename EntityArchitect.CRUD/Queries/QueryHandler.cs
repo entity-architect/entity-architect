@@ -1,4 +1,5 @@
 using System.Data;
+using System.Linq.Expressions;
 using System.Net;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -76,27 +77,33 @@ internal class QueryHandler<TParam, TEntity>
         //todo: do query with dapper
         //todo: return lists 
         TypeBuilder typeBuilder = new();
-        Type[] typeArray = typeBuilder.BuildQueryTypes(parameterFields, queryName, out var splitOn);
+        var typeArray = typeBuilder.BuildQueryTypes(parameterFields, queryName, out var splitOn);
         
         var mapFunc = CreateMapFunction(typeArray);
 
         var result= connection.GetType().GetMethod("QueryAsync")?.MakeGenericMethod(typeArray).Invoke(connection, new[] {sql, mapFunc, parameters, splitOn});
         return result as IEnumerable<object>;
     }
-    
-    private static Func<object[], object> CreateMapFunction(Type[] types)
+
+    private static Delegate CreateMapFunction(Type[] types)
     {
-        return objects =>
+        var parameters = types.Select((t, i) => Expression.Parameter(t, $"arg{i}")).ToArray();
+
+        var listType = typeof(List<object>);
+        var listAddMethod = listType.GetMethod("Add");
+        var listExpression = Expression.New(listType);
+
+        var bodyExpressions = new List<Expression> { listExpression };
+        foreach (var parameter in parameters)
         {
-            var combinedResult = new List<object>();
+            var convertToObject = Expression.Convert(parameter, typeof(object));
+            bodyExpressions.Add(Expression.Call(bodyExpressions[0], listAddMethod!, convertToObject));
+        }
 
-            for (int i = 0; i < types.Length; i++)
-            {
-                combinedResult.Add(Convert.ChangeType(objects[i], types[i]));
-            }
+        var body = Expression.Block(bodyExpressions);
+        var funcType = Expression.GetFuncType(types.Concat(new[] { types[0] }).ToArray());
 
-            return combinedResult;
-        };
+        return Expression.Lambda(funcType, body, parameters).Compile();
     }
     
     private static string RemoveTypes(string text)
