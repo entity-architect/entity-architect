@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Text.RegularExpressions;
 using EntityArchitect.CRUD.Attributes;
+using EntityArchitect.CRUD.Attributes.QueryResponseTypeAttributes;
 using EntityArchitect.CRUD.Queries;
 using EntityArchitect.Entities.Attributes;
 using EntityArchitect.Entities.Entities;
@@ -322,7 +323,7 @@ public partial class TypeBuilder()
     [GeneratedRegex(@"@(\w+):([A-Z]+)(?::(\d))?")]
     private static partial Regex GetPropertiesFromSqlRegex();
 
-    public static Type ParseType(string typeString)
+    private static Type ParseType(string typeString)
     {
         return typeString switch
         {
@@ -369,9 +370,16 @@ public partial class TypeBuilder()
 
                 var resultType = complexType.CreateType();
                 
-                _types.Add(resultType);
                 queryTypes.Add(resultType);
-                TypeBuilderExtension.CreateProperty(baseType, field.Name, resultType);
+                var attributesList = new List<CustomAttributeBuilder>();
+                
+                if (field.IsArray)
+                {
+                    var ctor = typeof(IsArrayAttribute).GetConstructors().First();
+                    var customAttributeBuilder = new CustomAttributeBuilder(ctor!, new object[]{});
+                    attributesList.Add(customAttributeBuilder);
+                }
+                TypeBuilderExtension.CreateProperty(baseType, field.Name, resultType, attributesList);
             }
         }
         
@@ -381,5 +389,26 @@ public partial class TypeBuilder()
         splitOn = splitOn[..^2];
         
         return queryTypes.ToArray();
+    }
+
+    public Type BuildQueryResultType(Type type)
+    {
+        var resultType = TypeBuilderExtension.GetTypeBuilder(type.Name + "Result");
+        resultType.DefineDefaultConstructor(MethodAttributes.Public | MethodAttributes.SpecialName |
+                                            MethodAttributes.RTSpecialName);
+
+        var properties = type.GetProperties();
+        foreach (var property in properties)
+        {
+            var propertyType = property.PropertyType;
+            if (property.CustomAttributes.Any(c => c.AttributeType == typeof(IsArrayAttribute)))
+            {
+                propertyType = typeof(List<>).MakeGenericType(propertyType);
+            }
+            TypeBuilderExtension.CreateProperty(resultType, property.Name, propertyType);
+        }
+        
+        var result = resultType.CreateType();
+        return result;
     }
 }

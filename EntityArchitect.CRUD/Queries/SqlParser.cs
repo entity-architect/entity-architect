@@ -58,11 +58,10 @@ public abstract class SqlParser
     static Field ParseComplexField(string column)
     {
         var mainFieldMatch = Regex.Match(column, @"([\w\.]+):\([\w\.,\s:]+\)\[\]:([\w]+)");
-        string mainName = mainFieldMatch.Groups[1].Value;
-        string mainType = mainFieldMatch.Groups[2].Value;
-
+        var mainName = mainFieldMatch.Groups[1].Value;
+        var mainType = mainFieldMatch.Groups[2].Value;
         var nestedFieldsMatch = Regex.Match(column, @":\(([\w\.,\s:]+)\)");
-        string nestedFields = nestedFieldsMatch.Groups[1].Value;
+        var nestedFields = nestedFieldsMatch.Groups[1].Value;
 
         var fields = new List<Field>();
         var extracted = ExtractColumns(nestedFields);
@@ -70,12 +69,13 @@ public abstract class SqlParser
         {
             fields.Add(ParseSimpleField(nestedField.Trim()));
         }
-
+        var isArray = column.Contains(")[]");
         return new Field
         {
             Name = mainName,
             Type = mainType,
             Fields = fields,
+            IsArray = isArray
         };
     }
 
@@ -93,7 +93,8 @@ public abstract class SqlParser
         {
             Name = alias,
             Type = dataType,
-            Fields = []
+            Fields = [],
+            IsArray = false
         };
 
     } 

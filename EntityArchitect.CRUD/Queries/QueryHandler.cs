@@ -72,7 +72,7 @@ internal class QueryHandler<TParam, TEntity>
     {
         TypeBuilder typeBuilder = new();
         var typeArray = typeBuilder.BuildQueryTypes(parameterFields, queryName, out var splitOn);
-
+        var resultType = typeBuilder.BuildQueryResultType(typeArray.Last());
         typeArray = typeArray.Reverse().ToArray();
         var map = CreateMapFunction(typeArray);
 
@@ -86,15 +86,38 @@ internal class QueryHandler<TParam, TEntity>
             m is { Name: "Query", IsGenericMethod: true } && m.GetGenericArguments().Length == typeArray.Length);
         var genericMethod = method!.MakeGenericMethod(typeArray);
         using var transaction = connection.BeginTransaction();
-
+        
         var cleanSql = CleanSqlQuery(sql);
         try
         {
             var task = genericMethod.Invoke(null,
                 new[] { connection, cleanSql, map, param, transaction, false, splitOn, null, null });
             transaction.Commit();
-            var result = task as IEnumerable<object>;
-            var x = result.ToList();
+            var sqlResponse = task as IEnumerable<object>;
+            var x = sqlResponse.ToList();
+            var grouped = x.GroupBy(item => GetPropertyValue(item, "Id"));
+            var result = Activator.CreateInstance(resultType);
+            foreach (var groupedItem  in x)
+            {
+                var item = groupedItem as IGrouping<object, object>;
+                foreach (var property in resultType.GetProperties())
+                {
+                    if (!item.GetType().IsGenericType)
+                    {
+                        property.SetValue(resultType,
+                            item.GetType()
+                                .GetProperties()
+                                .First(c => c.Name == property.Name)
+                                .GetValue(item));
+                    }
+                    else
+                    {
+                        var 
+                    }
+
+
+                }
+            }
             return x;
         }
         catch (Exception e)
@@ -104,7 +127,11 @@ internal class QueryHandler<TParam, TEntity>
         }
 
     }
-
+    
+    static object GetPropertyValue(object obj, string propertyName)
+    {
+        return obj.GetType().GetProperty(propertyName)?.GetValue(obj, null);
+    }
     private static Delegate CreateMapFunction(Type[] types)
     {
         var parameters = types.Select((t, i) => Expression.Parameter(t, $"arg{i}")).ToArray();
