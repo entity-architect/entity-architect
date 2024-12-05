@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.Attributes;
 using EntityArchitect.CRUD.Queries;
@@ -6,7 +5,7 @@ using EntityArchitect.Entities.Attributes;
 using EntityArchitect.Entities.Entities;
 using ILogger = EntityArchitect.Example.Services.Logger.ILogger;
 
-namespace EntityArchitect.Example;
+namespace EntityArchitect.Example.Entities;
 
 [HasLightList]
 [GetListPaginated(3)]
@@ -22,8 +21,8 @@ public class Author : Entity
         Name += addedByAction;
     }
 }
-public class AuthorSearchQuery() : Query<Author>("SELECT id, name FROM author WHERE name LIKE @AuthorName:STRING:2 ORDER BY name ASC;");
-public class AuthorCountQuery() : Query<Author>("sql/count.sql", true);
+public class AuthorGetAuthorsWithBooksQuery() : Query<Author>("sql/GetAuthorsWithBooks.sql", true);
+public class AuthorGetAuthorsWithBooksAndRentalsQuery() : Query<Author>("sql/GetAuthorsWithBooksAndRentals.sql", true);
 public class AuthorCreateAction(ILogger logger) : EndpointAction<Author>
 {
     protected override ValueTask<Author> BeforePostAsync(Author entity, CancellationToken cancellationToken = default)
