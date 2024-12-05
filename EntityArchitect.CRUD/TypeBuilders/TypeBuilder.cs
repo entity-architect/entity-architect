@@ -25,8 +25,7 @@ public partial class TypeBuilder()
         var typeName = entityType.FullName + "CreateRequest";
         if (_types.Any(c => c.FullName == typeName))
             return _types.First(c => c.FullName == typeName);
-
-
+        
         var customAttributeBuilder = new CustomAttributeBuilder(typeof(EntityRequestAttribute).GetConstructor(new[]{typeof(Type)} )!, new object[] { entityType });
         var typeBuilder = TypeBuilderExtension.GetTypeBuilder(typeName, typeof(EntityRequest), customAttributeBuilder);
         typeBuilder.DefineDefaultConstructor(MethodAttributes.Public | MethodAttributes.SpecialName |

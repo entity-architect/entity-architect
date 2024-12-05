@@ -67,7 +67,7 @@ internal class QueryHandler<TParam, TEntity>
         }
     }
 
-    private static List<object> QueryWithDynamicSplit(IDbConnection connection, string sql,
+    private static object QueryWithDynamicSplit(IDbConnection connection, string sql,
         List<SqlParser.Field> parameterFields, object param, string queryName)
     {
         TypeBuilder typeBuilder = new();
@@ -95,30 +95,46 @@ internal class QueryHandler<TParam, TEntity>
             transaction.Commit();
             var sqlResponse = task as IEnumerable<object>;
             var x = sqlResponse.ToList();
+     
             var grouped = x.GroupBy(item => GetPropertyValue(item, "Id"));
-            var result = Activator.CreateInstance(resultType);
-            foreach (var groupedItem  in x)
+            var result = Activator.CreateInstance(typeof(List<>).MakeGenericType(resultType));
+
+            foreach (var groupedItem in grouped)
             {
-                var item = groupedItem as IGrouping<object, object>;
+                var itemGroup = groupedItem as IGrouping<object, object>;
+                if (itemGroup == null) continue;
+
+                // Tworzenie nowego obiektu typu resultType dla każdej grupy
+                var groupResult = Activator.CreateInstance(resultType);
+
                 foreach (var property in resultType.GetProperties())
                 {
-                    if (!item.GetType().IsGenericType)
+                    if (property.PropertyType.IsGenericType && property.PropertyType.GetInterface(nameof(IEnumerable<object>)) != null)
                     {
-                        property.SetValue(resultType,
-                            item.GetType()
-                                .GetProperties()
-                                .First(c => c.Name == property.Name)
-                                .GetValue(item));
+                        var collection = Activator.CreateInstance(property.PropertyType);
+                        foreach (var item in itemGroup)
+                        {
+                            var addMethod = property.PropertyType.GetMethod("Add");
+                            addMethod?.Invoke(collection, new[]
+                            {
+                                item.GetType().GetProperty(property.Name)?.GetValue(item)
+                            });
+                        }
+                        property.SetValue(groupResult, collection);
                     }
                     else
                     {
-                        var 
+                        // Obsługa właściwości nie będących kolekcjami
+                        var firstValue = itemGroup.FirstOrDefault()?.GetType()
+                            .GetProperty(property.Name)?.GetValue(itemGroup.FirstOrDefault());
+                        property.SetValue(groupResult, firstValue);
                     }
-
-
                 }
+
+                // Dodanie zgrupowanego obiektu do listy wyników
+                result?.GetType().GetMethod("Add").Invoke(result, new[] { groupResult });
             }
-            return x;
+            return result;
         }
         catch (Exception e)
         {
