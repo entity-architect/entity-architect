@@ -52,7 +52,7 @@ public class DelegateBuilder<
             return entity.ConvertEntityToResponse<TEntity, TEntityResponse>();
         };
 
-    public Func<TEntityUpdateRequest, CancellationToken, ValueTask<Result<TEntityResponse>>> UpdateDelegate =>
+    public Func<TEntityUpdateRequest, CancellationToken, ValueTask<Result<TEntityResponse?>>> UpdateDelegate =>
         async (body, cancellationToken) =>
         {
             var entity = body.ConvertRequestToEntity<TEntity, TEntityUpdateRequest>();
