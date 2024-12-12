@@ -20,16 +20,20 @@ public static class EntityConverter
                 p => p.Name == propertyEntity.Name || p.Name == propertyEntity.Name + "Id");
             if (propertyRequest == null || !propertyRequest.CanRead) continue;
             var value = propertyRequest.GetValue(requestInstance);
-            var attributeType = typeof(RelationOneToManyAttribute<>)
-                .MakeGenericType(propertyEntity.PropertyType);
 
-            if (propertyEntity.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType))
+            if (propertyEntity.PropertyType.BaseType == typeof(Entity))
             {
-                var subEntityInstance = Activator.CreateInstance(propertyEntity.PropertyType);
-                propertyEntity.PropertyType.GetProperty(nameof(Entity.Id))
-                    ?.SetValue(subEntityInstance, new Id<Entity>((Guid)value!).ToId());
-                propertyEntity.SetValue(entityInstance, subEntityInstance);
-                continue;
+                var attributeType = typeof(RelationOneToManyAttribute<>)
+                    .MakeGenericType(propertyEntity.PropertyType);
+
+                if (propertyEntity.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType))
+                {
+                    var subEntityInstance = Activator.CreateInstance(propertyEntity.PropertyType);
+                    propertyEntity.PropertyType.GetProperty(nameof(Entity.Id))
+                        ?.SetValue(subEntityInstance, new Id<Entity>((Guid)value!).ToId());
+                    propertyEntity.SetValue(entityInstance, subEntityInstance);
+                    continue;
+                }
             }
 
             propertyEntity.SetValue(entityInstance,
