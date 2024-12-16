@@ -1,5 +1,10 @@
+using System.Net;
+using System.Security.Claims;
 using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.Attributes;
+using EntityArchitect.CRUD.Authorization;
+using EntityArchitect.CRUD.Authorization.Requests;
+using EntityArchitect.CRUD.Authorization.Service;
 using EntityArchitect.CRUD.TypeBuilders;
 using EntityArchitect.Entities;
 using EntityArchitect.Entities.Context;
@@ -111,7 +116,7 @@ public class DelegateBuilder<
                 .Select(x => x.Name)
                 .ToList();
 
-            var spec = new SpecificationGetById<TEntity>(x => x.Id == id, properties);
+            var spec = new SpecificationBySpec<TEntity>(x => x.Id == id, properties);
 
             var entity = await service.GetBySpecificationIdAsync(spec, cancellationToken);
             if (entity is not null)
@@ -171,4 +176,48 @@ public class DelegateBuilder<
             var paginatedResponse = new PaginatedResult<TEntityResponse>(response, page, leftPages, pageCount, totalCount);
             return paginatedResponse;
         };
+    
+    public Func<AuthorizationRequest, CancellationToken, ValueTask<Result<AuthorizationResponse>>> Login =>
+        async (loginRequest, cancellationToken) =>
+        {
+            using var scope = _provider.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
+            var authService = scope.ServiceProvider.GetRequiredService<IAuthorization>();
+            
+            var usernameProperty = typeof(TEntity).GetProperties().FirstOrDefault(c => c.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationUsernameAttribute)));
+            if(usernameProperty is null)
+                return Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.NotFound, "Username property not found in entity."));
+            
+            var passwordProperty = typeof(TEntity).GetProperties().FirstOrDefault(c => c.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationPasswordAttribute)));
+            if(passwordProperty is null)
+                return Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.NotFound, "Password property not found in entity."));
+
+            var specification = new SpecificationBySpec<TEntity>(x => 
+                usernameProperty.GetValue(x)!.ToString() == loginRequest.Username &&
+                passwordProperty.GetValue(x)!.ToString() == loginRequest.Password, []);
+            
+            var entities = await repository.GetBySpecificationAsync(specification, cancellationToken);
+            if(entities.Count == 0)
+                return Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.NotFound, $"User {_entityName} not found."));
+            
+            var response = authService.CreateAuthorizationToken(entities.First());
+            return response!;
+        };
+    
+    public Func<HttpRequest, CancellationToken, ValueTask<Result<AuthorizationResponse>>> RefreshToken =>
+        async (refreshRequest, cancellationToken) =>
+        {
+            using var scope = _provider.CreateScope();
+            var authService = scope.ServiceProvider.GetRequiredService<IAuthorization>();
+            var repository = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
+            
+            var identity = refreshRequest.HttpContext.User.Identity as ClaimsIdentity;
+
+            var entity = await repository.GetByIdAsync(refreshRequest.Entity.Id.Value, cancellationToken); //TODO
+            
+            var response = authService.CreateAuthorizationToken(refreshRequest.Entity);
+            return response!;
+        };
+    
+    
 }

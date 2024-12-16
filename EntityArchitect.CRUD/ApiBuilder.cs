@@ -1,6 +1,8 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 using EntityArchitect.CRUD.Attributes;
+using EntityArchitect.CRUD.Authorization;
+using EntityArchitect.CRUD.Authorization.Attributes;
 using EntityArchitect.CRUD.Helpers;
 using EntityArchitect.CRUD.Queries;
 using EntityArchitect.CRUD.TypeBuilders;
@@ -137,6 +139,31 @@ public static partial class ApiBuilder
                     endpoint.WithDisplayName($"Get paginated list of {entity.Name}s");
                     endpoint.Produces(200,
                         typeof(Result<>).MakeGenericType(typeof(PaginatedResult<>).MakeGenericType(responseType)));
+                    endpoint.Produces(500, typeof(Result));
+                }
+                
+                if (entity.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationEntityAttribute)))
+                {
+                    var loginDelegate =
+                        delegateBuilder!.GetType().GetProperty("Login")!
+                            .GetValue(delegateBuilder) as Delegate;
+                    var endpoint = group.MapGet("login", loginDelegate!);
+                    endpoint.WithSummary($"Login {entity.Name}");
+                    
+                    endpoint.WithDisplayName($"Login user of type {entity.Name}");
+                    endpoint.Produces(200,
+                        typeof(Result<>).MakeGenericType(typeof(AuthorizationResponse).MakeGenericType(responseType)));
+                    endpoint.Produces(500, typeof(Result));
+                    
+                    var refreshTokenDelegate =
+                        delegateBuilder!.GetType().GetProperty("RefreshToken")!
+                            .GetValue(delegateBuilder) as Delegate;
+                    endpoint = group.MapGet("refresh-token", refreshTokenDelegate!);
+                    endpoint.WithSummary($"Refresh token {entity.Name}");
+                    
+                    endpoint.WithDisplayName($"Refresh token for user of type {entity.Name}");
+                    endpoint.Produces(200,
+                        typeof(Result<>).MakeGenericType(typeof(AuthorizationResponse).MakeGenericType(responseType)));
                     endpoint.Produces(500, typeof(Result));
                 }
 

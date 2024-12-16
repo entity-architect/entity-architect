@@ -23,7 +23,7 @@ public class Repository<TEntity>(ApplicationDbContext context) :
     public ValueTask<TEntity?> GetByIdAsync(Id<TEntity> id, CancellationToken cancellationToken = default) =>
         context.Set<TEntity>().FindAsync(new object[] { id.ToId() }, cancellationToken);
 
-    public Task<TEntity?> GetBySpecificationIdAsync(SpecificationGetById<TEntity> specification,
+    public Task<TEntity?> GetBySpecificationIdAsync(SpecificationBySpec<TEntity> specification,
         CancellationToken cancellationToken = default)
     {
         var query = context.Set<TEntity>().AsQueryable();
