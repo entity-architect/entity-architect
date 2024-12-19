@@ -147,7 +147,7 @@ public static partial class ApiBuilder
                     var loginDelegate =
                         delegateBuilder!.GetType().GetProperty("Login")!
                             .GetValue(delegateBuilder) as Delegate;
-                    var endpoint = group.MapGet("login", loginDelegate!);
+                    var endpoint = group.MapPost("login", loginDelegate!);
                     endpoint.WithSummary($"Login {entity.Name}");
                     
                     endpoint.WithDisplayName($"Login user of type {entity.Name}");
@@ -158,7 +158,7 @@ public static partial class ApiBuilder
                     var refreshTokenDelegate =
                         delegateBuilder!.GetType().GetProperty("RefreshToken")!
                             .GetValue(delegateBuilder) as Delegate;
-                    endpoint = group.MapGet("refresh-token", refreshTokenDelegate!);
+                    endpoint = group.MapPost("refresh-token", refreshTokenDelegate!);
                     endpoint.WithSummary($"Refresh token {entity.Name}");
                     
                     endpoint.WithDisplayName($"Refresh token for user of type {entity.Name}");
@@ -203,11 +203,6 @@ public static partial class ApiBuilder
         QueryHandler<TParam, TEntity> queryHandler = new();
         var query = Activator.CreateInstance<TQuery>();
         var result = ConvertEndpointNameRegex().Replace(endpointName, "$1-$2");
-
-        //get from sql types and names. Build type to use in dapper 
-        
-        
-        
         var endpoint = group.MapGet(result.ToLower(), ([AsParameters] TParam param) =>
         {
             var context = app.ApplicationServices.GetService<IConfiguration>();

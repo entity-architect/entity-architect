@@ -16,7 +16,7 @@ public class Authorization(IConfiguration configuration) : IAuthorization
         var refreshKey = Encoding.ASCII.GetBytes(configuration["Jwt:Key"]!);
         var claims = new List<Claim>
         {
-            new("Id", entity.Id.Value.ToString()),
+            new("id", entity.Id.Value.ToString()),
         };
         
         var claimsProperties = entity.GetType().GetProperties().Where(p => p.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationClaimAttribute))).ToList();

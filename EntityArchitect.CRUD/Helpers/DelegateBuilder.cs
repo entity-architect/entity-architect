@@ -212,10 +212,14 @@ public class DelegateBuilder<
             var repository = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
             
             var identity = refreshRequest.HttpContext.User.Identity as ClaimsIdentity;
+            if (identity is null)
+                return Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.BadRequest, "Request authorization identity is empty."));
+            var id = Guid.Parse(identity.Claims.First(c => c.Type == "id").Value);
+            var entity = await repository.GetByIdAsync(new Id<TEntity>(id), cancellationToken); //TODO
+            if (entity is null)
+                return Result.Failure<AuthorizationResponse>(Error.NotFound(id, _entityName));
 
-            var entity = await repository.GetByIdAsync(refreshRequest.Entity.Id.Value, cancellationToken); //TODO
-            
-            var response = authService.CreateAuthorizationToken(refreshRequest.Entity);
+            var response = authService.CreateAuthorizationToken(entity);
             return response!;
         };
     
