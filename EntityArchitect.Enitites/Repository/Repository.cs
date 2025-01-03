@@ -45,7 +45,7 @@ public class Repository<TEntity>(ApplicationDbContext context) :
         return query.Where(specification.SpecExpression)
             .ToListAsync(cancellationToken);
     }
-
+    
     public Task<int> ExecuteSqlAsync(string sql, CancellationToken cancellationToken = default) =>
         context.Database.ExecuteSqlRawAsync(sql, cancellationToken);
 

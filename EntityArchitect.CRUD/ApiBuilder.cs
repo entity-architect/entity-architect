@@ -3,12 +3,14 @@ using System.Text.RegularExpressions;
 using EntityArchitect.CRUD.Attributes;
 using EntityArchitect.CRUD.Authorization;
 using EntityArchitect.CRUD.Authorization.Attributes;
+using EntityArchitect.CRUD.Authorization.Service;
 using EntityArchitect.CRUD.Helpers;
 using EntityArchitect.CRUD.Queries;
 using EntityArchitect.CRUD.TypeBuilders;
 using EntityArchitect.Entities.Entities;
 using EntityArchitect.Results;
 using EntityArchitect.Results.Abstracts;
+using Microsoft.AspNetCore.Authorization;
 
 namespace EntityArchitect.CRUD;
 
@@ -22,6 +24,7 @@ public static partial class ApiBuilder
     {
         var enumerable = assembly.ExportedTypes.Where(c => c.BaseType == typeof(Entity)).ToList();
         var typeBuilder = new TypeBuilder();
+        
         foreach (var entity in enumerable)
         {
             var result = ConvertEndpointNameRegex().Replace(entity.Name, "$1-$2");
@@ -34,6 +37,14 @@ public static partial class ApiBuilder
             app.UseRouting();
             app.UseEndpoints(async endpoints =>
             {
+                var auth = endpoints.ServiceProvider.GetService(typeof(IAuthorizationBuilderService));
+                if (auth is not null)
+                {
+                    app.UseMiddleware<AuthorizationMiddleware>();
+                    app.UseAuthentication();
+                    app.UseAuthorization();
+                }
+
                 var group = endpoints.MapGroup(Path.Combine(basePath, name));
 
                 var delegateBuilder = typeof(DelegateBuilder<,,,,>)
@@ -147,23 +158,25 @@ public static partial class ApiBuilder
                     var loginDelegate =
                         delegateBuilder!.GetType().GetProperty("Login")!
                             .GetValue(delegateBuilder) as Delegate;
-                    var endpoint = group.MapGet("login", loginDelegate!);
+                    var endpoint = group.MapPost("login", loginDelegate!);
                     endpoint.WithSummary($"Login {entity.Name}");
                     
                     endpoint.WithDisplayName($"Login user of type {entity.Name}");
                     endpoint.Produces(200,
-                        typeof(Result<>).MakeGenericType(typeof(AuthorizationResponse).MakeGenericType(responseType)));
+                        typeof(Result<>).MakeGenericType(typeof(AuthorizationResponse)));
                     endpoint.Produces(500, typeof(Result));
                     
                     var refreshTokenDelegate =
                         delegateBuilder!.GetType().GetProperty("RefreshToken")!
                             .GetValue(delegateBuilder) as Delegate;
-                    endpoint = group.MapGet("refresh-token", refreshTokenDelegate!);
+                    endpoint = group.MapPost("refresh-token", refreshTokenDelegate!);
                     endpoint.WithSummary($"Refresh token {entity.Name}");
-                    
+                    endpoint.AllowAnonymous();
+                    endpoint.RequireAuthorization(entity.Name);
+
                     endpoint.WithDisplayName($"Refresh token for user of type {entity.Name}");
                     endpoint.Produces(200,
-                        typeof(Result<>).MakeGenericType(typeof(AuthorizationResponse).MakeGenericType(responseType)));
+                        typeof(Result<>).MakeGenericType(typeof(AuthorizationResponse)));
                     endpoint.Produces(500, typeof(Result));
                 }
 
@@ -203,10 +216,6 @@ public static partial class ApiBuilder
         QueryHandler<TParam, TEntity> queryHandler = new();
         var query = Activator.CreateInstance<TQuery>();
         var result = ConvertEndpointNameRegex().Replace(endpointName, "$1-$2");
-
-        //get from sql types and names. Build type to use in dapper 
-        
-        
         
         var endpoint = group.MapGet(result.ToLower(), ([AsParameters] TParam param) =>
         {
