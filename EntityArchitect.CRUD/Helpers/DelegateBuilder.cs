@@ -247,6 +247,7 @@ public class DelegateBuilder<
             if(entity is null)
                 return Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.NotFound, $"User {_entityName} not found."));
             
+
             var response = authService.CreateAuthorizationToken(entity);
             return response!;
         };

@@ -216,7 +216,6 @@ public static partial class ApiBuilder
         QueryHandler<TParam, TEntity> queryHandler = new();
         var query = Activator.CreateInstance<TQuery>();
         var result = ConvertEndpointNameRegex().Replace(endpointName, "$1-$2");
-        
         var endpoint = group.MapGet(result.ToLower(), ([AsParameters] TParam param) =>
         {
             var context = app.ApplicationServices.GetService<IConfiguration>();
