@@ -5,6 +5,7 @@ using System.Security.Claims;
 using System.Text;
 using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.Attributes;
+using EntityArchitect.CRUD.Attributes.CrudAttributes;
 using EntityArchitect.CRUD.Authorization;
 using EntityArchitect.CRUD.Authorization.Requests;
 using EntityArchitect.CRUD.Authorization.Service;
