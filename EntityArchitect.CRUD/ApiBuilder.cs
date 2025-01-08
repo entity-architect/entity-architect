@@ -1,6 +1,5 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
-using EntityArchitect.CRUD.Attributes;
 using EntityArchitect.CRUD.Attributes.CrudAttributes;
 using EntityArchitect.CRUD.Authorization;
 using EntityArchitect.CRUD.Authorization.Attributes;

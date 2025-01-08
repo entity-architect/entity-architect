@@ -196,7 +196,7 @@ public class DelegateBuilder<
             var passwordProperty = typeof(TEntity).GetProperties().FirstOrDefault(c => c.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationPasswordAttribute)));
             if(passwordProperty is null)
                 return Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.NotFound, "Password property not found in entity."));
-
+            
             var parameter = Expression.Parameter(typeof(TEntity), "x");
             var usernamePropertyExpression = Expression.Property(parameter, usernameProperty.Name);
             var passwordPropertyExpression = Expression.Property(parameter, passwordProperty.Name);
@@ -205,12 +205,13 @@ public class DelegateBuilder<
                 usernamePropertyExpression,
                 Expression.Constant(loginRequest.Username));
 
-            var passwordCondition = Expression.Equal(
-                passwordPropertyExpression,
-                Expression.Constant(loginRequest.Password));
-
+            var passwordCondition = Expression.Call(
+                typeof(BCrypt.Net.BCrypt).GetMethod(nameof(BCrypt.Net.BCrypt.Verify))!,
+                Expression.Constant(loginRequest.Password), 
+                passwordPropertyExpression
+            );
+            
             var combinedCondition = Expression.AndAlso(usernameCondition, passwordCondition);
-
             var lambda = Expression.Lambda<Func<TEntity, bool>>(combinedCondition, parameter);
 
             var specification = new SpecificationBySpec<TEntity>(lambda, []);
