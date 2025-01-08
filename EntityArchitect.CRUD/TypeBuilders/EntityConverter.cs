@@ -56,9 +56,6 @@ public static class EntityConverter
 
         foreach (var propertyEntity in responseProperties)
         {
-            if(propertyEntity.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationPasswordAttribute)))
-                continue;
-            
             var propertyResponse = Array.Find(entityProperties, p => p.Name == propertyEntity.Name);
             if (propertyResponse == null || !propertyResponse.CanRead) continue;
             var value = propertyResponse.GetValue(entityInstance);
@@ -118,7 +115,6 @@ public static class EntityConverter
 
         return responseInstance!;
     }
-
     public static TResponse ConvertEntityToLightListResponse<TEntity, TResponse>(this TEntity entityInstance)
     {
         var responseInstance = Activator.CreateInstance<TResponse>();
@@ -127,6 +123,9 @@ public static class EntityConverter
 
         foreach (var propertyEntity in responseProperties)
         {
+            if(propertyEntity.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationPasswordAttribute)))
+                continue;
+            
             var propertyResponse = Array.Find(entityProperties, p => p.Name == propertyEntity.Name);
             if (propertyResponse == null || !propertyResponse.CanRead) continue;
             var value = propertyResponse.GetValue(entityInstance);
@@ -141,7 +140,6 @@ public static class EntityConverter
         
         return responseInstance;
     }
-
     private static void HashPassword<TEntity>(this TEntity entityInstance) where TEntity : Entity?
     {
         if (typeof(TEntity).GetCustomAttribute<AuthorizationEntityAttribute>() is null)
