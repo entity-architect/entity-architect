@@ -1,4 +1,6 @@
 using System.Collections;
+using System.Reflection;
+using EntityArchitect.CRUD.Authorization;
 using EntityArchitect.Entities.Attributes;
 using EntityArchitect.Entities.Entities;
 
@@ -52,6 +54,9 @@ public static class EntityConverter
 
         foreach (var propertyEntity in responseProperties)
         {
+            if(propertyEntity.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationPasswordAttribute)))
+                continue;
+            
             var propertyResponse = Array.Find(entityProperties, p => p.Name == propertyEntity.Name);
             if (propertyResponse == null || !propertyResponse.CanRead) continue;
             var value = propertyResponse.GetValue(entityInstance);

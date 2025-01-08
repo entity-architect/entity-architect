@@ -31,13 +31,13 @@ public static partial class ApiBuilder
             var name = result.ToLower();
 
             var authorizationPolicies = new List<Type>();
-            var haveAuthorization = entity.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationEntityAttribute));
-            var authorizationEntityAttribute = entity.GetCustomAttribute<AuthorizationEntityAttribute>();
+            var haveAuthorization = entity.CustomAttributes.Any(c => c.AttributeType == typeof(SecuredEntityAttribute));
+            var authorizationEntityAttribute = entity.GetCustomAttribute<SecuredEntityAttribute>();
             if (authorizationEntityAttribute is not null)
             {
                 foreach (var type in authorizationEntityAttribute.EntityTypes)
                 {
-                    if(type.BaseType != typeof(AuthorizationEntityAttribute))
+                    if(type.CustomAttributes.All(c => c.AttributeType != typeof(AuthorizationEntityAttribute)))
                         throw new Exception($"AuthorizationEntityAttribute can only have AuthorizationEntityAttribute as EntityTypes. {type.Name}");
                         
                     authorizationPolicies.Add(type);
@@ -258,13 +258,13 @@ public static partial class ApiBuilder
         });
         
         var authorizationPolicies = new List<Type>();
-        var haveAuthorization = typeof(TQuery).CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationEntityAttribute));
-        var authorizationEntityAttribute = typeof(TQuery).GetCustomAttribute<AuthorizationEntityAttribute>();
+        var haveAuthorization = typeof(TQuery).CustomAttributes.Any(c => c.AttributeType == typeof(SecuredEntityAttribute));
+        var authorizationEntityAttribute = typeof(TQuery).GetCustomAttribute<SecuredEntityAttribute>();
         if (authorizationEntityAttribute is not null)
         {
             foreach (var type in authorizationEntityAttribute.EntityTypes)
             {
-                if(type.BaseType != typeof(AuthorizationEntityAttribute))
+                if(type.BaseType != typeof(SecuredEntityAttribute))
                     throw new Exception($"AuthorizationEntityAttribute can only have AuthorizationEntityAttribute as EntityTypes. {type.Name}");
                         
                 authorizationPolicies.Add(type);
