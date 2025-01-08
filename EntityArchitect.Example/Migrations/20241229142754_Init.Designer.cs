@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EntityArchitect.Example.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20241205200127_CreateClientRental")]
-    partial class CreateClientRental
+    [Migration("20241229142754_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -100,6 +100,11 @@ namespace EntityArchitect.Example.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("name");
+
+                    b.Property<string>("Password")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("password");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")

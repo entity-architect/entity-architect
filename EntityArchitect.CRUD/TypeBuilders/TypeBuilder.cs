@@ -2,7 +2,9 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Text.RegularExpressions;
 using EntityArchitect.CRUD.Attributes;
+using EntityArchitect.CRUD.Attributes.CrudAttributes;
 using EntityArchitect.CRUD.Attributes.QueryResponseTypeAttributes;
+using EntityArchitect.CRUD.Authorization;
 using EntityArchitect.CRUD.Queries;
 using EntityArchitect.Entities.Attributes;
 using EntityArchitect.Entities.Entities;
@@ -207,6 +209,9 @@ public partial class TypeBuilder()
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
+            if(property.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationPasswordAttribute)))
+                continue;
+            
             var maxIncludingDeep = (int)(property.CustomAttributes
                                              .FirstOrDefault(c => c.AttributeType == typeof(IncludeInGetAttribute))
                                              ?.ConstructorArguments[0].Value ??
@@ -284,6 +289,9 @@ public partial class TypeBuilder()
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
+            if(property.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationPasswordAttribute)))
+                continue;
+            
             if (property.PropertyType.BaseType != typeof(Object) &&
                 property.CustomAttributes.Any(c => c.AttributeType == typeof(LightListPropertyAttribute)))
                 throw new Exception("Property in light list response must be a simple type");

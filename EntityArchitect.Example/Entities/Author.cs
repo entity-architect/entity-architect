@@ -1,5 +1,6 @@
 using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.Attributes;
+using EntityArchitect.CRUD.Attributes.CrudAttributes;
 using EntityArchitect.CRUD.Queries;
 using EntityArchitect.Entities.Attributes;
 using EntityArchitect.Entities.Entities;

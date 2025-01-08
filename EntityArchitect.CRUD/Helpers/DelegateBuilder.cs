@@ -1,5 +1,14 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Linq.Expressions;
+using System.Net;
+using System.Security.Claims;
+using System.Text;
 using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.Attributes;
+using EntityArchitect.CRUD.Attributes.CrudAttributes;
+using EntityArchitect.CRUD.Authorization;
+using EntityArchitect.CRUD.Authorization.Requests;
+using EntityArchitect.CRUD.Authorization.Service;
 using EntityArchitect.CRUD.TypeBuilders;
 using EntityArchitect.Entities;
 using EntityArchitect.Entities.Context;
@@ -8,6 +17,7 @@ using EntityArchitect.Entities.Repository;
 using EntityArchitect.Results;
 using EntityArchitect.Results.Abstracts;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 
 namespace EntityArchitect.CRUD.Helpers;
 
@@ -111,7 +121,7 @@ public class DelegateBuilder<
                 .Select(x => x.Name)
                 .ToList();
 
-            var spec = new SpecificationGetById<TEntity>(x => x.Id == id, properties);
+            var spec = new SpecificationBySpec<TEntity>(x => x.Id == id, properties);
 
             var entity = await service.GetBySpecificationIdAsync(spec, cancellationToken);
             if (entity is not null)
@@ -171,4 +181,74 @@ public class DelegateBuilder<
             var paginatedResponse = new PaginatedResult<TEntityResponse>(response, page, leftPages, pageCount, totalCount);
             return paginatedResponse;
         };
+    
+    public Func<AuthorizationRequest, CancellationToken, ValueTask<Result<AuthorizationResponse>>> Login =>
+        async ([FromBody] loginRequest, cancellationToken) =>
+        {
+            using var scope = _provider.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
+            var authService = scope.ServiceProvider.GetRequiredService<IAuthorizationBuilderService>();
+            
+            var usernameProperty = typeof(TEntity).GetProperties().FirstOrDefault(c => c.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationUsernameAttribute)));
+            if(usernameProperty is null)
+                return Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.NotFound, "Username property not found in entity."));
+            
+            var passwordProperty = typeof(TEntity).GetProperties().FirstOrDefault(c => c.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationPasswordAttribute)));
+            if(passwordProperty is null)
+                return Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.NotFound, "Password property not found in entity."));
+            
+            var parameter = Expression.Parameter(typeof(TEntity), "x");
+            var usernamePropertyExpression = Expression.Property(parameter, usernameProperty.Name);
+
+            var usernameCondition = Expression.Equal(
+                usernamePropertyExpression,
+                Expression.Constant(loginRequest.Username));
+            
+            var lambda = Expression.Lambda<Func<TEntity, bool>>(usernameCondition, parameter);
+
+            var specification = new SpecificationBySpec<TEntity>(lambda, []);
+            var entities = await repository.GetBySpecificationAsync(specification, cancellationToken);
+            if(entities.Count == 0)
+                return Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.NotFound, $"User {_entityName} not found."));
+            
+            var entity = entities.First();
+            var password = passwordProperty.GetValue(entity)?.ToString();
+            
+            return !BCrypt.Net.BCrypt.Verify(loginRequest.Password, password) ? 
+                Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.Unauthorized, "Invalid password.")) : 
+                authService.CreateAuthorizationToken(entity)!;
+        };
+    
+    public Func<string, CancellationToken, ValueTask<Result<AuthorizationResponse>>> RefreshToken =>
+        async (refreshRequest, cancellationToken) =>
+        {
+            using var scope = _provider.CreateScope();
+            var authService = scope.ServiceProvider.GetRequiredService<IAuthorizationBuilderService>();
+            var repository = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
+            
+            var handler = new JwtSecurityTokenHandler();
+            var tokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(scope.ServiceProvider.GetRequiredService<IConfiguration>().GetSection("Jwt:RefreshKey").Value)),
+                ValidateIssuer = false,
+                ValidateAudience = false,
+                ValidateLifetime = true
+            };
+            var identity = await handler.ValidateTokenAsync(refreshRequest, tokenValidationParameters);
+
+            if(!identity.IsValid)
+                return Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.Unauthorized, "Invalid token."));
+            var id = Guid.Parse(identity.Claims.First(c => c.Key == "id").Value.ToString() ?? string.Empty); 
+            
+            var entity = await repository.GetByIdAsync(new Id<TEntity>(id), cancellationToken);
+            if(entity is null)
+                return Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.NotFound, $"User {_entityName} not found."));
+            
+
+            var response = authService.CreateAuthorizationToken(entity);
+            return response!;
+        };
+    
+    
 }

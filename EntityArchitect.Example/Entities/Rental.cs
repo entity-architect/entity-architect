@@ -1,4 +1,6 @@
 using EntityArchitect.CRUD.Attributes;
+using EntityArchitect.CRUD.Attributes.CrudAttributes;
+using EntityArchitect.CRUD.Authorization.Attributes;
 using EntityArchitect.CRUD.Queries;
 using EntityArchitect.Entities.Attributes;
 using EntityArchitect.Entities.Entities;
@@ -6,6 +8,7 @@ using EntityArchitect.Entities.Entities;
 namespace EntityArchitect.Example.Entities;
 
 [IncludeInGet(2)]
+[SecuredEntity(typeof(Client))]
 public class Rental : Entity
 {
     [RelationOneToMany<Book>(nameof(Entities.Book.Rentals))] public Book Book { get; private set; }
