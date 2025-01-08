@@ -44,7 +44,6 @@ public static class EntityConverter
         }
 
         entityInstance.HashPassword();
-        
         return entityInstance!;
     }
     public static TResponse ConvertEntityToResponse<TEntity, TResponse>(this TEntity entityInstance)
@@ -143,7 +142,7 @@ public static class EntityConverter
         return responseInstance;
     }
 
-    private static void HashPassword<TEntity>(this TEntity entityInstance) where TEntity : Entity
+    private static void HashPassword<TEntity>(this TEntity entityInstance) where TEntity : Entity?
     {
         if (typeof(TEntity).GetCustomAttribute<AuthorizationEntityAttribute>() is null)
             return;

@@ -199,28 +199,24 @@ public class DelegateBuilder<
             
             var parameter = Expression.Parameter(typeof(TEntity), "x");
             var usernamePropertyExpression = Expression.Property(parameter, usernameProperty.Name);
-            var passwordPropertyExpression = Expression.Property(parameter, passwordProperty.Name);
 
             var usernameCondition = Expression.Equal(
                 usernamePropertyExpression,
                 Expression.Constant(loginRequest.Username));
-
-            var passwordCondition = Expression.Call(
-                typeof(BCrypt.Net.BCrypt).GetMethod(nameof(BCrypt.Net.BCrypt.Verify))!,
-                Expression.Constant(loginRequest.Password), 
-                passwordPropertyExpression
-            );
             
-            var combinedCondition = Expression.AndAlso(usernameCondition, passwordCondition);
-            var lambda = Expression.Lambda<Func<TEntity, bool>>(combinedCondition, parameter);
+            var lambda = Expression.Lambda<Func<TEntity, bool>>(usernameCondition, parameter);
 
             var specification = new SpecificationBySpec<TEntity>(lambda, []);
             var entities = await repository.GetBySpecificationAsync(specification, cancellationToken);
             if(entities.Count == 0)
                 return Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.NotFound, $"User {_entityName} not found."));
             
-            var response = authService.CreateAuthorizationToken(entities.First());
-            return response!;
+            var entity = entities.First();
+            var password = passwordProperty.GetValue(entity)?.ToString();
+            
+            return !BCrypt.Net.BCrypt.Verify(loginRequest.Password, password) ? 
+                Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.Unauthorized, "Invalid password.")) : 
+                authService.CreateAuthorizationToken(entity)!;
         };
     
     public Func<string, CancellationToken, ValueTask<Result<AuthorizationResponse>>> RefreshToken =>
