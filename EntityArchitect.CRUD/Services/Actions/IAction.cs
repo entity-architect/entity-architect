@@ -1,4 +1,4 @@
-using EntityArchitect.Entities.Entities;
+using EntityArchitect.CRUD.Entities.Entities;
 
 namespace EntityArchitect.CRUD.Services.Actions;
 

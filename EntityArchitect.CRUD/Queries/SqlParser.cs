@@ -5,29 +5,19 @@ namespace EntityArchitect.CRUD.Queries;
 
 public abstract class SqlParser
 {
-    public class Field
-    {
-        public string Name { get; set; }
-        public string Type { get; set; }
-        public List<Field> Fields { get; set; }
-        public bool IsArray { get; set; }
-        public bool IsKey { get; set; }
-    }
-
     public static List<Field> ParseSql(string sql)
     {
         var columns = ExtractColumns(sql);
         return ParseFields(columns);
     }
 
-    static List<string> ExtractColumns(string nestedFields)
+    private static List<string> ExtractColumns(string nestedFields)
     {
         var columns = new List<string>();
         var buffer = new StringBuilder();
-        int depth = 0;
+        var depth = 0;
 
         foreach (var ch in nestedFields)
-        {
             if (ch == ',' && depth == 0)
             {
                 columns.Add(buffer.ToString().Trim());
@@ -39,7 +29,6 @@ public abstract class SqlParser
                 if (ch == ')') depth--;
                 buffer.Append(ch);
             }
-        }
 
         if (buffer.Length > 0)
             columns.Add(buffer.ToString().Trim());
@@ -47,31 +36,25 @@ public abstract class SqlParser
         return columns;
     }
 
-    static List<Field> ParseFields(List<string> columnStrings)
+    private static List<Field> ParseFields(List<string> columnStrings)
     {
         var fields = new List<Field>();
 
         foreach (var column in columnStrings)
-        {
             if (IsComplexClass(column))
-            {
                 fields.Add(ParseComplexField(column));
-            }
             else
-            {
                 fields.Add(ParseSimpleField(column));
-            }
-        }
 
         return fields;
     }
 
-    static bool IsComplexClass(string column)
+    private static bool IsComplexClass(string column)
     {
-        return Regex.IsMatch(column, @":\(.+\)"); 
+        return Regex.IsMatch(column, @":\(.+\)");
     }
 
-    static Field ParseComplexField(string column)
+    private static Field ParseComplexField(string column)
     {
         var mainFieldMatch = Regex.Match(column, @"([\w\.]+):\((.+)\)(\[\])?:([\w]+)");
         if (!mainFieldMatch.Success)
@@ -86,16 +69,10 @@ public abstract class SqlParser
         var fields = new List<Field>();
 
         foreach (var nestedField in extracted)
-        {
             if (IsComplexClass(nestedField))
-            {
                 fields.Add(ParseComplexField(nestedField.Trim()));
-            }
             else
-            {
                 fields.Add(ParseSimpleField(nestedField.Trim()));
-            }
-        }
 
         return new Field
         {
@@ -107,7 +84,7 @@ public abstract class SqlParser
     }
 
 
-    static Field ParseSimpleField(string column)
+    private static Field ParseSimpleField(string column)
     {
         var match = Regex.Match(column, @"([\w\.]+):([\w]+)(:([\w]+))?");
         if (!match.Success)
@@ -122,31 +99,38 @@ public abstract class SqlParser
             IsArray = false
         };
     }
-    
+
     internal static string RemoveTypes(string text)
     {
         const string pattern = @"(@\w+):\w+(:\w+)?";
         return Regex.Replace(text, pattern, "$1");
     }
-    
+
     internal static string CleanupSql(string inputSql)
     {
         var step1 = Regex.Replace(inputSql, @":\w+", "", RegexOptions.IgnoreCase);
         var step2 = Regex.Replace(step1, @"\b\w+:\(([^()]*?)\)", "$1", RegexOptions.IgnoreCase);
 
         while (Regex.IsMatch(step2, @"\b\w+:\(([^()]*?)\)", RegexOptions.IgnoreCase))
-        {
             step2 = Regex.Replace(step2, @"\b\w+:\(([^()]*?)\)", "$1", RegexOptions.IgnoreCase);
-        }
 
         step2 = Regex.Replace(step2, @",\s*\)", ")",
-            RegexOptions.IgnoreCase); 
-        step2 = Regex.Replace(step2, @",\s*,", ",", RegexOptions.IgnoreCase); 
+            RegexOptions.IgnoreCase);
+        step2 = Regex.Replace(step2, @",\s*,", ",", RegexOptions.IgnoreCase);
         step2 = Regex.Replace(step2, @"\bas\s+(\w+)", "as $1", RegexOptions.IgnoreCase);
-        var step3 = Regex.Replace(step2, @"\[\]", "", RegexOptions.IgnoreCase); 
+        var step3 = Regex.Replace(step2, @"\[\]", "", RegexOptions.IgnoreCase);
         step3 = Regex.Replace(step3, @"\s{2,}", " ").Trim();
         step3 = Regex.Replace(step3, @"^,|,$", "", RegexOptions.IgnoreCase);
 
         return step3;
+    }
+
+    public class Field
+    {
+        public string Name { get; set; }
+        public string Type { get; set; }
+        public List<Field> Fields { get; set; }
+        public bool IsArray { get; set; }
+        public bool IsKey { get; set; }
     }
 }

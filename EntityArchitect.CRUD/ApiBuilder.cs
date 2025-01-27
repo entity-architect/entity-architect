@@ -1,12 +1,12 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 using EntityArchitect.CRUD.Attributes;
+using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Helpers;
 using EntityArchitect.CRUD.Queries;
+using EntityArchitect.CRUD.Results;
+using EntityArchitect.CRUD.Results.Abstracts;
 using EntityArchitect.CRUD.TypeBuilders;
-using EntityArchitect.Entities.Entities;
-using EntityArchitect.Results;
-using EntityArchitect.Results.Abstracts;
 
 namespace EntityArchitect.CRUD;
 
@@ -16,7 +16,8 @@ public static partial class ApiBuilder
     {
     }
 
-    public static IApplicationBuilder MapEntityArchitectCrud(this IApplicationBuilder app, Assembly assembly,string basePath = "")
+    public static IApplicationBuilder MapEntityArchitectCrud(this IApplicationBuilder app, Assembly assembly,
+        string basePath = "")
     {
         var enumerable = assembly.ExportedTypes.Where(c => c.BaseType == typeof(Entity)).ToList();
         var typeBuilder = new TypeBuilder();
@@ -144,31 +145,30 @@ public static partial class ApiBuilder
                 foreach (var query in queries)
                 {
                     var instance = Activator.CreateInstance(query);
-                    var sql = query.GetProperty(nameof(Query<Entity>.Sql))?.GetValue(instance) ;
-                    if(sql is null) continue;
-                    
+                    var sql = query.GetProperty(nameof(Query<Entity>.Sql))?.GetValue(instance);
+                    if (sql is null) continue;
+
                     if ((bool)query.GetProperty(nameof(Query<Entity>.UseSqlFile))?.GetValue(instance)!)
-                    {
                         sql = await File.ReadAllTextAsync((string)sql);
-                    }
-                    
+
                     var queryType = typeBuilder.BuildQueryRequest((sql as string)!, query.Name);
                     var mi = typeof(ApiBuilder)
                         .GetMethod("MapGetEndpoint")?
                         .MakeGenericMethod(queryType, query, entity);
-                    
 
-                    mi!.Invoke(group, new object[] { group, query.Name, app});
+
+                    mi!.Invoke(group, new object[] { group, query.Name, app });
                 }
 
                 group.WithTags(name);
             });
         }
-        
+
         return app;
     }
 
-    public static void MapGetEndpoint<TParam, TQuery, TEntity>(IEndpointRouteBuilder group, string endpointName, IApplicationBuilder app) 
+    public static void MapGetEndpoint<TParam, TQuery, TEntity>(IEndpointRouteBuilder group, string endpointName,
+        IApplicationBuilder app)
         where TEntity : Entity
         where TQuery : Query<TEntity>
         where TParam : class
@@ -178,14 +178,13 @@ public static partial class ApiBuilder
         var result = ConvertEndpointNameRegex().Replace(endpointName, "$1-$2");
 
         //get from sql types and names. Build type to use in dapper 
-        
-        
-        
+
+
         var endpoint = group.MapGet(result.ToLower(), ([AsParameters] TParam param) =>
         {
             var context = app.ApplicationServices.GetService<IConfiguration>();
             var connectionString = context.GetConnectionString("DefaultConnection");
-            var result = queryHandler.HandleAsync(query, param, connectionString, cancellationToken: default);
+            var result = queryHandler.HandleAsync(query, param, connectionString, default);
             return result;
         });
     }
@@ -193,4 +192,3 @@ public static partial class ApiBuilder
     [GeneratedRegex("([a-z])([A-Z])")]
     private static partial Regex ConvertEndpointNameRegex();
 }
-

@@ -1,19 +1,18 @@
-using System.CodeDom;
 using System.Reflection;
 using System.Reflection.Emit;
-using EntityArchitect.CRUD.Attributes;
 
 namespace EntityArchitect.CRUD.TypeBuilders;
 
 internal static class TypeBuilderExtension
 {
-    internal static System.Reflection.Emit.TypeBuilder GetTypeBuilder(string typeName, Type? parentType = null, CustomAttributeBuilder? customAttributeBuilder = null)
+    internal static System.Reflection.Emit.TypeBuilder GetTypeBuilder(string typeName, Type? parentType = null,
+        CustomAttributeBuilder? customAttributeBuilder = null)
     {
         var assemblyName = new AssemblyName(typeName);
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
         var moduleBuilder = assemblyBuilder.DefineDynamicModule("MainModule");
-        
-        if(customAttributeBuilder is not null)
+
+        if (customAttributeBuilder is not null)
             moduleBuilder.SetCustomAttribute(customAttributeBuilder);
         return parentType is not null
             ? moduleBuilder.DefineType(typeName, TypeAttributes.Public | TypeAttributes.Class, parentType)
@@ -27,11 +26,11 @@ internal static class TypeBuilderExtension
 
         var propertyBuilder =
             typeBuilder.DefineProperty(propertyName, PropertyAttributes.HasDefault, propertyType, null);
-        
-        if(customAttributeBuilders is not null)
+
+        if (customAttributeBuilders is not null)
             foreach (var customAttributeBuilder in customAttributeBuilders)
                 propertyBuilder.SetCustomAttribute(customAttributeBuilder);
-        
+
         var getMethodBuilder = typeBuilder.DefineMethod($"get_{propertyName}",
             MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
             propertyType, Type.EmptyTypes);

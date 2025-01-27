@@ -6,7 +6,7 @@
     "ExpectedStatusCode": 200,
     "request": {
       "name": "Author 1"
-    }   
+    }
   },
   {
     "testName": "PutTest",
@@ -34,20 +34,20 @@
     "method": "GET",
     "ExpectedStatusCode": 200,
     "id": "{PutTest.Id}"
-  } ,
-  {
-    "testName": "CheckTest",
-    "method": "ASSERT",
-    "operation": "EQUAL",
-    "componentA" : "{GetTest.Id}",
-    "componentB" : "{PostTest.Id}"
   },
   {
     "testName": "CheckTest",
     "method": "ASSERT",
     "operation": "EQUAL",
-    "componentA" : "{GetTest.Books.Count}",
-    "componentB" : "1"
+    "componentA": "{GetTest.Id}",
+    "componentB": "{PostTest.Id}"
+  },
+  {
+    "testName": "CheckTest",
+    "method": "ASSERT",
+    "operation": "EQUAL",
+    "componentA": "{GetTest.Books.Count}",
+    "componentB": "1"
   },
   {
     "testName": "PutTestBook",
@@ -64,8 +64,8 @@
     "testName": "CheckUpdateBookTest",
     "method": "ASSERT",
     "operation": "NOT_EQUAL",
-    "componentA" : "{PostTestBook.Title}",
-    "componentB" : "{PutTestBook.Title}"
+    "componentA": "{PostTestBook.Title}",
+    "componentB": "{PutTestBook.Title}"
   },
   {
     "testName": "GetPaginatedTest",
@@ -85,7 +85,7 @@
   {
     "testName": "GetTestNotFound",
     "entityName": "Author",
-    "method": "GET", 
+    "method": "GET",
     "ExpectedStatusCode": 404,
     "id": "{PutTest.Id}"
   }

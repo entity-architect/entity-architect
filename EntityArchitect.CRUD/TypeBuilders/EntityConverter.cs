@@ -1,6 +1,6 @@
 using System.Collections;
-using EntityArchitect.Entities.Attributes;
-using EntityArchitect.Entities.Entities;
+using EntityArchitect.CRUD.Entities.Attributes;
+using EntityArchitect.CRUD.Entities.Entities;
 
 namespace EntityArchitect.CRUD.TypeBuilders;
 
@@ -42,6 +42,7 @@ public static class EntityConverter
 
         return entityInstance!;
     }
+
     public static TResponse ConvertEntityToResponse<TEntity, TResponse>(this TEntity entityInstance)
         where TEntity : Entity
         where TResponse : EntityResponse, new()
@@ -55,7 +56,7 @@ public static class EntityConverter
             var propertyResponse = Array.Find(entityProperties, p => p.Name == propertyEntity.Name);
             if (propertyResponse == null || !propertyResponse.CanRead) continue;
             var value = propertyResponse.GetValue(entityInstance);
-            
+
             if (propertyEntity.PropertyType.BaseType == typeof(EntityResponse) ||
                 (propertyEntity.PropertyType.IsGenericType &&
                  propertyEntity.PropertyType.GetGenericArguments()[0].BaseType == typeof(EntityResponse)))
@@ -69,30 +70,32 @@ public static class EntityConverter
                         var emptyListType =
                             typeof(List<>).MakeGenericType(propertyEntity.PropertyType.GetGenericArguments()[0]);
                         var emptyList = Activator.CreateInstance(emptyListType);
-                        propertyEntity.SetValue(responseInstance,emptyList);
+                        propertyEntity.SetValue(responseInstance, emptyList);
                         continue;
                     }
                     case null:
                         propertyEntity.SetValue(responseInstance, null);
                         continue;
                 }
-                
-                if(value.GetType().IsGenericType && value.GetType().GetGenericArguments()[0].BaseType == typeof(Entity))
+
+                if (value.GetType().IsGenericType &&
+                    value.GetType().GetGenericArguments()[0].BaseType == typeof(Entity))
                 {
                     var listType = typeof(List<>).MakeGenericType(propertyEntity.PropertyType.GetGenericArguments()[0]);
                     var list = Activator.CreateInstance(listType) as IList;
                     foreach (var item in (value as IList)!)
                     {
                         var listValue = typeof(EntityConverter).GetMethod(nameof(ConvertEntityToResponse))!
-                            .MakeGenericMethod(item.GetType(), propertyEntity.PropertyType.GetGenericArguments()[0])//TODO: get response type
+                            .MakeGenericMethod(item.GetType(),
+                                propertyEntity.PropertyType.GetGenericArguments()[0]) //TODO: get response type
                             .Invoke(null, new[] { item });
                         list!.Add(listValue);
                     }
-                    
+
                     propertyEntity.SetValue(responseInstance, list);
                     continue;
                 }
-                
+
                 var convertedValue = typeof(EntityConverter).GetMethod(nameof(ConvertEntityToResponse))!
                     .MakeGenericMethod(value.GetType(), propertyEntity.PropertyType)
                     .Invoke(null, new[] { value });
@@ -128,10 +131,10 @@ public static class EntityConverter
                 propertyEntity.SetValue(responseInstance, (value as Id<Entity>)!.ToId().Value);
                 continue;
             }
-            
+
             propertyEntity.SetValue(responseInstance, value);
         }
-        
+
         return responseInstance;
     }
 }

@@ -1,13 +1,12 @@
 using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.Attributes;
+using EntityArchitect.CRUD.Entities;
+using EntityArchitect.CRUD.Entities.Context;
+using EntityArchitect.CRUD.Entities.Entities;
+using EntityArchitect.CRUD.Entities.Repository;
+using EntityArchitect.CRUD.Results;
+using EntityArchitect.CRUD.Results.Abstracts;
 using EntityArchitect.CRUD.TypeBuilders;
-using EntityArchitect.Entities;
-using EntityArchitect.Entities.Context;
-using EntityArchitect.Entities.Entities;
-using EntityArchitect.Entities.Repository;
-using EntityArchitect.Results;
-using EntityArchitect.Results.Abstracts;
-using Microsoft.AspNetCore.Mvc;
 
 namespace EntityArchitect.CRUD.Helpers;
 
@@ -20,19 +19,13 @@ public class DelegateBuilder<
     where TEntity : Entity
     where TEntityResponse : EntityResponse, new()
 {
-    private readonly IServiceProvider _provider;
     private readonly string _entityName = typeof(TEntity).Name;
-    private DelegateBuilder(IServiceProvider provider) =>
-        _provider = provider;
+    private readonly IServiceProvider _provider;
 
-    public static DelegateBuilder<TE, TEcRq, TEuRq, TErs, TLlr> 
-        Create<TE, TEcRq, TEuRq, TErs, TLlr>(
-        IServiceProvider provider)
-        where TE : Entity
-        where TEcRq : class, new()
-        where TEuRq : class, new()
-        where TErs : EntityResponse, new()
-        => new(provider);
+    private DelegateBuilder(IServiceProvider provider)
+    {
+        _provider = provider;
+    }
 
     public Func<TEntityCreateRequest, CancellationToken, ValueTask<Result<TEntityResponse>>> PostDelegate =>
         async (body, cancellationToken) =>
@@ -42,10 +35,10 @@ public class DelegateBuilder<
             using (var scope = _provider.CreateScope())
             {
                 var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
-                var actions =scope.GetEndpointActionsAsync<TEntity>();
+                var actions = scope.GetEndpointActionsAsync<TEntity>();
                 entity.SetCreatedDate();
                 entity = await actions!.InvokeBeforePostAsync(entity, cancellationToken);
-                  await service.ExecuteSqlAsync(sql, cancellationToken);
+                await service.ExecuteSqlAsync(sql, cancellationToken).ConfigureAwait(false);
                 entity = await actions!.InvokeAfterPostAsync(entity, cancellationToken);
             }
 
@@ -68,7 +61,7 @@ public class DelegateBuilder<
                     return Result.Failure<TEntityResponse>(Error.NotFound(entity.Id.Value, _entityName));
 
                 oldEntity = entity;
-                
+
                 await unitOfWork.SaveChangesAsync(cancellationToken);
                 entity = await actions!.InvokeAfterPutAsync(entity, cancellationToken);
             }
@@ -119,19 +112,19 @@ public class DelegateBuilder<
                 entity = await actions.InvokeAfterGetByIdAsync(entity, cancellationToken);
                 return entity.ConvertEntityToResponse<TEntity, TEntityResponse>();
             }
-            
+
             var result = Result.Failure<TEntityResponse>(Error.NotFound(id, _entityName));
             return result;
         };
 
     public Func<CancellationToken, ValueTask<Result<List<TLightListResponse>>>> GetLightListDelegate =>
-        async (cancellationToken) =>
+        async cancellationToken =>
         {
             using var scope = _provider.CreateScope();
             var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
-            
+
             var entities = await service.GetLightListAsync(cancellationToken);
-            
+
             var response
                 = entities.Select(c =>
                         c.ConvertEntityToLightListResponse<TEntity, TLightListResponse>())
@@ -139,7 +132,7 @@ public class DelegateBuilder<
 
             return response;
         };
-    
+
     public Func<int, CancellationToken, ValueTask<Result<PaginatedResult<TEntityResponse>>>> GetListDelegate =>
         async (page, cancellationToken) =>
         {
@@ -161,14 +154,26 @@ public class DelegateBuilder<
                 = entities.Select(c =>
                         c.ConvertEntityToResponse<TEntity, TEntityResponse>())
                     .ToList();
-            
+
             var totalCount = await service.GetCountAsync(cancellationToken);
             var pageCount = (int)Math.Round((double)totalCount / itemCount, MidpointRounding.ToEven);
             var leftPages = pageCount - (page + 1);
-            if(pageCount == 0) 
+            if (pageCount == 0)
                 leftPages = 0;
-            
-            var paginatedResponse = new PaginatedResult<TEntityResponse>(response, page, leftPages, pageCount, totalCount);
+
+            var paginatedResponse =
+                new PaginatedResult<TEntityResponse>(response, page, leftPages, pageCount, totalCount);
             return paginatedResponse;
         };
+
+    public static DelegateBuilder<TE, TEcRq, TEuRq, TErs, TLlr>
+        Create<TE, TEcRq, TEuRq, TErs, TLlr>(
+            IServiceProvider provider)
+        where TE : Entity
+        where TEcRq : class, new()
+        where TEuRq : class, new()
+        where TErs : EntityResponse, new()
+    {
+        return new DelegateBuilder<TE, TEcRq, TEuRq, TErs, TLlr>(provider);
+    }
 }
