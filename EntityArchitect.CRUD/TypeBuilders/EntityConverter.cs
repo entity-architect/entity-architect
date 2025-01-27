@@ -10,7 +10,7 @@ public static class EntityConverter
         where TEntity : Entity
     {
         var entityInstance = Activator.CreateInstance(typeof(TEntity)) as TEntity;
-
+        
         var entityProperties = typeof(TEntity).GetProperties();
         var requestProperties = requestInstance!.GetType().GetProperties();
 

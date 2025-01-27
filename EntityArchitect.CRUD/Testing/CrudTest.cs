@@ -259,8 +259,7 @@ public static class CrudTest
         var httpMessage = new HttpRequestMessage
         {
             Method = HttpMethod.Get,
-            RequestUri =
-                new Uri(url)
+            RequestUri = new Uri(url)
         };
 
 
@@ -278,11 +277,11 @@ public static class CrudTest
     private static void ValidateResponse(string response, bool isSuccess = true)
     {
         Result? result = null;
-        if (JsonConvert.DeserializeObject(response)?.GetType().GetProperty(nameof(Result<object>.Value)) is null)
+        if (JsonConvert.DeserializeObject(response)?.GetType().GetProperty(nameof(Result<object>.Value)) is null 
+            || JsonConvert.DeserializeObject(response)?.GetType().GetProperty(nameof(Result<object>.Value)).GetValue(JsonConvert.DeserializeObject(response)) is null)
         {
-            var singleValueWithoutValueResult = JsonConvert.DeserializeObject<TestModelWithoutValue?>(response);
-            Assert.Equal(singleValueWithoutValueResult is not null && singleValueWithoutValueResult.Value.IsSuccess,
-                isSuccess);
+            var singleValueWithoutValueResult = JsonConvert.DeserializeObject<Result>(response);
+            Assert.Equal(singleValueWithoutValueResult is not null && singleValueWithoutValueResult.Errors.Count == 0, isSuccess);
             return;
         }
 

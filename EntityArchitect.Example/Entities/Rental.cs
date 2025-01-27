@@ -9,12 +9,12 @@ namespace EntityArchitect.Example.Entities;
 public class Rental : Entity
 {
     [RelationOneToMany<Book>(nameof(Entities.Book.Rentals))]
-    public Book Book { get; }
+    public Book Book { get; private set; }
 
     [RelationOneToMany<Client>(nameof(Client.Rentals))]
     public Client Client { get; }
 
-    public DateOnly RentDate { get; }
+    public DateOnly RentDate { get; private set;}
 }
 
 public class RentalGetClientsWithRentalsQuery() : Query<Rental>("sql/GetClientsWithRentals.sql", true);

@@ -17,7 +17,7 @@ public class Author : Entity
     [IgnorePostRequest]
     [IgnorePutRequest]
     [IncludeInGet(1)]
-    public List<Book> Books { get; }
+    public List<Book> Books { get; private set;}
 
     public void AddToName(string addedByAction)
     {

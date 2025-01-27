@@ -48,28 +48,28 @@ public class Result
         return new Result(false, errors);
     }
 
-    public static Result<TValue?> Success<TValue>(TValue? value)
+    public static Result<TValue?> Success<TValue>(TValue? value) where TValue : class
     {
         return new Result<TValue?>(value);
     }
 
-    public static Result<TValue> Failure<TValue>(Error error)
+    public static Result<TValue> Failure<TValue>(Error error) where TValue : class
     {
         return new Result<TValue>(default, false, error);
     }
 
-    public static Result<TValue> Failure<TValue>(List<Error> errors)
+    public static Result<TValue> Failure<TValue>(List<Error> errors) where TValue : class
     {
         return new Result<TValue>(default, false, errors);
     }
 
-    public static Result<TValue?> Create<TValue>(TValue? value)
+    public static Result<TValue?> Create<TValue>(TValue? value) where TValue : class
     {
         return value is not null ? Success(value) : Failure<TValue>(Error.NullValue);
     }
 }
 
-public class Result<TValue> : Result
+public class Result<TValue> : Result where TValue : class
 {
     private readonly TValue? _value;
 
@@ -91,7 +91,7 @@ public class Result<TValue> : Result
     [NotNull]
     public TValue Value => IsSuccess
         ? _value!
-        : throw new InvalidOperationException("The value of a failure result can not be accessed.");
+        : null;
 
     public static implicit operator Result<TValue?>(TValue? value)
     {
