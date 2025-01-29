@@ -1,3 +1,3 @@
-namespace EntityArchitect.CRUD.Attributes;
+namespace EntityArchitect.CRUD.Attributes.CrudAttributes;
 
 public class EntityRequestAttribute(Type entityType) : Attribute;

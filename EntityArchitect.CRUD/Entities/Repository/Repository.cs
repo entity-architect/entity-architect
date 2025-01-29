@@ -28,7 +28,7 @@ public class Repository<TEntity>(ApplicationDbContext context) :
         return context.Set<TEntity>().FindAsync(new object[] { id.ToId() }, cancellationToken);
     }
 
-    public Task<TEntity?> GetBySpecificationIdAsync(SpecificationGetById<TEntity> specification,
+    public Task<TEntity?> GetBySpecificationIdAsync(SpecificationBySpec<TEntity> specification,
         CancellationToken cancellationToken = default)
     {
         var query = context.Set<TEntity>().AsQueryable();
@@ -44,11 +44,9 @@ public class Repository<TEntity>(ApplicationDbContext context) :
         return query.Where(specification.SpecExpression)
             .ToListAsync(cancellationToken);
     }
-
-    public Task<int> ExecuteSqlAsync(string sql, CancellationToken cancellationToken = default)
-    {
-        return context.Database.ExecuteSqlRawAsync(sql, cancellationToken);
-    }
+    
+    public Task<int> ExecuteSqlAsync(string sql, CancellationToken cancellationToken = default) =>
+        context.Database.ExecuteSqlRawAsync(sql, cancellationToken);
 
     public Task<List<TEntity>> GetLightListAsync(CancellationToken cancellationToken)
     {

@@ -2,7 +2,7 @@ using EntityArchitect.CRUD.Results.Abstracts;
 
 namespace EntityArchitect.CRUD.Testing.TestModels;
 
-public class TestResult
+public class TestModelWithoutValue
 {
-    public Result<object> Value { get; set; }
+    public ResultModel Value { get; set; }
 }

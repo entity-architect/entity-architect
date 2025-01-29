@@ -98,9 +98,3 @@ public class Result<TValue> : Result where TValue : class
         return Create(value);
     }
 }
-
-public class ResultModel
-{
-    public bool IsSuccess { get; set; }
-    public List<Error> Errors { get; set; }
-}

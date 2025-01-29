@@ -2,10 +2,14 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Text.RegularExpressions;
 using EntityArchitect.CRUD.Attributes;
+using EntityArchitect.CRUD.Attributes.CrudAttributes;
 using EntityArchitect.CRUD.Attributes.QueryResponseTypeAttributes;
+using EntityArchitect.CRUD.Authorization;
+using EntityArchitect.CRUD.Authorization.Attributes;
 using EntityArchitect.CRUD.Entities.Attributes;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Queries;
+using LightListPropertyAttribute = EntityArchitect.CRUD.Attributes.CrudAttributes.LightListPropertyAttribute;
 
 namespace EntityArchitect.CRUD.TypeBuilders;
 
@@ -205,6 +209,9 @@ public partial class TypeBuilder
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
+            if(property.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationPasswordAttribute)))
+                continue;
+            
             var maxIncludingDeep = (int)(property.CustomAttributes
                                              .FirstOrDefault(c => c.AttributeType == typeof(IncludeInGetAttribute))
                                              ?.ConstructorArguments[0].Value ??

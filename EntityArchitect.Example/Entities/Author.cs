@@ -1,9 +1,7 @@
-using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.Attributes;
 using EntityArchitect.CRUD.Entities.Attributes;
 using EntityArchitect.CRUD.Entities.Entities;
-using EntityArchitect.CRUD.Queries;
-using ILogger = EntityArchitect.Example.Services.Logger.ILogger;
+using EntityArchitect.CRUD.Attributes.CrudAttributes;
 
 namespace EntityArchitect.Example.Entities;
 
@@ -22,19 +20,5 @@ public class Author : Entity
     public void AddToName(string addedByAction)
     {
         Name += addedByAction;
-    }
-}
-
-public class AuthorGetAuthorsWithBooksQuery() : Query<Author>("sql/GetAuthorsWithBooks.sql", true);
-
-public class AuthorGetAuthorsWithBooksAndRentalsQuery() : Query<Author>("sql/GetAuthorsWithBooksAndRentals.sql", true);
-
-public class AuthorCreateAction(ILogger logger) : EndpointAction<Author>
-{
-    protected override ValueTask<Author> BeforePostAsync(Author entity, CancellationToken cancellationToken = default)
-    {
-        entity.AddToName(" added by action");
-        logger.Log("Some logic before post");
-        return base.BeforePostAsync(entity, cancellationToken);
     }
 }

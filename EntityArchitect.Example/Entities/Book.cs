@@ -1,4 +1,5 @@
 using EntityArchitect.CRUD.Attributes;
+using EntityArchitect.CRUD.Attributes.CrudAttributes;
 using EntityArchitect.CRUD.Entities.Attributes;
 using EntityArchitect.CRUD.Entities.Entities;
 
