@@ -6,23 +6,21 @@ using EntityArchitect.Example.Services.Logger;
 using Microsoft.OpenApi.Models;
 using ILogger = EntityArchitect.Example.Services.Logger.ILogger;
 
-
 namespace EntityArchitect.Example;
 
 public class Startup
 {
+    private IConfiguration Configuration { get; }
+
     public Startup(IConfiguration configuration)
     {
         Configuration = configuration;
     }
 
-    private IConfiguration Configuration { get; }
-
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
-
         services.AddSwaggerGen(options =>
         {
             options.SwaggerDoc("v1", new OpenApiInfo { Title = "API", Version = "v1" });
@@ -54,18 +52,16 @@ public class Startup
         
         var connectionString = Configuration.GetConnectionString("DefaultConnection");
 
+        services.AddScoped<ILogger, Logger>();
         services.AddEntityArchitect(typeof(Program).Assembly, connectionString ?? "");
         services.BuildEntityArchitectAuthorization(typeof(Program).Assembly);
-
         services.UseActions(typeof(Program).Assembly);
-        services.AddScoped<ILogger, Logger>();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
         app.UseSwagger();
         app.UseSwaggerUI();
-
         app.MapEntityArchitectCrud(typeof(Program).Assembly);
     }
 }
