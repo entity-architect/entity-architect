@@ -13,8 +13,14 @@ public static class AuthorizationBuilder
     public static IServiceCollection BuildEntityArchitectAuthorization(this IServiceCollection services, Assembly assembly)
     { 
         services.AddTransient<IAuthorizationBuilderService, AuthorizationBuilderService>();
-        var configuration =services.BuildServiceProvider().GetService<IConfiguration>();
-        var key = Encoding.UTF8.GetBytes(configuration["Jwt:AuthorizationKey"]);
+        
+        var builder = new ConfigurationBuilder()
+            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+            .AddEnvironmentVariables();
+
+        var configuration = builder.Build();
+        var key = Encoding.UTF8.GetBytes(configuration.GetValue<string>("Jwt:AuthorizationKey"));
         services.AddAuthentication(x =>
         {
             x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;

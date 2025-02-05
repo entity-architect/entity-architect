@@ -7,7 +7,7 @@ namespace EntityArchitect.ExampleTests;
 
 public class AuthorTests(IntegrationTestWebAppFactory<Startup> factory) : AppFixture<Startup>(factory)
 {
-    [MultiTest<Startup>("integration-test.json")]
+    [MultiTest<Startup>("integration-test.json", true)]
     public Task Test()
     {
         return Client.RunTest<AuthorTests>();

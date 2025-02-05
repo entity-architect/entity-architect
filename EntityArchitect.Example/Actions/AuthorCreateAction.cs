@@ -1,7 +1,8 @@
 using EntityArchitect.CRUD.Actions;
+using EntityArchitect.Example.Entities;
 using ILogger = EntityArchitect.Example.Services.Logger.ILogger;
 
-namespace EntityArchitect.Example.Entities;
+namespace EntityArchitect.Example.Actions;
 
 public class AuthorCreateAction(ILogger logger) : EndpointAction<Author>
 {

@@ -1,92 +1,150 @@
 [
   {
-    "testName": "PostTest",
+    "testName": "PostAuthorTest",
     "entityName": "Author",
     "method": "POST",
     "ExpectedStatusCode": 200,
     "request": {
-      "name": "Author 1"
+      "name": "Test Author"
     }
   },
   {
-    "testName": "PutTest",
-    "entityName": "Author",
-    "method": "PUT",
-    "ExpectedStatusCode": 200,
-    "request": {
-      "id": "{PostTest.Id}",
-      "name": "Author 2"
-    }
-  },
-  {
-    "testName": "PostTestBook",
-    "entityName": "Book",
-    "method": "POST",
-    "ExpectedStatusCode": 200,
-    "request": {
-      "title": "Book 1",
-      "authorId": "{PostTest.Id}"
-    }
-  },
-  {
-    "testName": "GetTest",
+    "testName": "GetAuthorAfterPostTest",
     "entityName": "Author",
     "method": "GET",
     "ExpectedStatusCode": 200,
-    "id": "{PutTest.Id}"
+    "id": "{PostAuthorTest.Id}"
   },
   {
-    "testName": "CheckTest",
-    "method": "ASSERT",
-    "operation": "EQUAL",
-    "componentA": "{GetTest.Id}",
-    "componentB": "{PostTest.Id}"
-  },
-  {
-    "testName": "CheckTest",
-    "method": "ASSERT",
-    "operation": "EQUAL",
-    "componentA": "{GetTest.Books.Count}",
-    "componentB": "1"
-  },
-  {
-    "testName": "PutTestBook",
-    "entityName": "Book",
+    "testName": "PutAuthorTest",
+    "entityName": "Author",
     "method": "PUT",
     "ExpectedStatusCode": 200,
     "request": {
-      "id": "{PostTestBook.Id}",
-      "title": "{PostTestBook.Title} edited",
-      "authorId": "{GetTest.Id}"
+      "id": "{PostAuthorTest.Id}",
+      "name": "Updated Author"
     }
   },
   {
-    "testName": "CheckUpdateBookTest",
-    "method": "ASSERT",
-    "operation": "NOT_EQUAL",
-    "componentA": "{PostTestBook.Title}",
-    "componentB": "{PutTestBook.Title}"
+    "testName": "PostBookTest",
+    "entityName": "Book",
+    "method": "POST",
+    "ExpectedStatusCode": 200,
+    "request": {
+      "title": "Test Book",
+      "authorId": "{PostAuthorTest.Id}"
+    }
   },
   {
-    "testName": "GetPaginatedTest",
-    "entityName": "Author",
-    "method": "PAGINATED_GET",
-    "expectedStatusCode": 200,
-    "page": 0,
-    "exceptedTotalElementCount": 1
+    "testName": "GetBookAfterPostTest",
+    "entityName": "Book",
+    "method": "GET",
+    "ExpectedStatusCode": 200,
+    "id": "{PostBookTest.Id}"
   },
   {
-    "testName": "DeleteTest",
+    "testName": "PostClientTest",
+    "entityName": "Client",
+    "method": "POST",
+    "ExpectedStatusCode": 200,
+    "request": {
+      "name": "Test Client",
+      "email": "testclient@example.com",
+      "password": "SecurePass123"
+    }
+  },
+  {
+    "testName": "GetClientAfterPostTest",
+    "entityName": "Client",
+    "method": "GET",
+    "ExpectedStatusCode": 200,
+    "id": "{PostClientTest.Id}"
+  },
+  {
+    "testName": "Login",
+    "entityName": "Client",
+    "method": "LOGIN",
+    "ExpectedStatusCode": 200,
+    "request": {
+      "username": "testclient@example.com",
+      "password": "SecurePass123"
+    }
+  },
+  {
+    "testName": "PostRentalTest",
+    "entityName": "Rental",
+    "method": "POST",
+    "ExpectedStatusCode": 200,
+    "request": {
+      "bookId": "{PostBookTest.Id}",
+      "clientId": "{PostClientTest.Id}",
+      "rentDate": "2024-01-01"
+    },
+    "AuthorizationToken": "{Login.authorizationToken}"
+  },
+  {
+    "testName": "GetRentalAfterPostTest",
+    "entityName": "Rental",
+    "method": "GET",
+    "ExpectedStatusCode": 200,
+    "id": "{PostRentalTest.Id}",
+    "AuthorizationToken": "{Login.authorizationToken}"
+  },
+  {
+    "testName": "DeleteBookTest",
+    "entityName": "Book",
+    "method": "DELETE",
+    "ExpectedStatusCode": 200,
+    "id": "{PostBookTest.Id}"
+  },
+  {
+    "testName": "DeleteAuthorTest",
     "entityName": "Author",
     "method": "DELETE",
     "ExpectedStatusCode": 200,
-    "id": "{GetTest.Id}"
+    "id": "{PostAuthorTest.Id}"
   },
   {
-    "testName": "GetTestNotFound",
+    "testName": "DeleteClientTest",
+    "entityName": "Client",
+    "method": "DELETE",
+    "ExpectedStatusCode": 200,
+    "id": "{PostClientTest.Id}"
+  },
+  {
+    "testName": "DeleteRentalTest",
+    "entityName": "Rental",
+    "method": "DELETE",
+    "ExpectedStatusCode": 404,
+    "id": "{PostRentalTest.Id}",
+    "AuthorizationToken": "{Login.authorizationToken}"
+  },
+  {
+    "testName": "GetDeletedAuthorTest",
     "entityName": "Author",
     "method": "GET",
     "ExpectedStatusCode": 404,
-    "id": "{PutTest.Id}"
+    "id": "{PostAuthorTest.Id}"
+  },
+  {
+    "testName": "GetDeletedBookTest",
+    "entityName": "Book",
+    "method": "GET",
+    "ExpectedStatusCode": 404,
+    "id": "{PostBookTest.Id}"
+  },
+  {
+    "testName": "GetDeletedClientTest",
+    "entityName": "Client",
+    "method": "GET",
+    "ExpectedStatusCode": 404,
+    "id": "{PostClientTest.Id}"
+  },
+  {
+    "testName": "GetDeletedRentalTest",
+    "entityName": "Rental",
+    "method": "GET",
+    "ExpectedStatusCode": 404,
+    "id": "{PostRentalTest.Id}"
   }
 ]

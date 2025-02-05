@@ -1,12 +1,15 @@
+using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Results;
 using EntityArchitect.CRUD.Results.Abstracts;
+using EntityArchitect.CRUD.Testing.Exceptions;
 using EntityArchitect.CRUD.Testing.Helpers;
 using EntityArchitect.CRUD.Testing.TestAttributes;
 using EntityArchitect.CRUD.Testing.TestModels;
 using EntityArchitect.CRUD.TypeBuilders;
+using Microsoft.AspNetCore.Identity.Data;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Xunit;
@@ -17,6 +20,7 @@ public static class CrudTest
 {
     public static async Task RunTest<T>(this HttpClient client, [CallerMemberName] string methodName = "")
     {
+        List<ReportModel> reports = new();
         List<(string testName, string response, Type entityType)> responses = [];
         if (responses == null) throw new ArgumentNullException(nameof(responses));
 
@@ -40,155 +44,245 @@ public static class CrudTest
         if (testModel == null)
             throw new Exception("Test data is not json");
 
+        var generateReport = false;
         List<object> testModels;
         if (isMultiTest)
+        {
+            generateReport = (bool) method!.CustomAttributes.First(c => c.AttributeType == typeof(MultiTestAttribute<>)
+                .MakeGenericType(attribute.AttributeType.GetGenericArguments()[0])).ConstructorArguments[1].Value!;
             testModels = (testModel as IEnumerable<object>)?.ToList() ??
                          throw new Exception("Failed to cast to List<object>");
+        }
         else
             testModels = [testModel];
 
         foreach (var model in testModels)
         {
-            var jsonModel = JsonConvert.SerializeObject(model);
-            if (jsonModel is null)
-                throw new Exception("Failed to serialize model");
-            TypeBuilder typeBuilder = new();
-            var modelData = JsonConvert.DeserializeObject<TestModelData>(jsonModel);
-            if (modelData == null) throw new Exception("Model data is null");
-            var testName = modelData.TestName;
-            if (testName is null)
-                throw new Exception("Test name is null");
-
-            var entity = assembly.FirstOrDefault(c => c.Name == modelData.EntityName);
-            if (entity is null && modelData.Method != "ASSERT")
-                throw new Exception("Entity is null");
-            switch (modelData.Method)
+            try
             {
-                case "POST":
+                var jsonModel = JsonConvert.SerializeObject(model);
+                if (jsonModel is null)
+                    throw new Exception("Failed to serialize model");
+                TypeBuilder typeBuilder = new();
+                var modelData = JsonConvert.DeserializeObject<TestModelData>(jsonModel);
+                if (modelData == null) throw new Exception("Model data is null");
+                var testName = modelData.TestName;
+                if (testName is null)
+                    throw new Exception("Test name is null");
+
+                var entity = assembly.FirstOrDefault(c => c.Name == modelData.EntityName);
+                if (entity is null && modelData.Method != "ASSERT")
+                    throw new Exception("Entity is null");
+                switch (modelData.Method)
                 {
-                    var requestType = typeBuilder.BuildCreateRequestFromEntity(entity);
-                    jsonModel = jsonModel.FormatRequest(responses);
-
-                    var testModelObject = JsonConvert.DeserializeObject(jsonModel,
-                        typeof(EndpointTestModel<>).MakeGenericType(requestType));
-                    if (testModelObject is null)
-                        throw new Exception("Failed to deserialize json object");
-                    var requestData = JsonConvert.SerializeObject(testModelObject.GetType()
-                        .GetProperty(nameof(EndpointTestModel<EntityRequest>.Request))?.GetValue(testModelObject));
-                    if (requestData is null)
-                        throw new Exception("Request is null");
-
-                    requestData.FormatRequest(responses);
-                    var result = await Post(client, modelData, requestData);
-                    responses.Add(new ValueTuple<string, string, Type>(testName, ExtractContent(result), entity));
-                    break;
-                }
-                case "GET":
-                {
-                    var response = typeBuilder.BuildResponseFromEntity(typeof(Entity));
-                    if (jsonModel is null)
-                        throw new Exception("Failed to format request");
-                    var testModelObject = jsonModel.FormatGetRequest(responses, response);
-                    if (testModelObject is null)
-                        throw new Exception("Failed to deserialize json object");
-
-                    var result = await Get(client, testModelObject);
-                    responses.Add(new ValueTuple<string, string, Type>(testName, ExtractContent(result), entity));
-                    break;
-                }
-                case "PUT":
-                {
-                    var requestType = typeBuilder.BuildUpdateRequestFromEntity(entity);
-                    jsonModel = jsonModel.FormatRequest(responses);
-
-                    var testModelObject = JsonConvert.DeserializeObject(jsonModel,
-                        typeof(EndpointTestModel<>).MakeGenericType(requestType));
-                    if (testModelObject is null)
-                        throw new Exception("Failed to deserialize json object");
-                    var requestData = JsonConvert.SerializeObject(testModelObject.GetType()
-                        .GetProperty(nameof(EndpointTestModel<EntityRequest>.Request))?.GetValue(testModelObject));
-                    if (requestData is null)
-                        throw new Exception("Request is null");
-
-                    var result = await Put(client, modelData, requestData);
-                    responses.Add(new ValueTuple<string, string, Type>(testName, ExtractContent(result), entity));
-                    break;
-                }
-                case "DELETE":
-                {
-                    var response = typeBuilder.BuildResponseFromEntity(typeof(Entity));
-                    if (jsonModel is null)
-                        throw new Exception("Failed to format request");
-                    var testModelObject = jsonModel.FormatGetRequest(responses, response);
-                    if (testModelObject is null)
-                        throw new Exception("Failed to deserialize json object");
-
-                    await Delete(client, testModelObject);
-                    break;
-                }
-                case "PAGINATED_GET":
-                {
-                    var responseType = typeBuilder.BuildResponseFromEntity(entity);
-
-                    if (jsonModel is null)
-                        throw new Exception("Failed to format request");
-                    if (JsonConvert.DeserializeObject(jsonModel,
-                            typeof(TestModelPaginatedGet))
-                        is not TestModelPaginatedGet testModelObject)
-                        throw new Exception("Failed to deserialize json object");
-
-                    var entityResponseType = typeBuilder.BuildResponseFromEntity(entity);
-                    var result = await PaginatedGet(client, testModelObject, entityResponseType);
-                    result = ExtractContent(result);
-                    var getResponse = JsonConvert.DeserializeObject(result,
-                        typeof(PaginatedResult<>).MakeGenericType(responseType));
-                    if (getResponse is null)
-                        throw new Exception("Failed to deserialize response");
-
-                    Assert.Equal(testModelObject.ExceptedTotalElementCount,
-                        getResponse.GetType().GetProperty(nameof(PaginatedResult<EntityResponse>.TotalElementCount))
-                            ?.GetValue(getResponse));
-                    responses.Add(new ValueTuple<string, string, Type>(testName, ExtractContent(result), entity));
-                    break;
-                }
-                case "ASSERT":
-                {
-                    jsonModel = jsonModel.FormatRequest(responses);
-
-                    if (JsonConvert.DeserializeObject(jsonModel,
-                            typeof(AssertModel))
-                        is not AssertModel assertModel)
-                        throw new Exception("Failed to deserialize json object");
-
-                    switch (assertModel.Operation)
+                    case "POST":
                     {
-                        case "EQUAL":
-                        {
-                            var componentA = assertModel.ComponentA;
-                            var componentB = assertModel.ComponentB;
-                            Assert.Equal(componentA, componentB);
-                            break;
-                        }
-                        case "NOT_EQUAL":
-                        {
-                            var componentA = assertModel.ComponentA;
-                            var componentB = assertModel.ComponentB;
-                            Assert.NotEqual(componentA, componentB);
-                            break;
-                        }
-                        default:
-                            throw new InvalidOperationException("Invalid method type");
-                    }
+                        var requestType = typeBuilder.BuildCreateRequestFromEntity(entity);
+                        jsonModel = jsonModel.FormatRequest(responses);
 
-                    break;
+                        var testModelObject = JsonConvert.DeserializeObject(jsonModel,
+                            typeof(EndpointTestModel<>).MakeGenericType(requestType));
+                        if (testModelObject is null)
+                            throw new Exception("Failed to deserialize json object");
+                        var requestData = JsonConvert.SerializeObject(testModelObject.GetType()
+                            .GetProperty(nameof(EndpointTestModel<EntityRequest>.Request))?.GetValue(testModelObject));
+                        var authorizationToken = JsonConvert.SerializeObject(testModelObject.GetType()
+                            .GetProperty(nameof(EndpointTestModel<EntityRequest>.AuthorizationToken))?.GetValue(testModelObject)); 
+                        
+                        if (requestData is null)
+                            throw new Exception("Request is null");
+
+                        requestData.FormatRequest(responses);
+                        var result = await Post(client, modelData, requestData,authorizationToken);
+                        responses.Add(new ValueTuple<string, string, Type>(testName, ExtractContent(result), entity));
+                        reports.WriteReport(testName, ExtractContent(result), requestData, entity, "POST");
+
+                        break;
+                    }
+                    case "GET":
+                    {
+                        var response = typeBuilder.BuildResponseFromEntity(typeof(Entity));
+                        if (jsonModel is null)
+                            throw new Exception("Failed to format request");
+                        var testModelObject = jsonModel.FormatGetRequest(responses, response);
+                        
+                        if (testModelObject is null)
+                            throw new Exception("Failed to deserialize json object");
+                        var authorizationToken = JsonConvert.SerializeObject(testModelObject.GetType()
+                            .GetProperty(nameof(EndpointTestModel<EntityRequest>.AuthorizationToken))?.GetValue(testModelObject)); 
+
+
+                        var result = await Get(client, testModelObject, authorizationToken);
+                        responses.Add(new ValueTuple<string, string, Type>(testName, ExtractContent(result), entity));
+
+                        reports.WriteReport(testName, ExtractContent(result), testModelObject.Id.ToString(), entity,
+                            "GET");
+                        break;
+                    }
+                    case "PUT":
+                    {
+                        var requestType = typeBuilder.BuildUpdateRequestFromEntity(entity);
+                        jsonModel = jsonModel.FormatRequest(responses);
+
+                        var testModelObject = JsonConvert.DeserializeObject(jsonModel,
+                            typeof(EndpointTestModel<>).MakeGenericType(requestType));
+                        if (testModelObject is null)
+                            throw new Exception("Failed to deserialize json object");
+                        var requestData = JsonConvert.SerializeObject(testModelObject.GetType()
+                            .GetProperty(nameof(EndpointTestModel<EntityRequest>.Request))?.GetValue(testModelObject));
+                        if (requestData is null)
+                            throw new Exception("Request is null");
+                        
+                        var authorizationToken = JsonConvert.SerializeObject(testModelObject.GetType()
+                            .GetProperty(nameof(EndpointTestModel<EntityRequest>.AuthorizationToken))?.GetValue(testModelObject)); 
+                        
+
+                        var result = await Put(client, modelData, requestData, authorizationToken);
+                        responses.Add(new ValueTuple<string, string, Type>(testName, ExtractContent(result), entity));
+
+                        reports.WriteReport(testName, ExtractContent(result), requestData, entity, "PUT");
+                        break;
+                    }
+                    case "DELETE":
+                    {
+                        var response = typeBuilder.BuildResponseFromEntity(typeof(Entity));
+                        if (jsonModel is null)
+                            throw new Exception("Failed to format request");
+                        var testModelObject = jsonModel.FormatGetRequest(responses, response);
+                        if (testModelObject is null)
+                            throw new Exception("Failed to deserialize json object");
+                                                
+                        var authorizationToken = JsonConvert.SerializeObject(testModelObject.GetType()
+                            .GetProperty(nameof(EndpointTestModel<EntityRequest>.AuthorizationToken))?.GetValue(testModelObject)); 
+                        
+                        await Delete(client, testModelObject, authorizationToken);
+
+                        reports.WriteReport(testName, "Deleted", testModelObject.Id.ToString(), entity, "DELETE");
+                        break;
+                    }
+                    case "PAGINATED_GET":
+                    {
+                        var responseType = typeBuilder.BuildResponseFromEntity(entity);
+
+                        if (jsonModel is null)
+                            throw new Exception("Failed to format request");
+                        if (JsonConvert.DeserializeObject(jsonModel,
+                                typeof(TestModelPaginatedGet))
+                            is not TestModelPaginatedGet testModelObject)
+                            throw new Exception("Failed to deserialize json object");
+
+                        var entityResponseType = typeBuilder.BuildResponseFromEntity(entity);
+                        var authorizationToken = JsonConvert.SerializeObject(testModelObject.GetType()
+                            .GetProperty(nameof(EndpointTestModel<EntityRequest>.AuthorizationToken))?.GetValue(testModelObject)); 
+
+                        var result = await PaginatedGet(client, testModelObject, entityResponseType, authorizationToken);
+                        result = ExtractContent(result);
+                        var getResponse = JsonConvert.DeserializeObject(result,
+                            typeof(PaginatedResult<>).MakeGenericType(responseType));
+                        if (getResponse is null)
+                            throw new Exception("Failed to deserialize response");
+
+                        Assert.Equal(testModelObject.ExceptedTotalElementCount,
+                            getResponse.GetType().GetProperty(nameof(PaginatedResult<EntityResponse>.TotalElementCount))
+                                ?.GetValue(getResponse));
+                        responses.Add(new ValueTuple<string, string, Type>(testName, ExtractContent(result), entity));
+
+                        reports.WriteReport(testName, ExtractContent(result), testModelObject.Page.ToString(), entity,
+                            "PAGINATED_GET");
+                        break;
+                    }
+                    case "ASSERT":
+                    {
+                        jsonModel = jsonModel.FormatRequest(responses);
+
+                        if (JsonConvert.DeserializeObject(jsonModel,
+                                typeof(AssertModel))
+                            is not AssertModel assertModel)
+                            throw new Exception("Failed to deserialize json object");
+
+                        switch (assertModel.Operation)
+                        {
+                            case "EQUAL":
+                            {
+                                var componentA = assertModel.ComponentA;
+                                var componentB = assertModel.ComponentB;
+                                Assert.Equal(componentA, componentB);
+                                break;
+                            }
+                            case "NOT_EQUAL":
+                            {
+                                var componentA = assertModel.ComponentA;
+                                var componentB = assertModel.ComponentB;
+                                Assert.NotEqual(componentA, componentB);
+                                break;
+                            }
+                            default:
+                                throw new InvalidOperationException("Invalid method type");
+                        }
+
+                        reports.WriteReport(testName, "Asserted", "", typeof(Entity), "ASSERT");
+
+                        break;
+                    }
+                    case "LOGIN":
+                    {
+                        var requestType = typeof(Authorization.Requests.AuthorizationRequest);
+                        jsonModel = jsonModel.FormatRequest(responses);
+
+                        var testModelObject = JsonConvert.DeserializeObject(jsonModel,
+                            typeof(EndpointTestModel<>).MakeGenericType(requestType));
+                        if (testModelObject is null)
+                            throw new Exception("Failed to deserialize json object");
+                        var requestData = JsonConvert.SerializeObject(testModelObject.GetType()
+                            .GetProperty(nameof(EndpointTestModel<EntityRequest>.Request))?.GetValue(testModelObject));
+                        if (requestData is null)
+                            throw new Exception("Request is null");
+
+                        requestData.FormatRequest(responses);
+                        var result = await Login(client, requestData, modelData.EntityName.ToLower());
+                        responses.Add(new ValueTuple<string, string, Type>(testName, ExtractContent(result), entity));
+                        reports.WriteReport(testName, ExtractContent(result), requestData, entity, "POST");
+
+                        break;
+                    }
+                    default:
+                        throw new InvalidOperationException("Invalid method type");
                 }
-                default:
-                    throw new InvalidOperationException("Invalid method type");
             }
+            catch (Exception e)
+            {
+                var jsonModel = JsonConvert.SerializeObject(model);
+                if (jsonModel is null)
+                    throw new Exception("Failed to serialize model");
+                var modelData = JsonConvert.DeserializeObject<TestModelData>(jsonModel);
+                if (modelData is null) throw new Exception("Model data is null");
+                throw new TestException(e, modelData.TestName);
+            }
+        }
+
+        if (generateReport)
+        {
+            var report = JsonConvert.SerializeObject(reports);
+            await File.WriteAllTextAsync("report.json", report);
         }
     }
 
-    private static async Task<string> Post(HttpClient client, TestModelData testModel, string requestData)
+    private static void WriteReport(this List<ReportModel> models, string testName, string response, string requestBody, Type entityType, string method)
+    {
+        var reportModel = new ReportModel
+        {
+            Id = models.Count + 1,
+            Name= testName,
+            Response = response,
+            Date = DateTime.Now,
+            Body = requestBody,
+            Method = method,
+            EntityName = entityType.Name
+        };
+        models.Add(reportModel);
+    }
+
+    private static async Task<string> Post(HttpClient client, TestModelData testModel, string requestData, string? authorizationToken)
     {
         var httpMessage = new HttpRequestMessage
         {
@@ -196,15 +290,19 @@ public static class CrudTest
             RequestUri =
                 new Uri(
                     $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel.EntityName.ToLower()}/"),
-            Content = new StringContent(requestData, Encoding.UTF8, "application/json")
+            Content = new StringContent(requestData, Encoding.UTF8, "application/json"),
         };
+        
+        if(testModel.AuthorizationToken is not null)
+            httpMessage.Headers.Add("Authorization", ("Bearer " + authorizationToken).Replace("\"", ""));
+        
         var response = await client.SendAsync(httpMessage);
         var content = await response.Content.ReadAsStringAsync();
-        ValidateResponse(content, testModel.ExpectedStatusCode == 200);
+        ValidateResponse(content, testModel.TestName, testModel.ExpectedStatusCode == 200);
         return await response.Content.ReadAsStringAsync();
     }
 
-    private static async Task<string> Put(HttpClient client, TestModelData testModel, string requestData)
+    private static async Task<string> Put(HttpClient client, TestModelData testModel, string requestData, string? authorizationToken)
     {
         var httpMessage = new HttpRequestMessage
         {
@@ -212,16 +310,19 @@ public static class CrudTest
             RequestUri =
                 new Uri(
                     $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel.EntityName.ToLower()}/"),
-            Content = new StringContent(requestData, Encoding.UTF8, "application/json")
+            Content = new StringContent(requestData, Encoding.UTF8, "application/json"),
         };
+        if(testModel.AuthorizationToken is not null)
+            httpMessage.Headers.Add("Authorization", ("Bearer " + authorizationToken).Replace("\"", ""));
+        
         var response = await client.SendAsync(httpMessage);
         var content = await response.Content.ReadAsStringAsync();
-        ValidateResponse(content, testModel.ExpectedStatusCode == 200);
+        ValidateResponse(content, testModel.TestName,testModel.ExpectedStatusCode == 200);
 
         return await response.Content.ReadAsStringAsync();
     }
 
-    private static async Task Delete(HttpClient client, TestModelGet testModel)
+    private static async Task Delete(HttpClient client, TestModelGet testModel, string? authorizationToken)
     {
         var httpMessage = new HttpRequestMessage
         {
@@ -230,13 +331,16 @@ public static class CrudTest
                 new Uri(
                     $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel.EntityName.ToLower()}/{testModel.Id}")
         };
+        if(testModel.AuthorizationToken is not null)
+            httpMessage.Headers.Add("Authorization", ("Bearer " + authorizationToken).Replace("\"", ""));
+
         var response = await client.SendAsync(httpMessage);
         var content = await response.Content.ReadAsStringAsync();
 
-        ValidateResponse(content, testModel.ExpectedStatusCode == 200);
+        ValidateResponse(content, testModel.TestName,testModel.ExpectedStatusCode == 200);
     }
 
-    private static async Task<string> Get(HttpClient client, TestModelGet? testModel)
+    private static async Task<string> Get(HttpClient client, TestModelGet? testModel, string? authorizationToken)
     {
         var httpMessage = new HttpRequestMessage
         {
@@ -245,14 +349,33 @@ public static class CrudTest
                 new Uri(
                     $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel!.EntityName.ToLower()}/{testModel.Id}")
         };
+        if(testModel.AuthorizationToken is not null)
+            httpMessage.Headers.Add("Authorization", ("Bearer " + authorizationToken).Replace("\"", ""));
+
         var response = await client.SendAsync(httpMessage);
         var content = await response.Content.ReadAsStringAsync();
-        ValidateResponse(content, testModel.ExpectedStatusCode == 200);
+        ValidateResponse(content, testModel.TestName,testModel.ExpectedStatusCode == 200);
+        return content;
+    }
+    
+    private static async Task<string> Login(HttpClient client, string request, string entityName)
+    {
+        var httpMessage = new HttpRequestMessage
+        {
+            Method = HttpMethod.Post,
+            RequestUri =
+                new Uri(
+                    $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{entityName}/login"),
+            Content = new StringContent(request, Encoding.UTF8, "application/json"),
+        };
+      
+        var response = await client.SendAsync(httpMessage);
+        var content = await response.Content.ReadAsStringAsync();
         return content;
     }
 
     private static async Task<string> PaginatedGet(HttpClient client, TestModelPaginatedGet testModel,
-        Type entityResponseType)
+        Type entityResponseType, string? authorizationToken)
     {
         var url =
             $"{client.BaseAddress!.Scheme}://{client.BaseAddress.Host}/{testModel.EntityName.ToLower()}/list/{testModel.Page}";
@@ -261,8 +384,9 @@ public static class CrudTest
             Method = HttpMethod.Get,
             RequestUri = new Uri(url)
         };
-
-
+        if(testModel.AuthorizationToken is not null)
+            httpMessage.Headers.Add("Authorization", ("Bearer " + authorizationToken).Replace("\"", ""));
+        
         var response = await client.SendAsync(httpMessage);
         var content = await response.Content.ReadAsStringAsync();
         content = ExtractContent(content);
@@ -274,13 +398,15 @@ public static class CrudTest
         return await response.Content.ReadAsStringAsync();
     }
 
-    private static void ValidateResponse(string response, bool isSuccess = true)
+    private static void ValidateResponse(string response, string testName, bool isSuccess = true)
     {
         Result? result = null;
         if (JsonConvert.DeserializeObject(response)?.GetType().GetProperty(nameof(Result<object>.Value)) is null 
             || JsonConvert.DeserializeObject(response)?.GetType().GetProperty(nameof(Result<object>.Value)).GetValue(JsonConvert.DeserializeObject(response)) is null)
         {
             var singleValueWithoutValueResult = JsonConvert.DeserializeObject<Result>(response);
+            if(singleValueWithoutValueResult is not null && singleValueWithoutValueResult.Errors.Count == 0 != isSuccess)
+                throw new TestException(new Exception("Bad result."), testName);
             Assert.Equal(singleValueWithoutValueResult is not null && singleValueWithoutValueResult.Errors.Count == 0, isSuccess);
             return;
         }
@@ -296,6 +422,7 @@ public static class CrudTest
             if (doubleValueResult is not null)
                 result = doubleValueResult.Value.Value;
         }
+        
 
         Assert.Equal(result is not null && result.IsSuccess, isSuccess);
     }

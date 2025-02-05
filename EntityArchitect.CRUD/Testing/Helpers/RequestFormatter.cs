@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using EntityArchitect.CRUD.Authorization.Responses;
 using EntityArchitect.CRUD.Testing.TestModels;
 using EntityArchitect.CRUD.TypeBuilders;
 using Newtonsoft.Json;
@@ -28,7 +29,12 @@ public static class RequestFormatter
             var matchingResponse = responses.FirstOrDefault(r => r.testName == testName);
             if (matchingResponse.response == null)
                 return match.Value;
-
+            
+            if (propertyPath.ToLower() == nameof(AuthorizationResponse.AuthorizationToken).ToLower()) 
+            {
+                var token =  JsonConvert.DeserializeObject<AuthorizationResponse>(matchingResponse.response)!.AuthorizationToken;
+                return token;
+            }
 
             TypeBuilder typeBuilder = new();
             var responseType = typeBuilder.BuildResponseFromEntity(matchingResponse.entityType);
@@ -65,6 +71,12 @@ public static class RequestFormatter
             if (matchingResponse.response == null)
                 return match.Value;
 
+            if (propertyPath.ToLower() == nameof(AuthorizationResponse.AuthorizationToken).ToLower()) 
+            {
+                var token =  JsonConvert.DeserializeObject<AuthorizationResponse>(matchingResponse.response)!.AuthorizationToken;
+                return token;
+            }
+            
             var currentNode = JsonConvert.DeserializeObject(matchingResponse.response, responseType);
             if (currentNode == null)
                 return match.Value;

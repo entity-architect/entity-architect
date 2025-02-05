@@ -7,7 +7,7 @@ namespace EntityArchitect.CRUD.Testing.TestAttributes;
 [AttributeUsage(AttributeTargets.Method)]
 public sealed class MultiTestAttribute<TEntity> : BaseTestAttribute
 {
-    public MultiTestAttribute(string testDataFileName, [CallerMemberName] string methodName = "")
+    public MultiTestAttribute(string testDataFileName, bool generateReport = false, [CallerMemberName] string methodName = "")
     {
         if (!File.Exists(testDataFileName))
             throw new Exception("Test file does not exist");

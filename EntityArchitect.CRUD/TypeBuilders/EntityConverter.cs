@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Reflection;
-using EntityArchitect.CRUD.Authorization;
 using EntityArchitect.CRUD.Authorization.Attributes;
 using EntityArchitect.CRUD.Entities.Attributes;
 using EntityArchitect.CRUD.Entities.Entities;
@@ -32,8 +31,7 @@ public static class EntityConverter
                 if (propertyEntity.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType))
                 {
                     var subEntityInstance = Activator.CreateInstance(propertyEntity.PropertyType);
-                    propertyEntity.PropertyType.GetProperty(nameof(Entity.Id))
-                        ?.SetValue(subEntityInstance, new Id<Entity>((Guid)value!).ToId());
+                    propertyEntity.PropertyType.GetProperty(nameof(Entity.Id))?.SetValue(subEntityInstance, new Id<Entity>((Guid)value!).ToId());
                     propertyEntity.SetValue(entityInstance, subEntityInstance);
                     continue;
                 }

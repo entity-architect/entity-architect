@@ -5,4 +5,5 @@ public class TestModel
     public string TestName { get; set; }
     public string Method { get; set; }
     public string EntityName { get; set; }
+    public string? AuthorizationToken { get; set; }
 }

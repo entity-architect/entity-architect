@@ -13,7 +13,7 @@ public class Rental : Entity
     public Book Book { get; private set; }
 
     [RelationOneToMany<Client>(nameof(Client.Rentals))]
-    public Client Client { get; }
+    public Client Client { get; private set; }
 
     public DateOnly RentDate { get; private set;}
 }
