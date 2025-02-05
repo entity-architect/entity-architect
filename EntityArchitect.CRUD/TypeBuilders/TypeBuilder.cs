@@ -6,6 +6,7 @@ using EntityArchitect.CRUD.Attributes.QueryResponseTypeAttributes;
 using EntityArchitect.CRUD.Authorization.Attributes;
 using EntityArchitect.CRUD.Entities.Attributes;
 using EntityArchitect.CRUD.Entities.Entities;
+using EntityArchitect.CRUD.Enumerations;
 using EntityArchitect.CRUD.Queries;
 using LightListPropertyAttribute = EntityArchitect.CRUD.Attributes.CrudAttributes.LightListPropertyAttribute;
 
@@ -46,6 +47,12 @@ public partial class TypeBuilder
                 (parentType is not null &&
                  typeof(List<>).MakeGenericType(parentType) == property.PropertyType))
                 continue;
+
+            if (property.PropertyType.BaseType == typeof(Enumeration))
+            {
+                TypeBuilderExtension.CreateProperty(typeBuilder, property.Name, typeof(int));
+                continue;
+            }
 
             if (property.Name is "Id" or "CreatedAt" or "UpdatedAt" ||
                 property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(IgnorePostRequest)))
@@ -106,6 +113,8 @@ public partial class TypeBuilder
             isList = true;
             entityType = entityType.GetGenericArguments()[0];
         }
+        
+        
 
         var typeName = entityType.FullName + "UpdateRequest";
         if (_types.Any(c => c.FullName == typeName))
@@ -125,6 +134,12 @@ public partial class TypeBuilder
                 (parentType is not null &&
                  typeof(List<>).MakeGenericType(parentType) == property.PropertyType))
                 continue;
+            
+            if (property.PropertyType.BaseType == typeof(Enumeration))
+            {
+                TypeBuilderExtension.CreateProperty(typeBuilder, property.Name, typeof(int));
+                continue;
+            }
 
             if (property.Name is "CreatedAt" or "UpdatedAt" ||
                 property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(IgnorePutRequest)))

@@ -57,6 +57,10 @@ namespace EntityArchitect.Example.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("author_id");
 
+                    b.Property<int>("BookType")
+                        .HasColumnType("integer")
+                        .HasColumnName("book_type");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -123,7 +127,7 @@ namespace EntityArchitect.Example.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("book_id");
 
-                    b.Property<Guid?>("ClientId")
+                    b.Property<Guid>("ClientId")
                         .HasColumnType("uuid")
                         .HasColumnName("client_id");
 
@@ -172,12 +176,16 @@ namespace EntityArchitect.Example.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_rental_book_book_id");
 
-                    b.HasOne("EntityArchitect.Example.Entities.Client", null)
+                    b.HasOne("EntityArchitect.Example.Entities.Client", "Client")
                         .WithMany("Rentals")
                         .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
                         .HasConstraintName("fk_rental_client_client_id");
 
                     b.Navigation("Book");
+
+                    b.Navigation("Client");
                 });
 
             modelBuilder.Entity("EntityArchitect.Example.Entities.Author", b =>

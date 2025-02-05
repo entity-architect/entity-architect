@@ -1,5 +1,6 @@
 using EntityArchitect.CRUD.Entities.Attributes;
 using EntityArchitect.CRUD.Entities.Entities;
+using EntityArchitect.CRUD.Enumerations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -25,6 +26,7 @@ public static class EntityBuilder
         var properties = entity.GetProperties();
 
         foreach (var property in properties)
+        {
             if (property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(RelationOneToManyAttribute<>)))
             {
                 var relationType = property.CustomAttributes
@@ -56,7 +58,16 @@ public static class EntityBuilder
                     .WithOne(property.Name)
                     .HasForeignKey(nameof(Entity.Id));
             }
-
+            else
+            {
+                if (property.PropertyType.BaseType == typeof(Enumeration))
+                {
+                    var enumerationConverterType = typeof(EnumerationConverter<>).MakeGenericType(property.PropertyType);
+                    var enumerationConverter = (ValueConverter)Activator.CreateInstance(enumerationConverterType)!;
+                    modelBuilder.Entity(entity).Property(property.Name).HasConversion(enumerationConverter);
+                }
+            }
+        }
         return modelBuilder;
     }
 }

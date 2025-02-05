@@ -18,4 +18,5 @@ public class Book : Entity
     [IgnorePostRequest]
     [IgnorePutRequest]
     public List<Rental> Rentals { get; private set; }
+    public BookType BookType { get; private set; }
 }

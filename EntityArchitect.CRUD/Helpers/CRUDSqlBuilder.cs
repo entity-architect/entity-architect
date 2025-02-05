@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using EntityArchitect.CRUD.Entities.Entities;
+using EntityArchitect.CRUD.Enumerations;
 
 namespace EntityArchitect.CRUD.Helpers;
 
@@ -45,6 +46,8 @@ public static partial class CrudSqlBuilder
                 sql += (bool)property.GetValue(entity)! ? "true, " : "false, ";
             else if (property.Name == nameof(Entity.Id))
                 sql += "'" + entity.Id.Value + "', ";
+            else if (property.PropertyType.BaseType == typeof(Enumeration))
+                sql += ((Enumeration)property.GetValue(entity)).Id + ", ";
             else
                 sql += "'" + property.GetValue(entity) + "', ";
         }

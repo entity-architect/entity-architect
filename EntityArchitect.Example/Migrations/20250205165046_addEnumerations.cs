@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace EntityArchitect.Example.Migrations
 {
     /// <inheritdoc />
-    public partial class init : Migration
+    public partial class addEnumerations : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -48,6 +48,7 @@ namespace EntityArchitect.Example.Migrations
                     id = table.Column<Guid>(type: "uuid", nullable: false),
                     title = table.Column<string>(type: "text", nullable: true),
                     author_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    book_type = table.Column<int>(type: "integer", nullable: false),
                     created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -68,8 +69,8 @@ namespace EntityArchitect.Example.Migrations
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
                     book_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    client_id = table.Column<Guid>(type: "uuid", nullable: false),
                     rent_date = table.Column<DateOnly>(type: "date", nullable: false),
-                    client_id = table.Column<Guid>(type: "uuid", nullable: true),
                     created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -86,7 +87,8 @@ namespace EntityArchitect.Example.Migrations
                         name: "fk_rental_client_client_id",
                         column: x => x.client_id,
                         principalTable: "client",
-                        principalColumn: "id");
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(

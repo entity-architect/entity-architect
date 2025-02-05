@@ -3,6 +3,7 @@ using System.Reflection;
 using EntityArchitect.CRUD.Authorization.Attributes;
 using EntityArchitect.CRUD.Entities.Attributes;
 using EntityArchitect.CRUD.Entities.Entities;
+using EntityArchitect.CRUD.Enumerations;
 
 namespace EntityArchitect.CRUD.TypeBuilders;
 
@@ -23,6 +24,16 @@ public static class EntityConverter
             if (propertyRequest == null || !propertyRequest.CanRead) continue;
             var value = propertyRequest.GetValue(requestInstance);
 
+            if (propertyEntity.PropertyType.BaseType == typeof(Enumeration))
+            {
+                var enumerationType = propertyEntity.PropertyType;
+                var enumerationValue = typeof(Enumeration).GetMethod(nameof(Enumeration.GetById))!
+                    .MakeGenericMethod(enumerationType)
+                    .Invoke(null, new[] { value });
+                propertyEntity.SetValue(entityInstance, enumerationValue);
+                continue;
+            }
+            
             if (propertyEntity.PropertyType.BaseType == typeof(Entity))
             {
                 var attributeType = typeof(RelationOneToManyAttribute<>)
@@ -58,7 +69,6 @@ public static class EntityConverter
             var propertyResponse = Array.Find(entityProperties, p => p.Name == propertyEntity.Name);
             if (propertyResponse == null || !propertyResponse.CanRead) continue;
             var value = propertyResponse.GetValue(entityInstance);
-
             if (propertyEntity.PropertyType.BaseType == typeof(EntityResponse) ||
                 (propertyEntity.PropertyType.IsGenericType &&
                  propertyEntity.PropertyType.GetGenericArguments()[0].BaseType == typeof(EntityResponse)))
