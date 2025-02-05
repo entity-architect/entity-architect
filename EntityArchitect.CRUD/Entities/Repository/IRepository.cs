@@ -11,15 +11,12 @@ public interface IRepository<TEntity> where TEntity : Entity
     ValueTask<TEntity?> GetByIdAsync(Id<TEntity> id, CancellationToken cancellationToken = default);
     Task<TEntity?> GetBySpecificationIdAsync(SpecificationBySpec<TEntity> specification,
         CancellationToken cancellationToken = default);
-
     Task<List<TEntity>> GetBySpecificationAsync(ISpecification<TEntity> specification,
         CancellationToken cancellationToken = default);
-
     Task<int> ExecuteSqlAsync(string sql, CancellationToken cancellationToken = default);
     Task<List<TEntity>> GetLightListAsync(CancellationToken cancellationToken);
-
     Task<List<TEntity>> GetAllPaginatedAsync(int page, int itemCount, List<string> includingProperties,
         CancellationToken cancellationToken);
-
     Task<int> GetCountAsync(CancellationToken cancellationToken);
+    Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken);
 }

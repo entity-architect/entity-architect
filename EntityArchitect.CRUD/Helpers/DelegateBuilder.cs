@@ -8,6 +8,7 @@ using EntityArchitect.CRUD.Authorization.Attributes;
 using EntityArchitect.CRUD.Authorization.Requests;
 using EntityArchitect.CRUD.Authorization.Responses;
 using EntityArchitect.CRUD.Authorization.Service;
+using EntityArchitect.CRUD.Entities.Attributes;
 using EntityArchitect.CRUD.Entities.Context;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Entities.Repository;
@@ -47,6 +48,28 @@ public class DelegateBuilder<
         async (body, cancellationToken) =>
         {
             var entity = body.ConvertRequestToEntity<TEntity, TEntityCreateRequest>();
+
+            foreach (var item in entity.GetType().GetProperties()
+                         .Where(c =>
+                             c.PropertyType.BaseType == typeof(Entity) &&
+                             c.CustomAttributes.Any(x =>
+                                 x.AttributeType == typeof(RelationOneToManyAttribute<>)
+                                     .MakeGenericType(c.PropertyType))))
+            {
+                var entityId = (item.GetValue(entity) as Entity)!.Id.Value;
+                var repositoryType = typeof(IRepository<>).MakeGenericType(item.PropertyType);
+                using var scope = _provider.CreateScope();
+                var repository = scope.ServiceProvider.GetRequiredService(repositoryType);
+
+                var result = repository.GetType().GetMethod(nameof(IRepository<Entity>.ExistsAsync))!
+                    .Invoke(repository, new object[] { entityId!, cancellationToken });
+
+                if (!await (result as Task<bool>)!)
+                {
+                    return Result.Failure<TEntityResponse>(Error.NotFound(entityId, item.PropertyType.Name));
+                }
+            }
+            
             var sql = CrudSqlBuilder.BuildPostSql(entity, _entityName);
             using (var scope = _provider.CreateScope())
             {

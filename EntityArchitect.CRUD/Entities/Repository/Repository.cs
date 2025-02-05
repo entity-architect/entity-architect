@@ -1,7 +1,10 @@
+using System.Runtime.CompilerServices;
 using EntityArchitect.CRUD.Entities.Context;
 using EntityArchitect.CRUD.Entities.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Dapper;
+using Microsoft.AspNetCore.Html;
 
 namespace EntityArchitect.CRUD.Entities.Repository;
 
@@ -66,5 +69,16 @@ public class Repository<TEntity>(ApplicationDbContext context) :
     public Task<int> GetCountAsync(CancellationToken cancellationToken)
     {
         return context.Set<TEntity>().CountAsync(cancellationToken);
+    }
+
+    public Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var connection = context.Database;
+
+        const string sql = "SELECT EXISTS 1 WHERE id = '{0}'";
+        var query = FormattableStringFactory.Create(sql, id);
+
+        var result = connection.SqlQuery<bool>(query);
+        return result.FirstAsync(cancellationToken: cancellationToken);
     }
 }
