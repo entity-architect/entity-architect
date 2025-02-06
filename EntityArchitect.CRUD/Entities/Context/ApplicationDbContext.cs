@@ -1,4 +1,7 @@
+using System.Linq;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using EntityArchitect.CRUD.Entities.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,4 +18,5 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.ApplyConfigurationsFromAssembly(assembly);
         base.OnModelCreating(modelBuilder);
     }
+    
 }

@@ -1,4 +1,6 @@
+using System.Net.Http;
 using EntityArchitect.CRUD.Entities.Context;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace EntityArchitect.CRUD.Testing.Fixtures;

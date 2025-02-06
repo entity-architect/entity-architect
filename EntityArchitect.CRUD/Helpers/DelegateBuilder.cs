@@ -1,7 +1,12 @@
+using System;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Net;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.Attributes.CrudAttributes;
 using EntityArchitect.CRUD.Authorization.Attributes;
@@ -17,6 +22,8 @@ using EntityArchitect.CRUD.Results.Abstracts;
 using EntityArchitect.CRUD.TypeBuilders;
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 
 namespace EntityArchitect.CRUD.Helpers;

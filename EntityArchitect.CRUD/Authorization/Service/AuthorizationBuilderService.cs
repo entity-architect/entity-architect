@@ -1,10 +1,14 @@
+using System;
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Text;
 using EntityArchitect.CRUD.Authorization.Attributes;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using EntityArchitect.CRUD.Authorization.Responses;
 using EntityArchitect.CRUD.Entities.Entities;
+using Microsoft.Extensions.Configuration;
 
 
 namespace EntityArchitect.CRUD.Authorization.Service;

@@ -1,3 +1,5 @@
+using System;
+
 namespace EntityArchitect.CRUD.Entities.Entities;
 
 public abstract class Entity : IEntity

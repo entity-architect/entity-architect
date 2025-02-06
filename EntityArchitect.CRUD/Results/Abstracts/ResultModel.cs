@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace EntityArchitect.CRUD.Results.Abstracts;
 
 public class ResultModel

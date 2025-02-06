@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using EntityArchitect.CRUD.Entities.Attributes;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Enumerations;

@@ -1,9 +1,13 @@
+using System;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using EntityArchitect.CRUD.Authorization.Attributes;
 using EntityArchitect.CRUD.Authorization.Service;
 using EntityArchitect.CRUD.Entities.Entities;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 
 namespace EntityArchitect.CRUD.Authorization;

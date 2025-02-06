@@ -1,3 +1,4 @@
+using System;
 using EntityArchitect.CRUD.Entities.Entities;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 

@@ -1,3 +1,6 @@
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace EntityArchitect.CRUD.Entities.Context;
 
 public interface IUnitOfWork

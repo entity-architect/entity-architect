@@ -1,3 +1,5 @@
+using System;
+
 namespace EntityArchitect.CRUD.Authorization.Responses;
 
 public class AuthorizationResponse

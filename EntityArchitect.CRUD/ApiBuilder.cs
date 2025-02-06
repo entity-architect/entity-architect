@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using EntityArchitect.CRUD.Attributes.CrudAttributes;
@@ -12,6 +16,11 @@ using EntityArchitect.CRUD.Results;
 using EntityArchitect.CRUD.Results.Abstracts;
 using EntityArchitect.CRUD.TypeBuilders;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EntityArchitect.CRUD;
 

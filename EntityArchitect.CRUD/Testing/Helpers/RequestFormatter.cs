@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using EntityArchitect.CRUD.Authorization.Responses;
 using EntityArchitect.CRUD.Testing.TestModels;

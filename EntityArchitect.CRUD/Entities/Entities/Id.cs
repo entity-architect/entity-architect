@@ -1,3 +1,5 @@
+using System;
+
 namespace EntityArchitect.CRUD.Entities.Entities;
 
 public class Id<TEntity> : IEquatable<Id<TEntity>> where TEntity : Entity

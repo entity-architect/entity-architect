@@ -1,8 +1,10 @@
+using System.Linq;
 using System.Reflection;
 using EntityArchitect.CRUD.Entities.Context;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Entities.Repository;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EntityArchitect.CRUD.Entities;
 

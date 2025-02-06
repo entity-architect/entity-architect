@@ -1,3 +1,4 @@
+using System.Linq;
 using EntityArchitect.CRUD.Attributes.QueryResponseTypeAttributes;
 
 namespace EntityArchitect.CRUD.Queries;

@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Testing.TestModels;
 using EntityArchitect.CRUD.TypeBuilders;

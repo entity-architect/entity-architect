@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using EntityArchitect.CRUD.Entities.Entities;
 
 namespace EntityArchitect.CRUD.Results;

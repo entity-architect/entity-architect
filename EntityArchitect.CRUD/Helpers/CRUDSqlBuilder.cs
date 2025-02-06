@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using System.Text.RegularExpressions;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Enumerations;
