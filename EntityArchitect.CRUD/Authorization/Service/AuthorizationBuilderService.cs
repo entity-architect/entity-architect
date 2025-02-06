@@ -1,17 +1,29 @@
+using System;
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Text;
 using EntityArchitect.CRUD.Authorization.Attributes;
-using EntityArchitect.Entities.Entities;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
+using EntityArchitect.CRUD.Authorization.Responses;
+using EntityArchitect.CRUD.Entities.Entities;
+using Microsoft.Extensions.Configuration;
 
 
 namespace EntityArchitect.CRUD.Authorization.Service;
 
-public class AuthorizationBuilderService(IConfiguration configuration) : IAuthorizationBuilderService
+public class AuthorizationBuilderService : IAuthorizationBuilderService
 {
     public AuthorizationResponse CreateAuthorizationToken<TAuthorizationEntity>(TAuthorizationEntity entity) where TAuthorizationEntity : Entity
     {
+        
+        var builder = new ConfigurationBuilder()
+            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+            .AddEnvironmentVariables();
+        var configuration = builder.Build();
+        
         var authorizationKey = Encoding.ASCII.GetBytes(configuration["Jwt:AuthorizationKey"]!);
         var refreshKey = Encoding.ASCII.GetBytes(configuration["Jwt:RefreshKey"]!);
         var claims = new List<Claim>
@@ -53,7 +65,7 @@ public class AuthorizationBuilderService(IConfiguration configuration) : IAuthor
         
         return new AuthorizationResponse()
         {
-            AuthroziationToken = refreshTokenHandler.WriteToken(authorizationToken),
+            AuthorizationToken = refreshTokenHandler.WriteToken(authorizationToken),
             AuthorizationTokenExpiration = DateTime.Now.AddSeconds(configuration.GetValue<int>("Jwt:AuthorizationExpiration")),
             RefreshToken = refreshTokenHandler.WriteToken(refreshToken),
             RefreshTokenExpiration = DateTime.Now.AddSeconds(configuration.GetValue<int>("Jwt:RefreshExpiration"))

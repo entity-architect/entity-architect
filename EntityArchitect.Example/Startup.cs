@@ -1,14 +1,12 @@
 using EntityArchitect.CRUD;
 using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.Authorization;
-using EntityArchitect.Entities;
+using EntityArchitect.CRUD.Entities;
 using EntityArchitect.Example.Services.Logger;
 using Microsoft.OpenApi.Models;
 using ILogger = EntityArchitect.Example.Services.Logger.ILogger;
 
-
 namespace EntityArchitect.Example;
-
 
 public class Startup
 {
@@ -54,12 +52,10 @@ public class Startup
         
         var connectionString = Configuration.GetConnectionString("DefaultConnection");
 
+        services.AddScoped<ILogger, Logger>();
         services.AddEntityArchitect(typeof(Program).Assembly, connectionString ?? "");
         services.BuildEntityArchitectAuthorization(typeof(Program).Assembly);
-
         services.UseActions(typeof(Program).Assembly);
-        services.AddScoped<ILogger, Logger>();
-
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

@@ -1,9 +1,12 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
-using EntityArchitect.CRUD.Authorization;
 using EntityArchitect.CRUD.Authorization.Attributes;
-using EntityArchitect.Entities.Attributes;
-using EntityArchitect.Entities.Entities;
+using EntityArchitect.CRUD.Entities.Attributes;
+using EntityArchitect.CRUD.Entities.Entities;
+using EntityArchitect.CRUD.Enumerations;
 
 namespace EntityArchitect.CRUD.TypeBuilders;
 
@@ -24,6 +27,16 @@ public static class EntityConverter
             if (propertyRequest == null || !propertyRequest.CanRead) continue;
             var value = propertyRequest.GetValue(requestInstance);
 
+            if (propertyEntity.PropertyType.BaseType == typeof(Enumeration))
+            {
+                var enumerationType = propertyEntity.PropertyType;
+                var enumerationValue = typeof(Enumeration).GetMethod(nameof(Enumeration.GetById))!
+                    .MakeGenericMethod(enumerationType)
+                    .Invoke(null, new[] { value });
+                propertyEntity.SetValue(entityInstance, enumerationValue);
+                continue;
+            }
+            
             if (propertyEntity.PropertyType.BaseType == typeof(Entity))
             {
                 var attributeType = typeof(RelationOneToManyAttribute<>)
@@ -32,8 +45,7 @@ public static class EntityConverter
                 if (propertyEntity.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType))
                 {
                     var subEntityInstance = Activator.CreateInstance(propertyEntity.PropertyType);
-                    propertyEntity.PropertyType.GetProperty(nameof(Entity.Id))
-                        ?.SetValue(subEntityInstance, new Id<Entity>((Guid)value!).ToId());
+                    propertyEntity.PropertyType.GetProperty(nameof(Entity.Id))?.SetValue(subEntityInstance, new Id<Entity>((Guid)value!).ToId());
                     propertyEntity.SetValue(entityInstance, subEntityInstance);
                     continue;
                 }
@@ -46,6 +58,7 @@ public static class EntityConverter
         entityInstance.HashPassword();
         return entityInstance!;
     }
+
     public static TResponse ConvertEntityToResponse<TEntity, TResponse>(this TEntity entityInstance)
         where TEntity : Entity
         where TResponse : EntityResponse, new()
@@ -59,7 +72,6 @@ public static class EntityConverter
             var propertyResponse = Array.Find(entityProperties, p => p.Name == propertyEntity.Name);
             if (propertyResponse == null || !propertyResponse.CanRead) continue;
             var value = propertyResponse.GetValue(entityInstance);
-            
             if (propertyEntity.PropertyType.BaseType == typeof(EntityResponse) ||
                 (propertyEntity.PropertyType.IsGenericType &&
                  propertyEntity.PropertyType.GetGenericArguments()[0].BaseType == typeof(EntityResponse)))
@@ -73,30 +85,32 @@ public static class EntityConverter
                         var emptyListType =
                             typeof(List<>).MakeGenericType(propertyEntity.PropertyType.GetGenericArguments()[0]);
                         var emptyList = Activator.CreateInstance(emptyListType);
-                        propertyEntity.SetValue(responseInstance,emptyList);
+                        propertyEntity.SetValue(responseInstance, emptyList);
                         continue;
                     }
                     case null:
                         propertyEntity.SetValue(responseInstance, null);
                         continue;
                 }
-                
-                if(value.GetType().IsGenericType && value.GetType().GetGenericArguments()[0].BaseType == typeof(Entity))
+
+                if (value.GetType().IsGenericType &&
+                    value.GetType().GetGenericArguments()[0].BaseType == typeof(Entity))
                 {
                     var listType = typeof(List<>).MakeGenericType(propertyEntity.PropertyType.GetGenericArguments()[0]);
                     var list = Activator.CreateInstance(listType) as IList;
                     foreach (var item in (value as IList)!)
                     {
                         var listValue = typeof(EntityConverter).GetMethod(nameof(ConvertEntityToResponse))!
-                            .MakeGenericMethod(item.GetType(), propertyEntity.PropertyType.GetGenericArguments()[0])//TODO: get response type
+                            .MakeGenericMethod(item.GetType(),
+                                propertyEntity.PropertyType.GetGenericArguments()[0]) //TODO: get response type
                             .Invoke(null, new[] { item });
                         list!.Add(listValue);
                     }
-                    
+
                     propertyEntity.SetValue(responseInstance, list);
                     continue;
                 }
-                
+
                 var convertedValue = typeof(EntityConverter).GetMethod(nameof(ConvertEntityToResponse))!
                     .MakeGenericMethod(value.GetType(), propertyEntity.PropertyType)
                     .Invoke(null, new[] { value });
@@ -134,10 +148,10 @@ public static class EntityConverter
                 propertyEntity.SetValue(responseInstance, (value as Id<Entity>)!.ToId().Value);
                 continue;
             }
-            
+
             propertyEntity.SetValue(responseInstance, value);
         }
-        
+
         return responseInstance;
     }
     private static void HashPassword<TEntity>(this TEntity entityInstance) where TEntity : Entity?

@@ -7,24 +7,31 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\EntityArchitect.CRUD\EntityArchitect.CRUD.csproj" />
-      <ProjectReference Include="..\EntityArchitect.Enitites\EntityArchitect.Enitites.csproj" />
-      <ProjectReference Include="..\EntityArchitect.Enitites\EntityArchitect.Enitites.csproj" />
-      <ProjectReference Include="..\EntityArchitect.Testing\EntityArchitect.Testing.csproj" />
+        <ProjectReference Include="..\EntityArchitect.CRUD\EntityArchitect.CRUD.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
-        <PrivateAssets>all</PrivateAssets>
-        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      </PackageReference>
-      <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
-      <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="6.9.0" />
-      <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.9.0" />
-      <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="6.9.0" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0"/>
+        <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="6.9.0"/>
+        <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.9.0"/>
+        <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="6.9.0"/>
     </ItemGroup>
 
     <ItemGroup>
+      <None Update="Sql\GetAuthorsWithBooks.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="Sql\GetAuthorsWithBooksAndRentals.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="Sql\GetClientsWithRentals.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+
       <Folder Include="Migrations\" />
     </ItemGroup>
     

@@ -1,17 +1,21 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Text.RegularExpressions;
-using EntityArchitect.CRUD.Attributes;
 using EntityArchitect.CRUD.Attributes.CrudAttributes;
 using EntityArchitect.CRUD.Attributes.QueryResponseTypeAttributes;
-using EntityArchitect.CRUD.Authorization;
+using EntityArchitect.CRUD.Authorization.Attributes;
+using EntityArchitect.CRUD.Entities.Attributes;
+using EntityArchitect.CRUD.Entities.Entities;
+using EntityArchitect.CRUD.Enumerations;
 using EntityArchitect.CRUD.Queries;
-using EntityArchitect.Entities.Attributes;
-using EntityArchitect.Entities.Entities;
+using LightListPropertyAttribute = EntityArchitect.CRUD.Attributes.CrudAttributes.LightListPropertyAttribute;
 
 namespace EntityArchitect.CRUD.TypeBuilders;
 
-public partial class TypeBuilder()
+public partial class TypeBuilder
 {
     private List<Type> _types = [];
 
@@ -46,6 +50,12 @@ public partial class TypeBuilder()
                 (parentType is not null &&
                  typeof(List<>).MakeGenericType(parentType) == property.PropertyType))
                 continue;
+
+            if (property.PropertyType.BaseType == typeof(Enumeration))
+            {
+                TypeBuilderExtension.CreateProperty(typeBuilder, property.Name, typeof(int));
+                continue;
+            }
 
             if (property.Name is "Id" or "CreatedAt" or "UpdatedAt" ||
                 property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(IgnorePostRequest)))
@@ -99,13 +109,15 @@ public partial class TypeBuilder()
 
     public Type BuildUpdateRequestFromEntity(Type entityType, Type? parentType = null)
     {
-        bool isList = false;
+        var isList = false;
         if (entityType.IsGenericType &&
             entityType.GetGenericTypeDefinition() == typeof(List<>))
         {
             isList = true;
             entityType = entityType.GetGenericArguments()[0];
         }
+        
+        
 
         var typeName = entityType.FullName + "UpdateRequest";
         if (_types.Any(c => c.FullName == typeName))
@@ -125,6 +137,12 @@ public partial class TypeBuilder()
                 (parentType is not null &&
                  typeof(List<>).MakeGenericType(parentType) == property.PropertyType))
                 continue;
+            
+            if (property.PropertyType.BaseType == typeof(Enumeration))
+            {
+                TypeBuilderExtension.CreateProperty(typeBuilder, property.Name, typeof(int));
+                continue;
+            }
 
             if (property.Name is "CreatedAt" or "UpdatedAt" ||
                 property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(IgnorePutRequest)))
@@ -190,9 +208,7 @@ public partial class TypeBuilder()
 
         var nameParentTypes = "";
         foreach (var item in (parentType?.Select(c => c.Name) ?? Array.Empty<string>()).ToList())
-        {
             nameParentTypes += item;
-        }
 
         var typeName = entityType.FullName + nameParentTypes + "Response";
         if (_types.Any(c => c.FullName == typeName))
@@ -217,9 +233,9 @@ public partial class TypeBuilder()
                                              ?.ConstructorArguments[0].Value ??
                                          0);
 
-            if (parentType is not null &&
-                parentType.Count > 0 &&
-                property.PropertyType == parentType.Last() ||
+            if ((parentType is not null &&
+                 parentType.Count > 0 &&
+                 property.PropertyType == parentType.Last()) ||
                 (parentType is not null &&
                  typeof(List<>).MakeGenericType(parentType.Last()) == property.PropertyType))
             {
@@ -289,10 +305,7 @@ public partial class TypeBuilder()
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
-            if(property.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationPasswordAttribute)))
-                continue;
-            
-            if (property.PropertyType.BaseType != typeof(Object) &&
+            if (property.PropertyType.BaseType != typeof(object) &&
                 property.CustomAttributes.Any(c => c.AttributeType == typeof(LightListPropertyAttribute)))
                 throw new Exception("Property in light list response must be a simple type");
 
@@ -301,7 +314,6 @@ public partial class TypeBuilder()
 
             if (property.CustomAttributes.Any(c => c.AttributeType == typeof(LightListPropertyAttribute)))
                 TypeBuilderExtension.CreateProperty(typeBuilder, property.Name, property.PropertyType);
-
         }
 
         var resultType = typeBuilder.CreateType();
@@ -323,9 +335,9 @@ public partial class TypeBuilder()
         {
             List<CustomAttributeBuilder> customAttributeBuilders = new();
             var attributeBuilder =
-                (new CustomAttributeBuilder(
+                new CustomAttributeBuilder(
                     typeof(SqlParameterPositionTypeAttribute).GetConstructor(new[] { typeof(SqlParameterPosition) })!,
-                    new object[] { sqlParameterPosition }));
+                    new object[] { sqlParameterPosition });
 
             customAttributeBuilders.Add(attributeBuilder);
 
@@ -353,11 +365,10 @@ public partial class TypeBuilder()
             var parsedType = ParseType(type);
 
             SqlParameterPosition sqlParameterPosition;
-            if (int.TryParse(match.Groups[3].Value, out int sqlParameterPositionInt))
+            if (int.TryParse(match.Groups[3].Value, out var sqlParameterPositionInt))
                 sqlParameterPosition = (SqlParameterPosition)sqlParameterPositionInt;
             else
                 sqlParameterPosition = SqlParameterPosition.Exact;
-
 
 
             getProperties.Add((parsedType, name, sqlParameterPosition));
@@ -397,7 +408,6 @@ public partial class TypeBuilder()
                                           MethodAttributes.RTSpecialName);
 
         foreach (var field in parameterFields)
-        {
             if (field.Fields.Count == 0)
             {
                 var propertyType = ParseType(field.Type);
@@ -434,24 +444,20 @@ public partial class TypeBuilder()
 
                 TypeBuilderExtension.CreateProperty(baseType, field.Name, nestedType, attributesList);
             }
-        }
 
         var queryType = baseType.CreateType();
         _types.Add(queryType);
         _types = _types.OrderBy(c => c.FullName).ToList();
 
-        if (!queryTypes.Contains(queryType))
-        {
-            queryTypes.Insert(0, queryType); 
-        }
+        if (!queryTypes.Contains(queryType)) queryTypes.Insert(0, queryType);
 
         if (splitOn.Length > 0)
             splitOn = splitOn[..^2];
 
         return queryTypes.ToArray();
     }
-    
-    
+
+
     private Type BuildComplexType(SqlParser.Field field, string typeName, ref string splitOn, ref List<Type> queryTypes,
         bool isNested = false)
     {
@@ -463,7 +469,6 @@ public partial class TypeBuilder()
             splitOn += field.Fields[0].Name.Split(".").Last() + ", ";
 
         foreach (var complexField in field.Fields)
-        {
             if (complexField.Fields.Count > 0)
             {
                 var nestedType = BuildComplexType(complexField, typeName + complexField.Type, ref splitOn,
@@ -495,17 +500,13 @@ public partial class TypeBuilder()
                 var propertyType = ParseType(complexField.Type);
                 TypeBuilderExtension.CreateProperty(complexType, complexField.Name, propertyType);
             }
-        }
 
         var createdType = complexType.CreateType();
-        if (!queryTypes.Contains(createdType))
-        {
-            queryTypes.Insert(0, createdType);
-        }
+        if (!queryTypes.Contains(createdType)) queryTypes.Insert(0, createdType);
 
         return createdType;
     }
-    
+
     public Type BuildQueryResultType(Type type)
     {
         var resultType = TypeBuilderExtension.GetTypeBuilder(type.Name + "Result");

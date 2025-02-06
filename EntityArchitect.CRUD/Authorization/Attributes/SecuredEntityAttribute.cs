@@ -1,3 +1,5 @@
+using System;
+
 namespace EntityArchitect.CRUD.Authorization.Attributes;
 
 [AttributeUsage(AttributeTargets.Class)]

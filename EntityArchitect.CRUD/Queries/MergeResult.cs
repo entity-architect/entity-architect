@@ -1,4 +1,7 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace EntityArchitect.CRUD.Queries;
@@ -8,10 +11,7 @@ internal static class MergeResult
     private static object MergeObjects(object obj1, object obj2)
     {
         var type = obj1.GetType();
-        if (type != obj2.GetType())
-        {
-            throw new InvalidOperationException("Objects must be of the same type to merge.");
-        }
+        if (type != obj2.GetType()) throw new InvalidOperationException("Objects must be of the same type to merge.");
 
         var merged = Activator.CreateInstance(type)!;
 
@@ -48,32 +48,29 @@ internal static class MergeResult
         var objectList = objects.ToList();
         var result = objectList.First();
 
-        foreach (var obj in objectList.Skip(1))
-        {
-            result = MergeObjects(result, obj);
-        }
+        foreach (var obj in objectList.Skip(1)) result = MergeObjects(result, obj);
 
         return result;
     }
 
-    
+
     internal static object ConvertType(Type resultType, object obj)
     {
         var instance = Activator.CreateInstance(resultType);
-        
+
         var properties = resultType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
         foreach (var property in properties)
-        {
-            if(property.PropertyType.IsGenericType && property.PropertyType.GetGenericTypeDefinition() == typeof(List<>))
+            if (property.PropertyType.IsGenericType &&
+                property.PropertyType.GetGenericTypeDefinition() == typeof(List<>))
             {
                 var obj2 = obj.GetType().GetProperty(property.Name)?.GetValue(obj);
                 if (obj2 is not null)
                 {
                     var value = ConvertType(property.PropertyType.GetGenericArguments()[0], obj2);
-                    
+
                     var method = property.PropertyType.GetMethod(nameof(List<object>.Add));
                     var instanceValue = Activator.CreateInstance(property.PropertyType);
-                
+
                     method!.Invoke(instanceValue, new[] { value });
                     property.SetValue(instance, instanceValue);
                     continue;
@@ -82,7 +79,9 @@ internal static class MergeResult
                 var emptyList = Activator.CreateInstance(property.PropertyType);
                 property.SetValue(instance, emptyList);
             }
-            else if (property.PropertyType is { IsClass: true, IsGenericType: false } && property.PropertyType != typeof(string) && property.PropertyType != typeof(DateTime) && property.PropertyType != typeof(Guid))
+            else if (property.PropertyType is { IsClass: true, IsGenericType: false } &&
+                     property.PropertyType != typeof(string) && property.PropertyType != typeof(DateTime) &&
+                     property.PropertyType != typeof(Guid))
             {
                 var obj2 = obj.GetType().GetProperty(property.Name)?.GetValue(obj);
                 if (obj2 is not null)
@@ -91,6 +90,7 @@ internal static class MergeResult
                     property.SetValue(instance, value);
                     continue;
                 }
+
                 property.SetValue(instance, null);
             }
             else
@@ -98,10 +98,7 @@ internal static class MergeResult
                 var value = obj.GetType().GetProperty(property.Name)?.GetValue(obj);
                 property.SetValue(instance, value);
             }
-        }
-        
+
         return instance!;
     }
-
-
 }

@@ -1,0 +1,92 @@
+[
+  {
+    "testName": "PostTest",
+    "entityName": "Author",
+    "method": "POST",
+    "ExpectedStatusCode": 200,
+    "request": {
+      "name": "Author 1"
+    }
+  },
+  {
+    "testName": "PutTest",
+    "entityName": "Author",
+    "method": "PUT",
+    "ExpectedStatusCode": 200,
+    "request": {
+      "id": "{PostTest.Id}",
+      "name": "Author 2"
+    }
+  },
+  {
+    "testName": "PostTestBook",
+    "entityName": "Book",
+    "method": "POST",
+    "ExpectedStatusCode": 200,
+    "request": {
+      "title": "Book 1",
+      "authorId": "{PostTest.Id}"
+    }
+  },
+  {
+    "testName": "GetTest",
+    "entityName": "Author",
+    "method": "GET",
+    "ExpectedStatusCode": 200,
+    "id": "{PutTest.Id}"
+  },
+  {
+    "testName": "CheckTest",
+    "method": "ASSERT",
+    "operation": "EQUAL",
+    "componentA": "{GetTest.Id}",
+    "componentB": "{PostTest.Id}"
+  },
+  {
+    "testName": "CheckTest",
+    "method": "ASSERT",
+    "operation": "EQUAL",
+    "componentA": "{GetTest.Books.Count}",
+    "componentB": "1"
+  },
+  {
+    "testName": "PutTestBook",
+    "entityName": "Book",
+    "method": "PUT",
+    "ExpectedStatusCode": 200,
+    "request": {
+      "id": "{PostTestBook.Id}",
+      "title": "{PostTestBook.Title} edited",
+      "authorId": "{GetTest.Id}"
+    }
+  },
+  {
+    "testName": "CheckUpdateBookTest",
+    "method": "ASSERT",
+    "operation": "NOT_EQUAL",
+    "componentA": "{PostTestBook.Title}",
+    "componentB": "{PutTestBook.Title}"
+  },
+  {
+    "testName": "GetPaginatedTest",
+    "entityName": "Author",
+    "method": "PAGINATED_GET",
+    "expectedStatusCode": 200,
+    "page": 0,
+    "exceptedTotalElementCount": 1
+  },
+  {
+    "testName": "DeleteTest",
+    "entityName": "Author",
+    "method": "DELETE",
+    "ExpectedStatusCode": 200,
+    "id": "{GetTest.Id}"
+  },
+  {
+    "testName": "GetTestNotFound",
+    "entityName": "Author",
+    "method": "GET",
+    "ExpectedStatusCode": 404,
+    "id": "{PutTest.Id}"
+  }
+]

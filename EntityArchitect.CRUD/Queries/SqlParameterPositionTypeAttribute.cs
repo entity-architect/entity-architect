@@ -1,3 +1,5 @@
+using System;
+
 namespace EntityArchitect.CRUD.Queries;
 
 [AttributeUsage(AttributeTargets.Property)]

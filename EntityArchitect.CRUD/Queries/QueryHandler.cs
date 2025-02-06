@@ -1,14 +1,18 @@
-using System.Collections;
+using System;
+using System.Collections.Generic;
 using System.Data;
+using System.IO;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Net;
 using System.Reflection;
-using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using Dapper;
 using EntityArchitect.CRUD.Attributes.QueryResponseTypeAttributes;
+using EntityArchitect.CRUD.Entities.Entities;
+using EntityArchitect.CRUD.Results.Abstracts;
 using EntityArchitect.CRUD.TypeBuilders;
-using EntityArchitect.Entities.Entities;
-using EntityArchitect.Results.Abstracts;
 using Npgsql;
 
 namespace EntityArchitect.CRUD.Queries;
@@ -23,13 +27,9 @@ internal class QueryHandler<TParam, TEntity>
         using IDbConnection dbConnection = new NpgsqlConnection(connectionString);
         string sql;
         if (query.UseSqlFile)
-        {
             sql = await File.ReadAllTextAsync(query.Sql, cancellationToken);
-        }
         else
-        {
             sql = SqlParser.RemoveTypes(query.Sql);
-        }
 
         foreach (var props in param.GetType().GetProperties())
         {
@@ -66,14 +66,14 @@ internal class QueryHandler<TParam, TEntity>
             return Result.Failure(new Error(HttpStatusCode.InternalServerError, e.Message));
         }
     }
-    
+
     private static object QueryWithDynamicSplit(IDbConnection connection, string sql,
         List<SqlParser.Field> parameterFields, object param, string queryName)
     {
         TypeBuilder typeBuilder = new();
         var typeArray = typeBuilder.BuildQueryTypes(parameterFields, queryName, out var splitOn);
         typeArray = ReorderTypes(typeArray.ToList()).ToArray();
-        
+
         var resultType = typeBuilder.BuildQueryResultType(typeArray.First());
         var typList = typeArray.ToList();
         typList.Add(typeArray.First());
@@ -106,7 +106,7 @@ internal class QueryHandler<TParam, TEntity>
                 var merged = MergeResult.MergeAllObjects(convertedTypes);
                 result.GetType().GetMethod("Add")?.Invoke(result, new[] { merged });
             }
-            
+
             return result;
         }
         catch (Exception e)
@@ -127,14 +127,11 @@ internal class QueryHandler<TParam, TEntity>
             {
                 types[i] = nextType;
                 types[i + 1] = currentType;
-                
-                if (i > 0)
-                {
-                    i -= 2;
-                }
+
+                if (i > 0) i -= 2;
             }
             else
-            {                
+            {
                 i++;
             }
         }
@@ -147,9 +144,9 @@ internal class QueryHandler<TParam, TEntity>
         return typeToCheck.GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Any(prop => prop.PropertyType == requiredPropertyType);
     }
-    
 
-    static object GetPropertyValue(object obj)
+
+    private static object GetPropertyValue(object obj)
     {
         return obj.GetType().GetProperties()
             .First(c => c.CustomAttributes.Any(attributeData => attributeData.AttributeType == typeof(IsKeyAttribute)))
@@ -159,7 +156,8 @@ internal class QueryHandler<TParam, TEntity>
     private static Delegate CreateMapFunction(Type[] types)
     {
         var parameters = types.Select((t, i) => Expression.Parameter(t, $"arg{i}")).ToArray();
-        var argumentsArray = Expression.NewArrayInit(typeof(object), parameters.Select(p => Expression.Convert(p, typeof(object))));
+        var argumentsArray =
+            Expression.NewArrayInit(typeof(object), parameters.Select(p => Expression.Convert(p, typeof(object))));
 
         var method = typeof(QueryHandlerHelper).GetMethod(nameof(QueryHandlerHelper.BuildResponse));
         method = method!.MakeGenericMethod(types[0]);

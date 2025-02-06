@@ -23,22 +23,24 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\EntityArchitect.Example\EntityArchitect.Example.csproj" />
-      <ProjectReference Include="..\EntityArchitect.Testing\EntityArchitect.Testing.csproj" />
+        <ProjectReference Include="..\EntityArchitect.Example\EntityArchitect.Example.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
-      <Content Update="testData.json">
-        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      </Content>
+        <Content Update="testData.json">
+            <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </Content>
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="integration-test.json">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
+        <None Update="integration-test.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="integration-test-backup.json">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 
 </Project>

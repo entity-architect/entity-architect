@@ -1,9 +1,13 @@
+using System;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using EntityArchitect.CRUD.Authorization.Attributes;
 using EntityArchitect.CRUD.Authorization.Service;
-using EntityArchitect.Entities.Entities;
+using EntityArchitect.CRUD.Entities.Entities;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 
 namespace EntityArchitect.CRUD.Authorization;
@@ -13,8 +17,14 @@ public static class AuthorizationBuilder
     public static IServiceCollection BuildEntityArchitectAuthorization(this IServiceCollection services, Assembly assembly)
     { 
         services.AddTransient<IAuthorizationBuilderService, AuthorizationBuilderService>();
-        var configuration =services.BuildServiceProvider().GetService<IConfiguration>();
-        var key = Encoding.UTF8.GetBytes(configuration["Jwt:AuthorizationKey"]);
+        
+        var builder = new ConfigurationBuilder()
+            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+            .AddEnvironmentVariables();
+
+        var configuration = builder.Build();
+        var key = Encoding.UTF8.GetBytes(configuration.GetValue<string>("Jwt:AuthorizationKey"));
         services.AddAuthentication(x =>
         {
             x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;

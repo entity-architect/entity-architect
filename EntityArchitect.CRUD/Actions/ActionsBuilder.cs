@@ -1,5 +1,10 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
-using EntityArchitect.Entities.Entities;
+using System.Threading;
+using System.Threading.Tasks;
+using EntityArchitect.CRUD.Entities.Entities;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EntityArchitect.CRUD.Actions;
 
@@ -52,22 +57,18 @@ public static class ActionsBuilder
         where TEntity : Entity
     {
         await foreach (var element in list.WithCancellation(cancellationToken))
-        {
             entity = await element.BeforePostAsync(entity, cancellationToken);
-        }
 
         return entity;
     }
-    
+
     public static async Task<TEntity> InvokeAfterPostAsync<TEntity>(
         this IAsyncEnumerable<EndpointAction<TEntity>> list, TEntity entity,
-        CancellationToken cancellationToken = default) 
+        CancellationToken cancellationToken = default)
         where TEntity : Entity
     {
         await foreach (var element in list.WithCancellation(cancellationToken))
-        {
             entity = await element.AfterPostAsync(entity, cancellationToken);
-        }
 
         return entity;
     }
@@ -78,9 +79,7 @@ public static class ActionsBuilder
         where TEntity : Entity
     {
         await foreach (var element in list.WithCancellation(cancellationToken))
-        {
             entity = await element.BeforePutAsync(entity, cancellationToken);
-        }
 
         return entity;
     }
@@ -91,9 +90,7 @@ public static class ActionsBuilder
         where TEntity : Entity
     {
         await foreach (var element in list.WithCancellation(cancellationToken))
-        {
             entity = await element.AfterPutAsync(entity, cancellationToken);
-        }
 
         return entity;
     }
@@ -104,9 +101,7 @@ public static class ActionsBuilder
         where TEntity : Entity
     {
         await foreach (var element in list.WithCancellation(cancellationToken))
-        {
             entity = await element.BeforeDeleteAsync(entity, cancellationToken);
-        }
 
         return entity;
     }
@@ -117,9 +112,7 @@ public static class ActionsBuilder
         where TEntity : Entity
     {
         await foreach (var element in list.WithCancellation(cancellationToken))
-        {
             entity = await element.AfterDeleteAsync(entity, cancellationToken);
-        }
 
         return entity;
     }
@@ -130,9 +123,7 @@ public static class ActionsBuilder
         where TEntity : Entity
     {
         await foreach (var element in list.WithCancellation(cancellationToken))
-        {
             entity = await element.AfterGetById(entity, cancellationToken);
-        }
 
         return entity;
     }
@@ -143,9 +134,7 @@ public static class ActionsBuilder
         where TEntity : Entity
     {
         await foreach (var element in list.WithCancellation(cancellationToken))
-        {
             entity = await element.AfterGetPaginated(page, itemCount, entity, cancellationToken);
-        }
 
         return entity;
     }
