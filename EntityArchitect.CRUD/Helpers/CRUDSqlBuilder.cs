@@ -11,7 +11,7 @@ public static partial class CrudSqlBuilder
     internal static string BuildPostSql<TEntity>(TEntity entity, string entityName) where TEntity : Entity
     {
         var properties = typeof(TEntity).GetProperties();
-        var sql = $"INSERT INTO {ToSnakeCase(entityName)} (";
+        var sql = $"INSERT INTO \"{ToSnakeCase(entityName)}\" (";
         foreach (var property in properties)
         {
             if (property.CustomAttributes

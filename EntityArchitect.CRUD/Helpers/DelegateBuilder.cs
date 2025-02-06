@@ -128,7 +128,19 @@ public class DelegateBuilder<
                 if (oldEntity is null)
                     return Result.Failure<TEntityResponse>(Error.NotFound(entity.Id.Value, _entityName));
 
-                oldEntity = entity;
+                //update all fields
+                foreach (var entityProperty in entity.GetType().GetProperties())
+                {
+                    var value = entityProperty.GetValue(entity);
+                    if (value is null)
+                        continue;
+                    var oldEntityProperty = oldEntity.GetType().GetProperty(entityProperty.Name);
+                    if (oldEntityProperty is null)
+                        continue;
+                    oldEntityProperty.SetValue(oldEntity, value);
+                }
+                
+                service.Update(oldEntity);
                 
                 await unitOfWork.SaveChangesAsync(cancellationToken);
                 entity = await actions!.InvokeAfterPutAsync(entity, cancellationToken);

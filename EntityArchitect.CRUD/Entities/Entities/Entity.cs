@@ -10,8 +10,8 @@ public abstract class Entity : IEntity
     }
 
     public Id<Entity> Id { get; internal set; }
-    public DateTime CreatedAt { get; private set; }
-    public DateTime UpdatedAt { get; private set; }
+    public DateTime CreatedAt { get; internal set; }
+    public DateTime UpdatedAt { get; internal set; }
 
     public void SetCreatedDate()
     {

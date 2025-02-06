@@ -1,7 +1,9 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using EntityArchitect.CRUD.Attributes.CrudAttributes;
@@ -9,6 +11,7 @@ using EntityArchitect.CRUD.Authorization;
 using EntityArchitect.CRUD.Authorization.Attributes;
 using EntityArchitect.CRUD.Authorization.Responses;
 using EntityArchitect.CRUD.Authorization.Service;
+using EntityArchitect.CRUD.CustomEndpoints;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Helpers;
 using EntityArchitect.CRUD.Queries;
@@ -47,17 +50,19 @@ public static partial class ApiBuilder
             {
                 foreach (var type in authorizationEntityAttribute.EntityTypes)
                 {
-                    if(type.CustomAttributes.All(c => c.AttributeType != typeof(AuthorizationEntityAttribute)))
-                        throw new Exception($"AuthorizationEntityAttribute can only have AuthorizationEntityAttribute as EntityTypes. {type.Name}");
-                        
+                    if (type.CustomAttributes.All(c => c.AttributeType != typeof(AuthorizationEntityAttribute)))
+                        throw new Exception(
+                            $"AuthorizationEntityAttribute can only have AuthorizationEntityAttribute as EntityTypes. {type.Name}");
+
                     authorizationPolicies.Add(type);
                 }
             }
-            
+
             var requestPostType = typeBuilder.BuildCreateRequestFromEntity(entity);
             var requestUpdateType = typeBuilder.BuildUpdateRequestFromEntity(entity);
             var responseType = typeBuilder.BuildResponseFromEntity(entity);
             var lightListResponseType = typeBuilder.BuildLightListProperty(entity);
+
             app.UseRouting();
             app.UseEndpoints(async endpoints =>
             {
@@ -82,10 +87,10 @@ public static partial class ApiBuilder
                     var postHandler =
                         delegateBuilder!.GetType().GetProperty("PostDelegate")!.GetValue(delegateBuilder) as Delegate;
                     var endpoint = group.MapPost("", postHandler!);
-                    
-                    if(haveAuthorization)
+
+                    if (haveAuthorization)
                         endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
-                    
+
                     endpoint.WithSummary($"Create {entity.Name}");
                     endpoint.WithDisplayName($"Create {entity.Name}");
                     endpoint.Produces(200, typeof(Result<>).MakeGenericType(responseType));
@@ -99,9 +104,9 @@ public static partial class ApiBuilder
                         delegateBuilder!.GetType().GetProperty("UpdateDelegate")!.GetValue(delegateBuilder) as Delegate;
                     var endpoint = group.MapPut("", updateHandler!);
 
-                    if(haveAuthorization)
+                    if (haveAuthorization)
                         endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
-                    
+
                     endpoint.WithSummary($"Update {entity.Name}");
                     endpoint.WithDisplayName($"Update {entity.Name}");
                     endpoint.Produces(200, typeof(Result<>).MakeGenericType(responseType));
@@ -115,9 +120,9 @@ public static partial class ApiBuilder
                         delegateBuilder!.GetType().GetProperty("DeleteDelegate")!.GetValue(delegateBuilder) as Delegate;
                     var endpoint = group.MapDelete("{id}", deleteHandler!);
 
-                    if(haveAuthorization)
+                    if (haveAuthorization)
                         endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
-                    
+
                     endpoint.WithSummary($"Delete {entity.Name} by Id");
                     endpoint.WithDisplayName($"Delete {entity.Name} by Id");
                     endpoint.Produces(200, typeof(Result));
@@ -138,9 +143,9 @@ public static partial class ApiBuilder
 
                     var endpoint = group.MapGet("{id}", getByIdHandler!);
 
-                    if(haveAuthorization)
+                    if (haveAuthorization)
                         endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
-                    
+
                     endpoint.WithSummary($"Get {entity.Name} by Id");
                     endpoint.WithDisplayName($"Get {entity.Name} by Id");
                     endpoint.Produces(200, typeof(Result<>).MakeGenericType(responseType));
@@ -162,16 +167,16 @@ public static partial class ApiBuilder
                                 .Contains(typeof(LightListPropertyAttribute)))
                             .Select(c => c.Name)
                             .ToList();
-                    
+
                     var getLightListDelegate =
                         delegateBuilder!.GetType().GetProperty("GetLightListDelegate")!.GetValue(delegateBuilder) as
                             Delegate;
-                    
+
                     var endpoint = group.MapGet("light-list", getLightListDelegate!);
                     endpoint.WithSummary(
                         $"Get light list of {entity.Name}s. Only includes Id and {string.Join(",", lightListProperties)}");
-                    
-                    if(haveAuthorization)
+
+                    if (haveAuthorization)
                         endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
                 }
 
@@ -181,10 +186,10 @@ public static partial class ApiBuilder
                         delegateBuilder!.GetType().GetProperty("GetListDelegate")!
                             .GetValue(delegateBuilder) as Delegate;
                     var endpoint = group.MapGet("list/{page}", getLightListDelegate!);
-                    
-                    if(haveAuthorization)
+
+                    if (haveAuthorization)
                         endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
-                    
+
                     endpoint.WithSummary($"Get list of {entity.Name}s paginated");
                     endpoint.WithOpenApi(op =>
                     {
@@ -196,7 +201,7 @@ public static partial class ApiBuilder
                         typeof(Result<>).MakeGenericType(typeof(PaginatedResult<>).MakeGenericType(responseType)));
                     endpoint.Produces(500, typeof(Result));
                 }
-                
+
                 if (entity.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationEntityAttribute)))
                 {
                     var loginDelegate =
@@ -204,12 +209,12 @@ public static partial class ApiBuilder
                             .GetValue(delegateBuilder) as Delegate;
                     var endpoint = group.MapPost("login", loginDelegate!);
                     endpoint.WithSummary($"Login {entity.Name}");
-                    
+
                     endpoint.WithDisplayName($"Login user of type {entity.Name}");
                     endpoint.Produces(200,
                         typeof(Result<>).MakeGenericType(typeof(AuthorizationResponse)));
                     endpoint.Produces(500, typeof(Result));
-                    
+
                     var refreshTokenDelegate =
                         delegateBuilder!.GetType().GetProperty("RefreshToken")!
                             .GetValue(delegateBuilder) as Delegate;
@@ -238,17 +243,82 @@ public static partial class ApiBuilder
                     var mi = typeof(ApiBuilder)
                         .GetMethod("MapGetEndpoint")?
                         .MakeGenericMethod(queryType, query, entity);
-                    
-                    mi!.Invoke(group, new object[] { group, query.Name, app});
+
+                    mi!.Invoke(group, new object[] { group, query.Name, app });
                 }
 
+                using (var scope = app.ApplicationServices.CreateScope())
+                {
+                    var customEndpoints = typeof(CustomEndpointBuilder).GetMethod(nameof(CustomEndpointBuilder.Build))
+                        .MakeGenericMethod(entity)
+                        .Invoke(null, new object[] { assembly, scope });
+
+                    var endpointListType = typeof(List<>).MakeGenericType(typeof(CustomEndpoint<>).MakeGenericType(entity));
+                    var customEndpointList = Convert.ChangeType(customEndpoints, endpointListType) as IEnumerable<object>;
+
+                    if (customEndpointList != null && customEndpointList.Any())
+                    {
+                        foreach (var customEndpoint in customEndpointList)
+                        {
+                            foreach (var method in customEndpoint.GetType().GetMethods())
+                            {
+                                if (method.CustomAttributes.All(c =>
+                                        c.AttributeType != typeof(CustomEndpointAttribute)))
+                                    continue;
+
+                                var customEndpointAttribute =
+                                    method.GetCustomAttribute<CustomEndpointAttribute>();
+                                FieldInfo[] fields = customEndpointAttribute.GetType()
+                                    .GetFields(BindingFlags.Public | BindingFlags.Instance);
+
+                                string httpMethod = customEndpointAttribute.Method;
+                                var name = customEndpointAttribute.Name;
+                                
+                                switch (httpMethod)
+                                {
+                                    case "POST":
+                                    {
+                                        var del = CreateFunc(method, customEndpoint);
+                                        var endpoint = group.MapPost(name, del);
+                                        if (haveAuthorization)
+                                            endpoint.RequireAuthorization(authorizationPolicies
+                                                .Select(c => c.Name)
+                                                .ToArray());
+                                        break;
+                                    }
+                                    case "PUT":
+                                    {
+                                        var del = CreateFunc(method, customEndpoint);
+                                        var endpoint = group.MapPut(name, del);
+                                        if (haveAuthorization)
+                                            endpoint.RequireAuthorization(authorizationPolicies
+                                                .Select(c => c.Name)
+                                                .ToArray());
+                                        break;
+                                    }
+                                    default:
+                                        throw new Exception($"HttpMethod {httpMethod} not supported now.");
+                                }
+                            }
+                        }
+                    }
+                }
                 group.WithTags(name);
             });
         }
 
         return app;
     }
+    public static Delegate CreateFunc(MethodInfo methodInfo, object instance)
+    {
+        ParameterInfo[] parameters = methodInfo.GetParameters();
+        Type[] paramTypes = parameters.Select(p => p.ParameterType).ToArray();
+        Type returnType = methodInfo.ReturnType;
 
+        Type delegateType = Expression.GetFuncType(paramTypes.Concat(new[] { returnType }).ToArray());
+
+        return Delegate.CreateDelegate(delegateType, instance, methodInfo);
+    }
     public static void MapGetEndpoint<TParam, TQuery, TEntity>(IEndpointRouteBuilder group, string endpointName,
         IApplicationBuilder app)
         where TEntity : Entity
