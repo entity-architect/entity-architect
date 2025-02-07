@@ -2,21 +2,24 @@ using System.Net;
 using EntityArchitect.CRUD.CustomEndpoints;
 using EntityArchitect.CRUD.Entities.Repository;
 using EntityArchitect.CRUD.Results.Abstracts;
+using EntityArchitect.CRUD.Services;
 using EntityArchitect.Example.Entities;
 using HttpMethod = Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.HttpMethod;
 using ILogger = EntityArchitect.Example.Services.Logger.ILogger;
 
 namespace EntityArchitect.Example;
 
-public class TestCustomEndpoint(IRepository<Author> authorRepository) : CustomEndpoint<Author>
+public class TestCustomEndpoint(IClaimProvider claimProvider, IRepository<Client> clientRepository) : CustomEndpoint<Client>
 {
     [CustomEndpoint("POST", "Test")]
-    public async Task<Result<string>> Test(string name)
+    public async Task<Result<string>> Test()
     {
-        if (authorRepository is null)
-        {
-            return Result.Failure<string>(new Error(HttpStatusCode.NotFound, "AuthorRepositoryNotFound"));
-        }
-        return Result.Success("Cześć " + name);
+        var id = Guid.Parse(
+            claimProvider.GetClaims()
+                .FirstOrDefault(c => c.Type == "id")?.Value!);
+        
+        var client = await clientRepository.GetByIdAsync(id);
+        
+        return Result.Success("Cześć " + client.Name);
     }
 }

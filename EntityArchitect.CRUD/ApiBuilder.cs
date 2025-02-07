@@ -14,6 +14,7 @@ using EntityArchitect.CRUD.Authorization.Service;
 using EntityArchitect.CRUD.CustomEndpoints;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Helpers;
+using EntityArchitect.CRUD.Middlewares;
 using EntityArchitect.CRUD.Queries;
 using EntityArchitect.CRUD.Results;
 using EntityArchitect.CRUD.Results.Abstracts;
@@ -53,7 +54,7 @@ public static partial class ApiBuilder
                     if (type.CustomAttributes.All(c => c.AttributeType != typeof(AuthorizationEntityAttribute)))
                         throw new Exception(
                             $"AuthorizationEntityAttribute can only have AuthorizationEntityAttribute as EntityTypes. {type.Name}");
-
+                    
                     authorizationPolicies.Add(type);
                 }
             }
@@ -63,6 +64,7 @@ public static partial class ApiBuilder
             var responseType = typeBuilder.BuildResponseFromEntity(entity);
             var lightListResponseType = typeBuilder.BuildLightListProperty(entity);
 
+            app.UseMiddleware<ClaimProviderMiddleware>();
             app.UseRouting();
             app.UseEndpoints(async endpoints =>
             {
@@ -309,7 +311,7 @@ public static partial class ApiBuilder
 
         return app;
     }
-    public static Delegate CreateFunc(MethodInfo methodInfo, object instance)
+    private static Delegate CreateFunc(MethodInfo methodInfo, object instance)
     {
         ParameterInfo[] parameters = methodInfo.GetParameters();
         Type[] paramTypes = parameters.Select(p => p.ParameterType).ToArray();

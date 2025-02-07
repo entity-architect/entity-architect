@@ -3,6 +3,8 @@ using System.Reflection;
 using EntityArchitect.CRUD.Entities.Context;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Entities.Repository;
+using EntityArchitect.CRUD.Middlewares;
+using EntityArchitect.CRUD.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -37,6 +39,8 @@ public static class DependencyInjection
             dbContext.Database.Migrate();
         }
 
+        services.AddScoped<ClaimProviderMiddleware>();
+        services.AddScoped<ClaimProvider>();
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
         return services;
     }
