@@ -18,8 +18,7 @@ public class ClaimProviderMiddleware(IClaimProvider claimProvider) : IMiddleware
         else
         {
             var hasAuthorizations = endpoint.Metadata.Any(c => c.GetType() == typeof(AuthorizeAttribute));
-            var forAnonymous = context.GetEndpoint()!.Metadata.Any(c => c.GetType() == typeof(AllowAnonymousAttribute));
-            if (!hasAuthorizations || forAnonymous)
+            if (!hasAuthorizations)
             {
                 return next(context);
             }

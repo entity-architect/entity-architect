@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Reflection;
+using EntityArchitect.CRUD.CustomEndpoints;
 using EntityArchitect.CRUD.Entities.Context;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Entities.Repository;
@@ -16,6 +17,7 @@ public static class DependencyInjection
         string connectionString)
     {
         services.AddSingleton(entityAssembly);
+        services.AddScoped<IClaimProvider, ClaimProvider>();
 
         services.AddDbContext<ApplicationDbContext>(opt =>
         {
@@ -38,10 +40,16 @@ public static class DependencyInjection
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             dbContext.Database.Migrate();
         }
+        foreach (var entity in enumerable)
+        {
+            var customEndpointType = typeof(CustomEndpoint<>).MakeGenericType(entity);
+            entityAssembly.ExportedTypes.Where(c => c.BaseType == customEndpointType).ToList()
+                .ForEach(c => services.AddScoped(c));
+        }
 
-        services.AddScoped<ClaimProviderMiddleware>();
-        services.AddScoped<ClaimProvider>();
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
+        services.AddScoped<ClaimProviderMiddleware>();
+
         return services;
     }
 }

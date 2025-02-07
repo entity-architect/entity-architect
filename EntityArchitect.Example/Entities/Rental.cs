@@ -6,7 +6,7 @@ using EntityArchitect.CRUD.Entities.Entities;
 namespace EntityArchitect.Example.Entities;
 
 [IncludeInGet(2)]
-[SecuredEntity(typeof(Client))]
+[Secured(typeof(Client))]
 public class Rental : Entity
 {
     [RelationOneToMany<Book>(nameof(Entities.Book.Rentals))]

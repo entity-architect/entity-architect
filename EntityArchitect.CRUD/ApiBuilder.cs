@@ -45,8 +45,8 @@ public static partial class ApiBuilder
             var name = result.ToLower();
 
             var authorizationPolicies = new List<Type>();
-            var haveAuthorization = entity.CustomAttributes.Any(c => c.AttributeType == typeof(SecuredEntityAttribute));
-            var authorizationEntityAttribute = entity.GetCustomAttribute<SecuredEntityAttribute>();
+            var haveAuthorization = entity.CustomAttributes.Any(c => c.AttributeType == typeof(SecuredAttribute));
+            var authorizationEntityAttribute = entity.GetCustomAttribute<SecuredAttribute>();
             if (authorizationEntityAttribute is not null)
             {
                 foreach (var type in authorizationEntityAttribute.EntityTypes)
@@ -64,10 +64,11 @@ public static partial class ApiBuilder
             var responseType = typeBuilder.BuildResponseFromEntity(entity);
             var lightListResponseType = typeBuilder.BuildLightListProperty(entity);
 
-            app.UseMiddleware<ClaimProviderMiddleware>();
             app.UseRouting();
             app.UseEndpoints(async endpoints =>
             {
+                app.UseMiddleware<ClaimProviderMiddleware>();
+
                 var auth = endpoints.ServiceProvider.GetService(typeof(IAuthorizationBuilderService));
                 if (auth is not null)
                 {
@@ -270,9 +271,6 @@ public static partial class ApiBuilder
 
                                 var customEndpointAttribute =
                                     method.GetCustomAttribute<CustomEndpointAttribute>();
-                                FieldInfo[] fields = customEndpointAttribute.GetType()
-                                    .GetFields(BindingFlags.Public | BindingFlags.Instance);
-
                                 string httpMethod = customEndpointAttribute.Method;
                                 var name = customEndpointAttribute.Name;
                                 
@@ -280,22 +278,44 @@ public static partial class ApiBuilder
                                 {
                                     case "POST":
                                     {
-                                        var del = CreateFunc(method, customEndpoint);
-                                        var endpoint = group.MapPost(name, del);
-                                        if (haveAuthorization)
-                                            endpoint.RequireAuthorization(authorizationPolicies
-                                                .Select(c => c.Name)
-                                                .ToArray());
-                                        break;
-                                    }
-                                    case "PUT":
-                                    {
-                                        var del = CreateFunc(method, customEndpoint);
-                                        var endpoint = group.MapPut(name, del);
-                                        if (haveAuthorization)
-                                            endpoint.RequireAuthorization(authorizationPolicies
-                                                .Select(c => c.Name)
-                                                .ToArray());
+                                        var parameters = method.GetParameters();
+
+                                        var endpoint = group.MapPost(name, async (HttpContext context, IServiceProvider services) =>
+                                        {
+                                            var service = services.GetRequiredService(customEndpoint.GetType());
+
+                                            var args = new object?[parameters.Length];
+
+                                            for (int i = 0; i < parameters.Length; i++)
+                                            {
+                                                var param = parameters[i];
+                                                var paramValue = await context.Request.ReadFromJsonAsync(param.ParameterType);
+                                                args[i] = paramValue;
+                                            }
+
+                                            var result = method.Invoke(service, args);
+
+                                            if (result is Task task)
+                                            {
+                                                await task;
+                                                var resultProperty = task.GetType().GetProperty("Result");
+                                                result = resultProperty?.GetValue(task);
+                                            }
+
+                                            return result;
+                                        });
+                                        
+                                        if(method.CustomAttributes.Any(c => c.AttributeType == typeof(SecuredAttribute)))
+                                            endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
+                                        
+                                        endpoint.Produces(200, typeof(Result<>).MakeGenericType(method.ReturnType));
+                                        endpoint.Produces(400, typeof(Result));
+                                        endpoint.Produces(500, typeof(Result));
+                                        if (parameters.Length > 0)
+                                        {
+                                            var requestBodyType = parameters.First().ParameterType;
+                                            endpoint.Accepts(requestBodyType, "application/json");
+                                        }
                                         break;
                                     }
                                     default:
@@ -311,16 +331,8 @@ public static partial class ApiBuilder
 
         return app;
     }
-    private static Delegate CreateFunc(MethodInfo methodInfo, object instance)
-    {
-        ParameterInfo[] parameters = methodInfo.GetParameters();
-        Type[] paramTypes = parameters.Select(p => p.ParameterType).ToArray();
-        Type returnType = methodInfo.ReturnType;
 
-        Type delegateType = Expression.GetFuncType(paramTypes.Concat(new[] { returnType }).ToArray());
 
-        return Delegate.CreateDelegate(delegateType, instance, methodInfo);
-    }
     public static void MapGetEndpoint<TParam, TQuery, TEntity>(IEndpointRouteBuilder group, string endpointName,
         IApplicationBuilder app)
         where TEntity : Entity
@@ -340,13 +352,13 @@ public static partial class ApiBuilder
         });
         
         var authorizationPolicies = new List<Type>();
-        var haveAuthorization = typeof(TQuery).CustomAttributes.Any(c => c.AttributeType == typeof(SecuredEntityAttribute));
-        var authorizationEntityAttribute = typeof(TQuery).GetCustomAttribute<SecuredEntityAttribute>();
+        var haveAuthorization = typeof(TQuery).CustomAttributes.Any(c => c.AttributeType == typeof(SecuredAttribute));
+        var authorizationEntityAttribute = typeof(TQuery).GetCustomAttribute<SecuredAttribute>();
         if (authorizationEntityAttribute is not null)
         {
             foreach (var type in authorizationEntityAttribute.EntityTypes)
             {
-                if(type.BaseType != typeof(SecuredEntityAttribute))
+                if(type.BaseType != typeof(SecuredAttribute))
                     throw new Exception($"AuthorizationEntityAttribute can only have AuthorizationEntityAttribute as EntityTypes. {type.Name}");
                         
                 authorizationPolicies.Add(type);

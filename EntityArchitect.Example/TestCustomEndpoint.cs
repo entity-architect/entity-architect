@@ -1,25 +1,23 @@
-using System.Net;
+using EntityArchitect.CRUD.Authorization.Attributes;
 using EntityArchitect.CRUD.CustomEndpoints;
 using EntityArchitect.CRUD.Entities.Repository;
 using EntityArchitect.CRUD.Results.Abstracts;
 using EntityArchitect.CRUD.Services;
 using EntityArchitect.Example.Entities;
-using HttpMethod = Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.HttpMethod;
-using ILogger = EntityArchitect.Example.Services.Logger.ILogger;
+using Microsoft.AspNetCore.Mvc;
 
 namespace EntityArchitect.Example;
 
 public class TestCustomEndpoint(IClaimProvider claimProvider, IRepository<Client> clientRepository) : CustomEndpoint<Client>
 {
-    [CustomEndpoint("POST", "Test")]
-    public async Task<Result<string>> Test()
+    [CustomEndpoint("POST", "Test"), Secured(typeof(Client))]
+    public async Task<Result<string>> Test([FromBody] Author text)
     {
-        var id = Guid.Parse(
-            claimProvider.GetClaims()
-                .FirstOrDefault(c => c.Type == "id")?.Value!);
+        var claims = claimProvider.GetClaims();
+        var id = Guid.Parse(claims.FirstOrDefault(c => c.Type == "id")?.Value!);
         
         var client = await clientRepository.GetByIdAsync(id);
         
-        return Result.Success("Cześć " + client.Name);
+        return Result.Success("Cześć " + client.Name + " " + text);
     }
 }
