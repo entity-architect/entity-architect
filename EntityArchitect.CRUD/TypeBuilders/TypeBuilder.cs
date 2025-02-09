@@ -380,9 +380,9 @@ public partial class TypeBuilder
     [GeneratedRegex(@"@(\w+):([A-Z]+)(?::(\d))?")]
     private static partial Regex GetPropertiesFromSqlRegex();
 
-    private static Type ParseType(string typeString)
+    private static Type ParseType(string typeString, Type? enumerationType = null)
     {
-        return typeString switch
+        return typeString.ToUpper() switch
         {
             "INT" => typeof(int),
             "STRING" => typeof(string),
@@ -394,6 +394,7 @@ public partial class TypeBuilder
             "BOOL" => typeof(bool),
             "BOOLEAN" => typeof(bool),
             "BYTE" => typeof(byte),
+            "ENUMERATION" => typeof(int),
             _ => typeof(string)
         };
     }
@@ -448,7 +449,7 @@ public partial class TypeBuilder
                         new CustomAttributeBuilder(isNestedCtor!, new object[] { });
                     attributesList.Add(customAttributeIsNestedTypeBuilder);
                 }
-
+                
                 TypeBuilderExtension.CreateProperty(baseType, field.Name, nestedType, attributesList);
             }
 
@@ -500,22 +501,25 @@ public partial class TypeBuilder
 
                     attributesList.Add(customAttributeIsNestedTypeBuilder);
                 }
+                
+                if(complexField.EnumerationType is not null)
+                {
+                    var ctor = typeof(IsEnumerationAttribute).GetConstructors().First();
+                    var customAttributeBuilder = new CustomAttributeBuilder(ctor!, new object[] { complexField.EnumerationType });
+                    attributesList.Add(customAttributeBuilder);
+                }
 
                 TypeBuilderExtension.CreateProperty(complexType, complexField.Name, nestedType, attributesList);
             }
             else
             {
                 var attributesList = new List<CustomAttributeBuilder>();
-                
+                var propertyType = ParseType(complexField.Type, complexField.EnumerationType);
                 if (complexField.EnumerationType is not null)
                 {
-                    var ctor = typeof(IsEnumerationAttribute).GetConstructors().First();
-                    var type = complexField.EnumerationType;
-                    var customAttributeBuilder = new CustomAttributeBuilder(ctor!, new object[] {type });
-                    attributesList.Add(customAttributeBuilder);
+                    attributesList.Add(new CustomAttributeBuilder(
+                        typeof(IsEnumerationAttribute).GetConstructors().First(), new object[] { complexField.EnumerationType }));
                 }
-                
-                var propertyType = ParseType(complexField.Type);
                 TypeBuilderExtension.CreateProperty(complexType, complexField.Name, propertyType, attributesList);
             }
 
@@ -536,12 +540,18 @@ public partial class TypeBuilder
         {
             var propertyType = property.PropertyType;
 
+            if (property.CustomAttributes.Any(c => c.AttributeType == typeof(IsEnumerationAttribute)))
+            {
+                var enumerationType = property.CustomAttributes.FirstOrDefault(c => c.AttributeType == typeof(IsEnumerationAttribute));
+                var et = enumerationType.ConstructorArguments[0].Value as Type;
+                propertyType = et;
+            }
             if (property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(IsArrayAttribute)))
             {
                 var resultGenericType = BuildQueryResultType(propertyType);
                 propertyType = typeof(List<>).MakeGenericType(resultGenericType);
             }
-            else if (propertyType.IsClass && propertyType != typeof(string))
+            else if (propertyType.IsClass && propertyType != typeof(string) && propertyType.BaseType != typeof(Enumeration))
             {
                 propertyType = BuildQueryResultType(propertyType);
             }

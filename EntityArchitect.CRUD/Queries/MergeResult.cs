@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using EntityArchitect.CRUD.Enumerations;
 
 namespace EntityArchitect.CRUD.Queries;
 
@@ -56,6 +57,12 @@ internal static class MergeResult
 
     internal static object ConvertType(Type resultType, object obj)
     {
+        if(resultType.BaseType == typeof(Enumeration))
+        {
+            var value = typeof(Enumeration).GetMethod("GetById")?.MakeGenericMethod(resultType)
+                .Invoke(null, new[] { obj });
+               return value!;
+        }
         var instance = Activator.CreateInstance(resultType);
 
         var properties = resultType.GetProperties(BindingFlags.Public | BindingFlags.Instance);

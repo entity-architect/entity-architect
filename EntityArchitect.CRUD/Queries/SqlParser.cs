@@ -68,6 +68,12 @@ public abstract class SqlParser
         var mainType = mainFieldMatch.Groups[4].Value;
         var isArray = mainFieldMatch.Groups[3].Success;
 
+        Type? enumerationType = null;
+        if (mainType.ToLower() == "enumeration")
+        {
+            enumerationType = assembly.GetTypes().FirstOrDefault(x => x.Name == mainName);
+        }
+
         var extracted = ExtractColumns(nestedFields);
         var fields = new List<Field>();
 
@@ -76,15 +82,14 @@ public abstract class SqlParser
                 fields.Add(ParseComplexField(nestedField.Trim(), assembly));
             else
                 fields.Add(ParseSimpleField(nestedField.Trim(), assembly));
-
-        
         
         return new Field
         {
             Name = mainName,
             Type = mainType,
             Fields = fields,
-            IsArray = isArray
+            IsArray = isArray,
+            EnumerationType = enumerationType
         };
     }
 
@@ -94,14 +99,18 @@ public abstract class SqlParser
         var match = Regex.Match(column, @"([\w\.]+):([\w]+)(:([\w]+))?");
         if (!match.Success)
             throw new ArgumentException($"Invalid column format: {column}");
-        
+        Type? enumerationType = null;
+        if (match.Groups[2].Value.ToLower() == "enumeration")
+        {
+            enumerationType = assembly.GetTypes().FirstOrDefault(x => x.Name == match.Groups[3].Value.Replace(":", ""));
+        }
         
         return new Field
         {
             Name = match.Groups[1].Value,
             Type = match.Groups[2].Value,
             IsKey = match.Groups[4].Value.ToLower() == "key",
-            EnumerationType = null,
+            EnumerationType = enumerationType,
             Fields = [],
             IsArray = false
         };
