@@ -418,7 +418,14 @@ public partial class TypeBuilder
                     var customAttributeBuilder = new CustomAttributeBuilder(ctor!, new object[] { });
                     attributesList.Add(customAttributeBuilder);
                 }
-
+                
+                if (field.EnumerationType is not null)
+                {
+                    var ctor = typeof(IsEnumerationAttribute).GetConstructors().First();
+                    var customAttributeBuilder = new CustomAttributeBuilder(ctor!, new object[] { field.EnumerationType });
+                    attributesList.Add(customAttributeBuilder);
+                }
+                
                 TypeBuilderExtension.CreateProperty(baseType, field.Name, propertyType, attributesList);
             }
             else
@@ -467,6 +474,8 @@ public partial class TypeBuilder
 
         if (field.Fields.Count > 0)
             splitOn += field.Fields[0].Name.Split(".").Last() + ", ";
+        else if(field.EnumerationType is not null)
+            splitOn += field.Name + ", ";
 
         foreach (var complexField in field.Fields)
             if (complexField.Fields.Count > 0)
@@ -492,13 +501,22 @@ public partial class TypeBuilder
                     attributesList.Add(customAttributeIsNestedTypeBuilder);
                 }
 
-
                 TypeBuilderExtension.CreateProperty(complexType, complexField.Name, nestedType, attributesList);
             }
             else
             {
+                var attributesList = new List<CustomAttributeBuilder>();
+                
+                if (complexField.EnumerationType is not null)
+                {
+                    var ctor = typeof(IsEnumerationAttribute).GetConstructors().First();
+                    var type = complexField.EnumerationType;
+                    var customAttributeBuilder = new CustomAttributeBuilder(ctor!, new object[] {type });
+                    attributesList.Add(customAttributeBuilder);
+                }
+                
                 var propertyType = ParseType(complexField.Type);
-                TypeBuilderExtension.CreateProperty(complexType, complexField.Name, propertyType);
+                TypeBuilderExtension.CreateProperty(complexType, complexField.Name, propertyType, attributesList);
             }
 
         var createdType = complexType.CreateType();

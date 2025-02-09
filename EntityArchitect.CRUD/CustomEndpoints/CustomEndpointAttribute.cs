@@ -1,3 +1,5 @@
+using System;
+
 namespace EntityArchitect.CRUD.CustomEndpoints;
 
 public class CustomEndpointAttribute : Attribute

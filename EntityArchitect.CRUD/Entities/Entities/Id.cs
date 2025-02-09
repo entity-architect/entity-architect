@@ -37,6 +37,8 @@ public class Id<TEntity> : IEquatable<Id<TEntity>> where TEntity : Entity
     {
         return new Id<Entity>(this);
     }
+    
+  
 
     public override bool Equals(object? obj)
     {
@@ -46,5 +48,13 @@ public class Id<TEntity> : IEquatable<Id<TEntity>> where TEntity : Entity
     public override int GetHashCode()
     {
         return Value.GetHashCode();
+    }
+}
+
+public static class IdExtensions
+{
+    public static Id<TEntity> ToId<TEntity>(this Guid guid) where TEntity : Entity
+    {
+        return new Id<TEntity>(guid);
     }
 }

@@ -55,7 +55,6 @@ public class Startup
         services.AddScoped<ILogger, Logger>();
         services.AddEntityArchitect(typeof(Program).Assembly, connectionString ?? "");
         services.BuildEntityArchitectAuthorization(typeof(Program).Assembly);
-        services.UseActions(typeof(Program).Assembly);
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

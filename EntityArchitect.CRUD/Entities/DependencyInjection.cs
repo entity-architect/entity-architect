@@ -1,10 +1,10 @@
 using System.Linq;
 using System.Reflection;
+using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.CustomEndpoints;
 using EntityArchitect.CRUD.Entities.Context;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Entities.Repository;
-using EntityArchitect.CRUD.Middlewares;
 using EntityArchitect.CRUD.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,9 +16,11 @@ public static class DependencyInjection
     public static IServiceCollection AddEntityArchitect(this IServiceCollection services, Assembly entityAssembly,
         string connectionString)
     {
+
         services.AddSingleton(entityAssembly);
         services.AddScoped<IClaimProvider, ClaimProvider>();
-
+        services.AddHttpContextAccessor();
+    
         services.AddDbContext<ApplicationDbContext>(opt =>
         {
             opt.UseNpgsql(connectionString, builder => { builder.MigrationsAssembly(entityAssembly.FullName); })
@@ -40,6 +42,14 @@ public static class DependencyInjection
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             dbContext.Database.Migrate();
         }
+        
+        foreach (var entity in enumerable)
+        {
+            var actionType = typeof(EndpointAction<>).MakeGenericType(entity);
+            entityAssembly.ExportedTypes.Where(c => c.BaseType == actionType).ToList()
+                .ForEach(c => services.AddScoped(c));
+        }
+        
         foreach (var entity in enumerable)
         {
             var customEndpointType = typeof(CustomEndpoint<>).MakeGenericType(entity);
@@ -48,7 +58,6 @@ public static class DependencyInjection
         }
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
-        services.AddScoped<ClaimProviderMiddleware>();
 
         return services;
     }

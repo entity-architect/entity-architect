@@ -21,7 +21,7 @@ internal class QueryHandler<TParam, TEntity>
     where TParam : class
     where TEntity : Entity
 {
-    internal async Task<Result> HandleAsync(Query<TEntity> query, TParam param, string connectionString,
+    internal async Task<Result> HandleAsync(Query<TEntity> query, TParam param, string connectionString, Assembly assembly,
         CancellationToken cancellationToken = default)
     {
         using IDbConnection dbConnection = new NpgsqlConnection(connectionString);
@@ -54,7 +54,7 @@ internal class QueryHandler<TParam, TEntity>
             }
         }
 
-        var parametersFields = SqlParser.ParseSql(sql);
+        var parametersFields = SqlParser.ParseSql(sql, assembly);
         dbConnection.Open();
         try
         {
@@ -83,6 +83,7 @@ internal class QueryHandler<TParam, TEntity>
         var dapperExtensions = typeof(SqlMapper);
 
         var methods = dapperExtensions.GetMethods();
+        methods = methods.Where(m => m.Name == "Query").ToArray();
         var method = methods.FirstOrDefault(m =>
             m is { Name: "Query", IsGenericMethod: true } && m.GetGenericArguments().Length == typeArray.Length);
         var genericMethod = method!.MakeGenericMethod(typeArray);
@@ -148,8 +149,8 @@ internal class QueryHandler<TParam, TEntity>
 
     private static object GetPropertyValue(object obj)
     {
-        return obj.GetType().GetProperties()
-            .First(c => c.CustomAttributes.Any(attributeData => attributeData.AttributeType == typeof(IsKeyAttribute)))
+        var props =  obj.GetType().GetProperties();
+            return props.First(c => c.CustomAttributes.Any(attributeData => attributeData.AttributeType == typeof(IsKeyAttribute)))
             .GetValue(obj, null)!;
     }
 

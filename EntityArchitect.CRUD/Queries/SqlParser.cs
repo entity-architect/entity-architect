@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -7,10 +8,10 @@ namespace EntityArchitect.CRUD.Queries;
 
 public abstract class SqlParser
 {
-    public static List<Field> ParseSql(string sql)
+    public static List<Field> ParseSql(string sql, Assembly assembly)
     {
         var columns = ExtractColumns(sql);
-        return ParseFields(columns);
+        return ParseFields(columns, assembly);
     }
 
     private static List<string> ExtractColumns(string nestedFields)
@@ -38,25 +39,25 @@ public abstract class SqlParser
         return columns;
     }
 
-    private static List<Field> ParseFields(List<string> columnStrings)
+    private static List<Field> ParseFields(List<string> columnStrings, Assembly assembly)
     {
         var fields = new List<Field>();
 
         foreach (var column in columnStrings)
-            if (IsComplexClass(column))
-                fields.Add(ParseComplexField(column));
+            if (IsComplexType(column))
+                fields.Add(ParseComplexField(column, assembly));
             else
-                fields.Add(ParseSimpleField(column));
+                fields.Add(ParseSimpleField(column, assembly));
 
         return fields;
     }
 
-    private static bool IsComplexClass(string column)
+    private static bool IsComplexType(string column)
     {
-        return Regex.IsMatch(column, @":\(.+\)");
+        return Regex.IsMatch(column, @":\(.+\)") || Regex.IsMatch(column, ":^(?i):enumeration:$");
     }
 
-    private static Field ParseComplexField(string column)
+    private static Field ParseComplexField(string column, Assembly assembly)
     {
         var mainFieldMatch = Regex.Match(column, @"([\w\.]+):\((.+)\)(\[\])?:([\w]+)");
         if (!mainFieldMatch.Success)
@@ -71,11 +72,13 @@ public abstract class SqlParser
         var fields = new List<Field>();
 
         foreach (var nestedField in extracted)
-            if (IsComplexClass(nestedField))
-                fields.Add(ParseComplexField(nestedField.Trim()));
+            if (IsComplexType(nestedField))
+                fields.Add(ParseComplexField(nestedField.Trim(), assembly));
             else
-                fields.Add(ParseSimpleField(nestedField.Trim()));
+                fields.Add(ParseSimpleField(nestedField.Trim(), assembly));
 
+        
+        
         return new Field
         {
             Name = mainName,
@@ -86,18 +89,20 @@ public abstract class SqlParser
     }
 
 
-    private static Field ParseSimpleField(string column)
+    private static Field ParseSimpleField(string column, Assembly assembly)
     {
         var match = Regex.Match(column, @"([\w\.]+):([\w]+)(:([\w]+))?");
         if (!match.Success)
             throw new ArgumentException($"Invalid column format: {column}");
-
+        
+        
         return new Field
         {
             Name = match.Groups[1].Value,
             Type = match.Groups[2].Value,
-            IsKey = match.Groups[4].Value == "Key",
-            Fields = new List<Field>(),
+            IsKey = match.Groups[4].Value.ToLower() == "key",
+            EnumerationType = null,
+            Fields = [],
             IsArray = false
         };
     }
@@ -134,5 +139,6 @@ public abstract class SqlParser
         public List<Field> Fields { get; set; }
         public bool IsArray { get; set; }
         public bool IsKey { get; set; }
+        public Type? EnumerationType { get; set; }
     }
 }

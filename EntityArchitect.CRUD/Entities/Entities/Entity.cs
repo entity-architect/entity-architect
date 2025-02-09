@@ -7,6 +7,7 @@ public abstract class Entity : IEntity
     public Entity()
     {
         Id = Guid.NewGuid();
+        SetCreatedDate();
     }
 
     public Id<Entity> Id { get; internal set; }
@@ -15,6 +16,6 @@ public abstract class Entity : IEntity
 
     public void SetCreatedDate()
     {
-        CreatedAt = DateTime.Now;
+        CreatedAt = DateTime.Now.ToUniversalTime();
     }
 }

@@ -1,30 +1,18 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using EntityArchitect.CRUD.Attributes.CrudAttributes;
-using EntityArchitect.CRUD.Authorization;
 using EntityArchitect.CRUD.Authorization.Attributes;
 using EntityArchitect.CRUD.Authorization.Responses;
 using EntityArchitect.CRUD.Authorization.Service;
 using EntityArchitect.CRUD.CustomEndpoints;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Helpers;
-using EntityArchitect.CRUD.Middlewares;
 using EntityArchitect.CRUD.Queries;
 using EntityArchitect.CRUD.Results;
 using EntityArchitect.CRUD.Results.Abstracts;
+using EntityArchitect.CRUD.Services;
 using EntityArchitect.CRUD.TypeBuilders;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace EntityArchitect.CRUD;
 
@@ -67,14 +55,13 @@ public static partial class ApiBuilder
             app.UseRouting();
             app.UseEndpoints(async endpoints =>
             {
-                app.UseMiddleware<ClaimProviderMiddleware>();
 
                 var auth = endpoints.ServiceProvider.GetService(typeof(IAuthorizationBuilderService));
                 if (auth is not null)
                 {
-                    app.UseMiddleware<AuthorizationMiddleware>();
                     app.UseAuthentication();
                     app.UseAuthorization();
+                    app.UseMiddleware<AuthorizationMiddleware>();
                 }
 
                 var group = endpoints.MapGroup(Path.Combine(basePath, name));
@@ -280,20 +267,41 @@ public static partial class ApiBuilder
                                     {
                                         var parameters = method.GetParameters();
 
-                                        var endpoint = group.MapPost(name, async (HttpContext context, IServiceProvider services) =>
+                                        var endpoint = group.MapPost(name, async (HttpContext context, IServiceProvider services, CancellationToken cancellationToken) =>
                                         {
                                             var service = services.GetRequiredService(customEndpoint.GetType());
-
+                                            var cp = services.GetRequiredService<IClaimProvider>();
+                                            cp.SetClaims(context.User.Claims.ToList());
                                             var args = new object?[parameters.Length];
 
                                             for (int i = 0; i < parameters.Length; i++)
                                             {
+                                                if (parameters[i].ParameterType == typeof(CancellationToken))
+                                                {
+                                                    args[i] = cancellationToken;
+                                                    continue;
+                                                }
                                                 var param = parameters[i];
-                                                var paramValue = await context.Request.ReadFromJsonAsync(param.ParameterType);
-                                                args[i] = paramValue;
+
+                                                if (param.ParameterType == typeof(Guid))
+                                                {
+                                                    var paramValue = await context.Request.ReadFromJsonAsync<Guid>(cancellationToken: cancellationToken);
+                                                    args[i] = paramValue;
+                                                }
+                                                else if (param.ParameterType == typeof(string))
+                                                {
+                                                    var paramValue = await context.Request.ReadFromJsonAsync<string>(cancellationToken: cancellationToken);
+                                                    args[i] = paramValue;
+                                                }
+                                                else
+                                                {
+                                                    var paramValue = await context.Request.ReadFromJsonAsync(param.ParameterType, cancellationToken: cancellationToken);
+                                                    args[i] = paramValue;
+                                                }
                                             }
 
                                             var result = method.Invoke(service, args);
+
 
                                             if (result is Task task)
                                             {
@@ -308,7 +316,7 @@ public static partial class ApiBuilder
                                         if(method.CustomAttributes.Any(c => c.AttributeType == typeof(SecuredAttribute)))
                                             endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
                                         
-                                        endpoint.Produces(200, typeof(Result<>).MakeGenericType(method.ReturnType));
+                                        endpoint.Produces(200, typeof(Result<>).MakeGenericType(method.ReturnType.GetGenericArguments()[0]));
                                         endpoint.Produces(400, typeof(Result));
                                         endpoint.Produces(500, typeof(Result));
                                         if (parameters.Length > 0)
@@ -347,7 +355,7 @@ public static partial class ApiBuilder
         {
             var context = app.ApplicationServices.GetService<IConfiguration>();
             var connectionString = context.GetConnectionString("DefaultConnection");
-            var result = queryHandler.HandleAsync(query, param, connectionString, default);
+            var result = queryHandler.HandleAsync(query, param, connectionString, typeof(TQuery).Assembly, default);
             return result;
         });
         

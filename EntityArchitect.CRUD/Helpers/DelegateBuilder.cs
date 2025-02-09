@@ -19,6 +19,7 @@ using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Entities.Repository;
 using EntityArchitect.CRUD.Results;
 using EntityArchitect.CRUD.Results.Abstracts;
+using EntityArchitect.CRUD.Services;
 using EntityArchitect.CRUD.TypeBuilders;
 
 using Microsoft.AspNetCore.Mvc;
@@ -67,23 +68,27 @@ public class DelegateBuilder<
                 var repositoryType = typeof(IRepository<>).MakeGenericType(item.PropertyType);
                 using var scope = _provider.CreateScope();
                 var repository = scope.ServiceProvider.GetRequiredService(repositoryType);
-
+                
                 var result = repository.GetType().GetMethod(nameof(IRepository<Entity>.ExistsAsync))!
                     .Invoke(repository, new object[] { entityId!, cancellationToken });
-
+                
                 if (!await (Task<bool>)result)
-                {
                     return Result.Failure<TEntityResponse>(Error.NotFound(entityId, item.PropertyType.Name));
-                }
             }
             
-            var sql = CrudSqlBuilder.BuildPostSql(entity, _entityName);
             using (var scope = _provider.CreateScope())
             {
+                var x = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
+                
+                var claimProvider = scope.ServiceProvider.GetRequiredService<IClaimProvider>();
+                claimProvider.SetClaims(x.HttpContext.User.Claims.ToList());
+                Console.WriteLine(claimProvider.GetHashCode());
+
                 var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
-                var actions =scope.GetEndpointActionsAsync<TEntity>();
+                var actions = scope.GetEndpointActionsAsync<TEntity>();
                 entity.SetCreatedDate();
                 entity = await actions!.InvokeBeforePostAsync(entity, cancellationToken);
+                var sql = CrudSqlBuilder.BuildPostSql(entity, _entityName);
                 await service.ExecuteSqlAsync(sql, cancellationToken);
                 entity = await actions!.InvokeAfterPostAsync(entity, cancellationToken);
             }
@@ -124,7 +129,7 @@ public class DelegateBuilder<
                 var actions = scope.GetEndpointActionsAsync<TEntity>();
                 entity = await actions.InvokeBeforePutAsync(entity, cancellationToken);
 
-                var oldEntity = await service.GetByIdAsync(new Id<TEntity?>(entity.Id.Value), cancellationToken);
+                var oldEntity = await service.GetByIdAsync(new Id<TEntity?>(entity.Id.Value), null, cancellationToken);
                 if (oldEntity is null)
                     return Result.Failure<TEntityResponse>(Error.NotFound(entity.Id.Value, _entityName));
 
@@ -159,7 +164,7 @@ public class DelegateBuilder<
                 var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var actions = scope.GetEndpointActionsAsync<TEntity>();
 
-                var entity = await service.GetByIdAsync(id, cancellationToken);
+                var entity = await service.GetByIdAsync(id, null,cancellationToken);
                 if (entity is null)
                     return Result.Failure(Error.NotFound(id, _entityName));
                 entity = await actions.InvokeBeforeDeleteAsync(entity, cancellationToken);
@@ -304,7 +309,7 @@ public class DelegateBuilder<
                 return Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.Unauthorized, "Invalid token."));
             var id = Guid.Parse(identity.Claims.First(c => c.Key == "id").Value.ToString() ?? string.Empty); 
             
-            var entity = await repository.GetByIdAsync(new Id<TEntity>(id), cancellationToken);
+            var entity = await repository.GetByIdAsync(new Id<TEntity>(id),  null,cancellationToken);
             if(entity is null)
                 return Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.NotFound, $"User {_entityName} not found."));
             

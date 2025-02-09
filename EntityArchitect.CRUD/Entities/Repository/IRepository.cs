@@ -12,7 +12,8 @@ public interface IRepository<TEntity> where TEntity : Entity
     ValueTask<EntityEntry<TEntity>> AddAsync(TEntity entity, CancellationToken cancellationToken = default);
     void Remove(TEntity entity);
     void Update(TEntity entity);
-    ValueTask<TEntity?> GetByIdAsync(Id<TEntity> id, CancellationToken cancellationToken = default);
+    Task<TEntity?> GetByIdAsync(Id<TEntity> id, List<string>? includeProperties = null,
+        CancellationToken cancellationToken = default);
     Task<TEntity?> GetBySpecificationIdAsync(SpecificationBySpec<TEntity> specification,
         CancellationToken cancellationToken = default);
     Task<List<TEntity>> GetBySpecificationAsync(ISpecification<TEntity> specification,

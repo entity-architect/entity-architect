@@ -33,9 +33,15 @@ public class Repository<TEntity>(ApplicationDbContext context) :
         context.Set<TEntity>().Update(entity);
     }
 
-    public ValueTask<TEntity?> GetByIdAsync(Id<TEntity> id, CancellationToken cancellationToken = default)
+    public Task<TEntity?> GetByIdAsync(Id<TEntity> id, List<string>? includeProperties,
+        CancellationToken cancellationToken = default)
     {
-        return context.Set<TEntity>().FindAsync(new object[] { id.ToId() }, cancellationToken);
+        if(includeProperties is null)
+            includeProperties = new List<string>();
+        
+        var query = context.Set<TEntity>().AsQueryable();
+        foreach (var include in includeProperties) query = query.Include(include);
+        return query.FirstOrDefaultAsync(c => c.Id == id.ToId(), cancellationToken);
     }
 
     public Task<TEntity?> GetBySpecificationIdAsync(SpecificationBySpec<TEntity> specification,

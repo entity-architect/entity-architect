@@ -1,5 +1,6 @@
 using System.Linq;
 using EntityArchitect.CRUD.Attributes.QueryResponseTypeAttributes;
+using EntityArchitect.CRUD.Enumerations;
 
 namespace EntityArchitect.CRUD.Queries;
 
@@ -21,6 +22,12 @@ public static class QueryHandlerHelper
             var argumentType = argument.GetType();
             if (property.PropertyType == argumentType)
             {
+                if(property.CustomAttributes.Any(x => x.AttributeType == typeof(IsEnumerationAttribute)))
+                {
+                    var value = typeof(Enumeration).GetMethod("GetById")?.MakeGenericMethod(property.PropertyType)
+                        .Invoke(null, new[] { argument });
+                    property.SetValue(mainType, value);
+                }
                 if (property.CustomAttributes.Any(x => x.AttributeType == typeof(NestedTypeAttribute)))
                 {
                     var method =
