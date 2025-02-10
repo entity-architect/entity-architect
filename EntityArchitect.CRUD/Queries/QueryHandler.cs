@@ -53,7 +53,8 @@ internal class QueryHandler<TParam, TEntity>
                     break;
             }
         }
-
+    
+        sql = sql.Replace("\n", " ");
         var parametersFields = SqlParser.ParseSql(sql, assembly);
         dbConnection.Open();
         try
@@ -116,28 +117,38 @@ internal class QueryHandler<TParam, TEntity>
             throw;
         }
     }
-
+    
     private static List<Type> ReorderTypes(List<Type> types)
     {
-        for (var i = 0; i < types.Count - 1; i++)
+        if (types == null || types.Count <= 1)
+            return types;
+
+        var reorderedTypes = new List<Type>();
+        var remainingTypes = new HashSet<Type>(types);
+
+        // Wybieramy pierwszy typ, który nie jest zależny od żadnego innego
+        Type baseType = types.FirstOrDefault(t => !types.Any(other => TypeHasPropertyOfType(other, t)));
+        if (baseType == null)
+            return types; // Jeśli nie znaleziono, zwracamy bez zmian
+
+        reorderedTypes.Add(baseType);
+        remainingTypes.Remove(baseType);
+
+        while (remainingTypes.Count > 0)
         {
-            var currentType = types[i];
-            var nextType = types[i + 1];
-
-            if (!TypeHasPropertyOfType(currentType, nextType))
+            Type nextType = remainingTypes.FirstOrDefault(t => reorderedTypes.Any(parent => TypeHasPropertyOfType(parent, t)));
+            if (nextType == null)
             {
-                types[i] = nextType;
-                types[i + 1] = currentType;
+                // Jeśli nie udało się znaleźć kolejnego, dodajemy pozostałe (zapobiega deadlockowi)
+                reorderedTypes.AddRange(remainingTypes);
+                break;
+            }
 
-                if (i > 0) i -= 2;
-            }
-            else
-            {
-                i++;
-            }
+            reorderedTypes.Add(nextType);
+            remainingTypes.Remove(nextType);
         }
 
-        return types;
+        return reorderedTypes;
     }
 
     private static bool TypeHasPropertyOfType(Type typeToCheck, Type requiredPropertyType)
@@ -147,10 +158,12 @@ internal class QueryHandler<TParam, TEntity>
     }
 
 
+    
     private static object GetPropertyValue(object obj)
     {
         var props =  obj.GetType().GetProperties();
-            return props.First(c => c.CustomAttributes.Any(attributeData => attributeData.AttributeType == typeof(IsKeyAttribute)))
+        return props.First(c => c.CustomAttributes
+                .Any(attributeData => attributeData.AttributeType == typeof(IsKeyAttribute)))
             .GetValue(obj, null)!;
     }
 
