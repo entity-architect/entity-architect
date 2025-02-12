@@ -87,10 +87,19 @@ public class DelegateBuilder<
                 var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
                 var actions = scope.GetEndpointActionsAsync<TEntity>();
                 entity.SetCreatedDate();
-                entity = await actions!.InvokeBeforePostAsync(entity, cancellationToken);
+                var result = await actions!.InvokeBeforePostAsync(entity, cancellationToken);
+                
+                if (result.IsFailure)
+                    return Result.Failure<TEntityResponse>(result.Errors);
+                entity = result.Value;
+                
                 var sql = CrudSqlBuilder.BuildPostSql(entity, _entityName);
                 await service.ExecuteSqlAsync(sql, cancellationToken);
-                entity = await actions!.InvokeAfterPostAsync(entity, cancellationToken);
+                result = await actions!.InvokeAfterPostAsync(entity, cancellationToken);
+                if (result.IsFailure)
+                    return Result.Failure<TEntityResponse>(result.Errors);
+                entity = result.Value;
+
             }
 
             return entity.ConvertEntityToResponse<TEntity, TEntityResponse>();
@@ -127,8 +136,11 @@ public class DelegateBuilder<
                 var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
                 var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var actions = scope.GetEndpointActionsAsync<TEntity>();
-                entity = await actions.InvokeBeforePutAsync(entity, cancellationToken);
-
+                var result = await actions!.InvokeBeforePutAsync(entity, cancellationToken);
+                if (result.IsFailure)
+                    return Result.Failure<TEntityResponse>(result.Errors);
+                
+                entity = result.Value;
                 var oldEntity = await service.GetByIdAsync(new Id<TEntity?>(entity.Id.Value), null, cancellationToken);
                 if (oldEntity is null)
                     return Result.Failure<TEntityResponse>(Error.NotFound(entity.Id.Value, _entityName));
@@ -148,7 +160,10 @@ public class DelegateBuilder<
                 service.Update(oldEntity);
                 
                 await unitOfWork.SaveChangesAsync(cancellationToken);
-                entity = await actions!.InvokeAfterPutAsync(entity, cancellationToken);
+                result = await actions!.InvokeAfterPostAsync(entity, cancellationToken);
+                if (result.IsFailure)
+                    return Result.Failure<TEntityResponse>(result.Errors);
+                entity = result.Value;
             }
 
             var res = entity.ConvertEntityToResponse<TEntity, TEntityResponse>();
@@ -167,8 +182,10 @@ public class DelegateBuilder<
                 var entity = await service.GetByIdAsync(id, null,cancellationToken);
                 if (entity is null)
                     return Result.Failure(Error.NotFound(id, _entityName));
-                entity = await actions.InvokeBeforeDeleteAsync(entity, cancellationToken);
-
+                var result = await actions!.InvokeBeforeDeleteAsync(entity, cancellationToken);
+                if (result.IsFailure)
+                    return Result.Failure<TEntityResponse>(result.Errors);
+                entity = result.Value;
                 service.Remove(entity);
                 await unitOfWork.SaveChangesAsync(cancellationToken);
                 await actions!.InvokeAfterDeleteAsync(entity, cancellationToken);
@@ -194,7 +211,10 @@ public class DelegateBuilder<
             var entity = await service.GetBySpecificationIdAsync(spec, cancellationToken);
             if (entity is not null)
             {
-                entity = await actions.InvokeAfterGetByIdAsync(entity, cancellationToken);
+                var resultEntity = await actions!.InvokeAfterGetByIdAsync(entity, cancellationToken);
+                if (resultEntity.IsFailure)
+                    return Result.Failure<TEntityResponse>(resultEntity.Errors);
+                entity = resultEntity.Value;
                 return entity.ConvertEntityToResponse<TEntity, TEntityResponse>();
             }
             
@@ -234,7 +254,11 @@ public class DelegateBuilder<
                 .ToList();
 
             var entities = await service.GetAllPaginatedAsync(page, itemCount, properties, cancellationToken);
-            entities = await actions.InvokeAfterGetPaginatedAsync(page, itemCount, entities, cancellationToken);
+            var result = await actions!.InvokeAfterGetPaginatedAsync(page, itemCount, entities, cancellationToken);
+            if (result.IsFailure)
+                return Result.Failure<PaginatedResult<TEntityResponse>>(result.Errors);
+            
+            entities = result.Value;
             var response
                 = entities.Select(c =>
                         c.ConvertEntityToResponse<TEntity, TEntityResponse>())

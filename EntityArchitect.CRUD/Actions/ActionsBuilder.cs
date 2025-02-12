@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using EntityArchitect.CRUD.Entities.Entities;
+using EntityArchitect.CRUD.Results.Abstracts;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EntityArchitect.CRUD.Actions;
@@ -51,91 +52,100 @@ public static class ActionsBuilder
         }
     }
 
-    public static async Task<TEntity> InvokeBeforePostAsync<TEntity>(
+    public static async Task<Result<TEntity>> InvokeBeforePostAsync<TEntity>(
         this IAsyncEnumerable<EndpointAction<TEntity>> list, TEntity entity,
         CancellationToken cancellationToken = default)
         where TEntity : Entity
     {
+        Result<TEntity> result = entity;
         await foreach (var element in list.WithCancellation(cancellationToken))
-            entity = await element.BeforePostAsync(entity, cancellationToken);
+            result = await element.BeforePostAsync(entity, cancellationToken);
 
-        return entity;
+        return result;
     }
 
-    public static async Task<TEntity> InvokeAfterPostAsync<TEntity>(
+
+    public static async Task<Result<TEntity>> InvokeAfterPostAsync<TEntity>(
         this IAsyncEnumerable<EndpointAction<TEntity>> list, TEntity entity,
         CancellationToken cancellationToken = default)
         where TEntity : Entity
     {
+        Result<TEntity> result = entity;
         await foreach (var element in list.WithCancellation(cancellationToken))
-            entity = await element.AfterPostAsync(entity, cancellationToken);
+            result = await element.AfterPostAsync(result.Value, cancellationToken);
 
-        return entity;
+        return result;
     }
 
-    public static async Task<TEntity> InvokeBeforePutAsync<TEntity>(
+    public static async Task<Result<TEntity>> InvokeBeforePutAsync<TEntity>(
         this IAsyncEnumerable<EndpointAction<TEntity>> list, TEntity entity,
         CancellationToken cancellationToken = default)
         where TEntity : Entity
     {
+        Result<TEntity> result = entity;
         await foreach (var element in list.WithCancellation(cancellationToken))
-            entity = await element.BeforePutAsync(entity, cancellationToken);
+            result = await element.BeforePutAsync(result.Value, cancellationToken);
 
-        return entity;
+        return result;
     }
 
-    public static async Task<TEntity> InvokeAfterPutAsync<TEntity>(
+    public static async Task<Result<TEntity>> InvokeAfterPutAsync<TEntity>(
         this IAsyncEnumerable<EndpointAction<TEntity>> list, TEntity entity,
         CancellationToken cancellationToken = default)
         where TEntity : Entity
     {
+        Result<TEntity> result = entity;
         await foreach (var element in list.WithCancellation(cancellationToken))
-            entity = await element.AfterPutAsync(entity, cancellationToken);
+            result = await element.AfterPutAsync(result.Value, cancellationToken);
 
-        return entity;
+        return result;
     }
 
-    public static async Task<TEntity> InvokeBeforeDeleteAsync<TEntity>(
+    public static async Task<Result<TEntity>> InvokeBeforeDeleteAsync<TEntity>(
         this IAsyncEnumerable<EndpointAction<TEntity>> list, TEntity entity,
         CancellationToken cancellationToken = default)
         where TEntity : Entity
     {
+        Result<TEntity> result = entity;
         await foreach (var element in list.WithCancellation(cancellationToken))
-            entity = await element.BeforeDeleteAsync(entity, cancellationToken);
+            result = await element.BeforeDeleteAsync(result.Value, cancellationToken);
 
-        return entity;
+        return result;
     }
 
-    public static async Task<TEntity> InvokeAfterDeleteAsync<TEntity>(
+    public static async Task<Result<TEntity>> InvokeAfterDeleteAsync<TEntity>(
         this IAsyncEnumerable<EndpointAction<TEntity>> list, TEntity entity,
         CancellationToken cancellationToken = default)
         where TEntity : Entity
     {
+        Result<TEntity> result = entity;
         await foreach (var element in list.WithCancellation(cancellationToken))
-            entity = await element.AfterDeleteAsync(entity, cancellationToken);
+            result = await element.AfterDeleteAsync(result.Value, cancellationToken);
 
-        return entity;
+        return result;
     }
 
-    public static async Task<TEntity> InvokeAfterGetByIdAsync<TEntity>(
+    public static async Task<Result<TEntity>> InvokeAfterGetByIdAsync<TEntity>(
         this IAsyncEnumerable<EndpointAction<TEntity>> list, TEntity entity,
         CancellationToken cancellationToken = default)
         where TEntity : Entity
     {
+        Result<TEntity> result = entity;
         await foreach (var element in list.WithCancellation(cancellationToken))
-            entity = await element.AfterGetById(entity, cancellationToken);
+            result = await element.AfterGetById(result.Value, cancellationToken);
 
-        return entity;
+        return result;
     }
 
-    public static async Task<List<TEntity>> InvokeAfterGetPaginatedAsync<TEntity>(
+    public static async Task<Result<List<TEntity>>> InvokeAfterGetPaginatedAsync<TEntity>(
         this IAsyncEnumerable<EndpointAction<TEntity>> list, int page, int itemCount, List<TEntity> entity,
         CancellationToken cancellationToken = default)
         where TEntity : Entity
     {
+        Result<List<TEntity>> result = entity;
         await foreach (var element in list.WithCancellation(cancellationToken))
-            entity = await element.AfterGetPaginated(page, itemCount, entity, cancellationToken);
+            result = await element.AfterGetPaginated(page, itemCount, result.Value, cancellationToken);
 
-        return entity;
+        return result;
     }
 }

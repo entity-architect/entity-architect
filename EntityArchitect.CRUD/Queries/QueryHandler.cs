@@ -21,9 +21,12 @@ internal class QueryHandler<TParam, TEntity>
     where TParam : class
     where TEntity : Entity
 {
+    protected Query<TEntity> Query { get; set; }
+    
     internal async Task<Result> HandleAsync(Query<TEntity> query, TParam param, string connectionString, Assembly assembly,
         CancellationToken cancellationToken = default)
     {
+        Query = query;
         using IDbConnection dbConnection = new NpgsqlConnection(connectionString);
         string sql;
         if (query.UseSqlFile)
@@ -59,7 +62,7 @@ internal class QueryHandler<TParam, TEntity>
         dbConnection.Open();
         try
         {
-            var result = QueryWithDynamicSplit(dbConnection, sql, parametersFields, param, query.GetType().Name);
+            var result = QueryWithDynamicSplit(dbConnection, sql, parametersFields, param, query.GetType().Name, query);
             return Result.Success(result);
         }
         catch (Exception e)
@@ -69,7 +72,7 @@ internal class QueryHandler<TParam, TEntity>
     }
 
     private static object QueryWithDynamicSplit(IDbConnection connection, string sql,
-        List<SqlParser.Field> parameterFields, object param, string queryName)
+        List<SqlParser.Field> parameterFields, object param, string queryName, Query<TEntity> query)
     {
         TypeBuilder typeBuilder = new();
         var typeArray = typeBuilder.BuildQueryTypes(parameterFields, queryName, out var splitOn);
@@ -100,12 +103,26 @@ internal class QueryHandler<TParam, TEntity>
             if (sqlResponse == null) throw new Exception("No response from database");
 
             var grouped = sqlResponse.GroupBy(GetPropertyValue).ToList();
-            var result = Activator.CreateInstance(typeof(List<>).MakeGenericType(resultType))!;
 
+            Type resultTypeFinal = resultType;
+            if (!query.Single)
+                resultTypeFinal = typeof(List<>).MakeGenericType(resultType);
+            
+            var result = Activator.CreateInstance(resultTypeFinal)!;
+
+            if (query.Single && grouped.Count != 0)
+                grouped = grouped.Take(1).ToList();
+            
+            //TODO poinfomuj mnie jakoś że brakuje limit 1
+            
             foreach (var groupedItem in grouped)
             {
                 var convertedTypes = groupedItem.Select(c => MergeResult.ConvertType(resultType, c));
                 var merged = MergeResult.MergeAllObjects(convertedTypes);
+                
+                if(query.Single)
+                    return merged;
+                
                 result.GetType().GetMethod("Add")?.Invoke(result, new[] { merged });
             }
 

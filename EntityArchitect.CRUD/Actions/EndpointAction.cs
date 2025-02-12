@@ -2,57 +2,58 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using EntityArchitect.CRUD.Entities.Entities;
+using EntityArchitect.CRUD.Results.Abstracts;
 
 namespace EntityArchitect.CRUD.Actions;
 
 public abstract class EndpointAction<TEntity>
     where TEntity : Entity
 {
-    protected internal virtual ValueTask<TEntity> BeforePostAsync(TEntity entity,
+    protected internal virtual ValueTask<Result<TEntity>> BeforePostAsync(TEntity entity,
         CancellationToken cancellationToken = default)
     {
-        return new ValueTask<TEntity>(entity);
+        return new ValueTask<Result<TEntity>>(entity);
     }
 
-    protected internal virtual ValueTask<TEntity> AfterPostAsync(TEntity entity,
+    protected internal virtual ValueTask<Result<TEntity>> AfterPostAsync(TEntity entity,
         CancellationToken cancellationToken = default)
     {
-        return new ValueTask<TEntity>(entity);
+        return new ValueTask<Result<TEntity>>(entity);
     }
 
-    protected internal virtual ValueTask<TEntity> BeforePutAsync(TEntity entity,
+    protected internal virtual ValueTask<Result<TEntity>> BeforePutAsync(TEntity entity,
         CancellationToken cancellationToken = default)
     {
-        return new ValueTask<TEntity>(entity);
+        return new ValueTask<Result<TEntity>>(entity);
     }
 
-    protected internal virtual ValueTask<TEntity> AfterPutAsync(TEntity entity,
+    protected internal virtual ValueTask<Result<TEntity>> AfterPutAsync(TEntity entity,
         CancellationToken cancellationToken = default)
     {
-        return new ValueTask<TEntity>(entity);
+        return new ValueTask<Result<TEntity>>(entity);
     }
 
-    protected internal virtual ValueTask<TEntity> BeforeDeleteAsync(TEntity entity,
+    protected internal virtual ValueTask<Result<TEntity>> BeforeDeleteAsync(TEntity entity,
         CancellationToken cancellationToken = default)
     {
-        return new ValueTask<TEntity>(entity);
+        return new ValueTask<Result<TEntity>>(entity);
     }
 
-    protected internal virtual ValueTask<TEntity> AfterDeleteAsync(TEntity entity,
+    protected internal virtual ValueTask<Result<TEntity>> AfterDeleteAsync(TEntity entity,
         CancellationToken cancellationToken = default)
     {
-        return new ValueTask<TEntity>(entity);
+        return new ValueTask<Result<TEntity>>(entity);
     }
 
-    protected internal virtual ValueTask<TEntity> AfterGetById(TEntity entity,
+    protected internal virtual ValueTask<Result<TEntity>> AfterGetById(TEntity entity,
         CancellationToken cancellationToken = default)
     {
-        return new ValueTask<TEntity>(entity);
+        return new ValueTask<Result<TEntity>>(entity);
     }
 
-    protected internal virtual ValueTask<List<TEntity>> AfterGetPaginated(int page, int itemCount,
+    protected internal virtual ValueTask<Result<List<TEntity>>> AfterGetPaginated(int page, int itemCount,
         List<TEntity> entities, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<List<TEntity>>(entities);
+        return new ValueTask<Result<List<TEntity>>>(entities);
     }
 }
