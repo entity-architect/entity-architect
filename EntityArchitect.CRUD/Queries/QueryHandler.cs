@@ -143,10 +143,9 @@ internal class QueryHandler<TParam, TEntity>
         var reorderedTypes = new List<Type>();
         var remainingTypes = new HashSet<Type>(types);
 
-        // Wybieramy pierwszy typ, który nie jest zależny od żadnego innego
         Type baseType = types.FirstOrDefault(t => !types.Any(other => TypeHasPropertyOfType(other, t)));
         if (baseType == null)
-            return types; // Jeśli nie znaleziono, zwracamy bez zmian
+            return types;
 
         reorderedTypes.Add(baseType);
         remainingTypes.Remove(baseType);
@@ -156,7 +155,6 @@ internal class QueryHandler<TParam, TEntity>
             Type nextType = remainingTypes.FirstOrDefault(t => reorderedTypes.Any(parent => TypeHasPropertyOfType(parent, t)));
             if (nextType == null)
             {
-                // Jeśli nie udało się znaleźć kolejnego, dodajemy pozostałe (zapobiega deadlockowi)
                 reorderedTypes.AddRange(remainingTypes);
                 break;
             }

@@ -524,7 +524,7 @@ public partial class TypeBuilder
             }
 
         var createdType = complexType.CreateType();
-        if (!queryTypes.Contains(createdType)) queryTypes.Insert(0, createdType);
+        if (!queryTypes.Contains(createdType)) queryTypes.Add(createdType);
 
         return createdType;
     }
