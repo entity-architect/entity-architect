@@ -7,8 +7,8 @@ using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Entities.Repository;
 using EntityArchitect.CRUD.Files;
 using EntityArchitect.CRUD.Services;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace EntityArchitect.CRUD.Entities;
 
@@ -17,7 +17,6 @@ public static class DependencyInjection
     public static IServiceCollection AddEntityArchitect(this IServiceCollection services, Assembly entityAssembly,
         string connectionString)
     {
-
         services.AddSingleton(entityAssembly);
         services.AddScoped<IClaimProvider, ClaimProvider>();
         services.AddHttpContextAccessor();
@@ -59,14 +58,10 @@ public static class DependencyInjection
         }
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
+        services.AddAntiforgery(); 
+        services.AddTransient<IFileService, FileService>();
 
         return services;
     }
     
-    public static IServiceCollection UseFiles(this IServiceCollection app)
-    {
-        app.AddTransient<IFileService, FileService>();
-        
-        return app;
-    }
 }

@@ -54,11 +54,13 @@ public abstract class SqlParser
 
     private static bool IsComplexType(string column)
     {
-        return Regex.IsMatch(column, @":\(.+\)") || Regex.IsMatch(column, ":^(?i):enumeration:$");
+        return Regex.IsMatch(column, @":\(.+\)") || Regex.IsMatch(column, ":^(?i):enumeration:$") || Regex.IsMatch(column, "(?i):file");
     }
 
     private static Field ParseComplexField(string column, Assembly assembly)
     {
+        
+        //todo handle file type
         var mainFieldMatch = Regex.Match(column, @"([\w\.]+):\((.+)\)(\[\])?:([\w]+)");
         if (!mainFieldMatch.Success)
             throw new ArgumentException($"Column format is invalid: {column}");
@@ -68,10 +70,16 @@ public abstract class SqlParser
         var mainType = mainFieldMatch.Groups[4].Value;
         var isArray = mainFieldMatch.Groups[3].Success;
 
+        string? filePropertyName = null;
         Type? enumerationType = null;
-        if (mainType.ToLower() == "enumeration")
+        if (mainType.Equals("enumeration", StringComparison.CurrentCultureIgnoreCase))
         {
             enumerationType = assembly.GetTypes().FirstOrDefault(x => x.Name == mainName);
+        }
+        
+        if (mainType.Equals("file", StringComparison.CurrentCultureIgnoreCase))
+        {
+            filePropertyName = mainName;
         }
 
         var extracted = ExtractColumns(nestedFields);
@@ -89,7 +97,8 @@ public abstract class SqlParser
             Type = mainType,
             Fields = fields,
             IsArray = isArray,
-            EnumerationType = enumerationType
+            EnumerationType = enumerationType,
+            FilePropertyName = filePropertyName
         };
     }
 
@@ -99,10 +108,17 @@ public abstract class SqlParser
         var match = Regex.Match(column, @"([\w\.]+):([\w]+)(:([\w]+))?");
         if (!match.Success)
             throw new ArgumentException($"Invalid column format: {column}");
+        
+        string? filePropertyName = null;
         Type? enumerationType = null;
-        if (match.Groups[2].Value.ToLower() == "enumeration")
+        if (match.Groups[2].Value.Equals("enumeration", StringComparison.CurrentCultureIgnoreCase))
         {
             enumerationType = assembly.GetTypes().FirstOrDefault(x => x.Name == match.Groups[3].Value.Replace(":", ""));
+        }
+                
+        if (match.Groups[2].Value.Equals("file", StringComparison.CurrentCultureIgnoreCase))
+        {
+            filePropertyName = match.Groups[1].Value;
         }
         
         return new Field
@@ -112,7 +128,8 @@ public abstract class SqlParser
             IsKey = match.Groups[4].Value.ToLower() == "key",
             EnumerationType = enumerationType,
             Fields = [],
-            IsArray = false
+            IsArray = false, 
+            FilePropertyName = filePropertyName
         };
     }
 
@@ -150,5 +167,6 @@ public abstract class SqlParser
         public bool IsArray { get; set; }
         public bool IsKey { get; set; }
         public Type? EnumerationType { get; set; }
+        public string? FilePropertyName { get; set; }
     }
 }

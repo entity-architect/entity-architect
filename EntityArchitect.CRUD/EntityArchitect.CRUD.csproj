@@ -7,7 +7,7 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
         <PackageId>EntityArchitect</PackageId>
-        <Version>1.0.18</Version>
+        <Version>1.0.19</Version>
         <Authors>Jan Rzepisko</Authors>
         <Description>Entity architect framwerok. Feature of api building</Description>
         <PackageLicenseUrl>https://example.com/license</PackageLicenseUrl>

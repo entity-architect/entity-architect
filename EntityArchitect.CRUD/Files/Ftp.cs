@@ -9,4 +9,5 @@ public class Ftp
     public int Port { get; set; }
     public string Protocol { get; set; }
     public int Timeout { get; set; }
+    public string OutputPath { get; set; }
 }

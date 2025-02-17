@@ -11,7 +11,6 @@ using EntityArchitect.CRUD.Entities.Attributes;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Enumerations;
 using EntityArchitect.CRUD.Queries;
-using File = EntityArchitect.CRUD.Files.File;
 using LightListPropertyAttribute = EntityArchitect.CRUD.Attributes.CrudAttributes.LightListPropertyAttribute;
 
 namespace EntityArchitect.CRUD.TypeBuilders;
@@ -47,7 +46,7 @@ public partial class TypeBuilder
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
-            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.File))
+            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.EntityFile))
                 continue;
             
             if (property.PropertyType == parentType ||
@@ -137,7 +136,7 @@ public partial class TypeBuilder
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
-            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.File))
+            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.EntityFile))
                 continue;
             
             if (property.PropertyType == parentType ||
@@ -232,7 +231,7 @@ public partial class TypeBuilder
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
-            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.File))
+            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.EntityFile))
                 continue;
             
             if(property.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationPasswordAttribute)))
@@ -315,7 +314,7 @@ public partial class TypeBuilder
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
-            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.File))
+            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.EntityFile))
                 continue;
             
             if (property.PropertyType.BaseType != typeof(object) &&

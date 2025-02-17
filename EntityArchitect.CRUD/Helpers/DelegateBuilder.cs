@@ -333,6 +333,4 @@ public class DelegateBuilder<
             var response = authService.CreateAuthorizationToken(entity);
             return response!;
         };
-    
-    
 }

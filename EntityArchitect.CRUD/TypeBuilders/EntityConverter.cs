@@ -22,7 +22,7 @@ public static class EntityConverter
 
         foreach (var propertyEntity in entityProperties)
         {
-            if(propertyEntity.PropertyType == typeof(EntityArchitect.CRUD.Files.File))
+            if(propertyEntity.PropertyType == typeof(EntityArchitect.CRUD.Files.EntityFile))
                 continue;
             
             var propertyRequest = Array.Find(requestProperties,

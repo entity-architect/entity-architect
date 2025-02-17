@@ -6,6 +6,7 @@ using EntityArchitect.CRUD.Authorization.Responses;
 using EntityArchitect.CRUD.Authorization.Service;
 using EntityArchitect.CRUD.CustomEndpoints;
 using EntityArchitect.CRUD.Entities.Entities;
+using EntityArchitect.CRUD.Files;
 using EntityArchitect.CRUD.Helpers;
 using EntityArchitect.CRUD.Queries;
 using EntityArchitect.CRUD.Results;
@@ -53,9 +54,10 @@ public static partial class ApiBuilder
             var lightListResponseType = typeBuilder.BuildLightListProperty(entity);
 
             app.UseRouting();
+            app.UseAntiforgery(); 
+
             app.UseEndpoints(async endpoints =>
             {
-
                 var auth = endpoints.ServiceProvider.GetService(typeof(IAuthorizationBuilderService));
                 if (auth is not null)
                 {
@@ -331,6 +333,33 @@ public static partial class ApiBuilder
                                 }
                             }
                         }
+                    }
+                    
+                    var fileProperties = entity.GetProperties().Where(c => c.PropertyType == typeof(EntityFile)).ToList();
+                    foreach (var file in fileProperties)
+                    {
+                        var fileManagementDelegateBuilder = typeof(FileManagementDelegateBuilder<>)
+                            .MakeGenericType(entity)
+                            .GetMethod("Create")?
+                            .MakeGenericMethod(entity)
+                            .Invoke(null, new object[] { endpoints.ServiceProvider , file.Name, file.GetCustomAttribute<FilePathAttribute>()!.Path });
+                        
+                        var uploadFileDelegate = fileManagementDelegateBuilder!.GetType().GetProperty("UploadFile")!.GetValue(fileManagementDelegateBuilder) as Delegate;
+                        var endpoint = group.MapPost($"{file.Name.ToLower()}/upload/{{id}}", uploadFileDelegate!)
+                            .DisableAntiforgery();
+                        endpoint.WithSummary($"Upload file for {entity.Name}");
+                        endpoint.WithDisplayName($"Upload file for {entity.Name}");
+                        endpoint.Produces(200, typeof(Result));
+                        endpoint.Produces(404, typeof(Result));
+                        endpoint.Produces(500, typeof(Result));
+                        
+                        var deleteFileDelegate = fileManagementDelegateBuilder!.GetType().GetProperty("DeleteFile")!.GetValue(fileManagementDelegateBuilder) as Delegate;
+                        endpoint = group.MapDelete($"{file.Name}/delete/{entity.Name.ToLower()}/{{id}}", deleteFileDelegate!);
+                        endpoint.WithSummary($"Delete file for {entity.Name}");
+                        endpoint.WithDisplayName($"Delete file for {entity.Name}");
+                        endpoint.Produces(200, typeof(Result));
+                        endpoint.Produces(404, typeof(Result));
+                        endpoint.Produces(500, typeof(Result));
                     }
                 }
                 group.WithTags(name);

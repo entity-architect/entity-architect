@@ -2,7 +2,7 @@ using EntityArchitect.CRUD.Entities.Attributes;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Attributes.CrudAttributes;
 using EntityArchitect.CRUD.Authorization.Attributes;
-using File = EntityArchitect.CRUD.Files.File;
+using EntityArchitect.CRUD.Files;
 
 namespace EntityArchitect.Example.Entities;
 
@@ -13,7 +13,7 @@ public class Author : Entity
     
     [RelationManyToOne<Book>(nameof(Book.Author)), IgnorePostRequest, IgnorePutRequest]
     public List<Book> Books { get; set;}
-    public File Avatar { get; set; }
+    public EntityFile Avatar { get; set; }
 
     public void AddToName(string addedByAction)
     {
