@@ -15,6 +15,9 @@ public static partial class CrudSqlBuilder
         var sql = $"INSERT INTO \"{ToSnakeCase(entityName)}\" (";
         foreach (var property in properties)
         {
+            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.File))
+                continue;
+            
             if (property.CustomAttributes
                 .Select(c => c.AttributeType.Name)
                 .Any(c => c.Contains("RelationManyToOneAttribute")))
@@ -34,6 +37,9 @@ public static partial class CrudSqlBuilder
         var subQueries = new List<string>();
         foreach (var property in properties)
         {
+            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.File))
+                continue;
+
             if (property.CustomAttributes
                 .Select(c => c.AttributeType.Name)
                 .Any(c => c.Contains("RelationManyToOneAttribute")))

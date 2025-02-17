@@ -22,6 +22,9 @@ public static class EntityConverter
 
         foreach (var propertyEntity in entityProperties)
         {
+            if(propertyEntity.PropertyType == typeof(EntityArchitect.CRUD.Files.File))
+                continue;
+            
             var propertyRequest = Array.Find(requestProperties,
                 p => p.Name == propertyEntity.Name || p.Name == propertyEntity.Name + "Id");
             if (propertyRequest == null || !propertyRequest.CanRead) continue;

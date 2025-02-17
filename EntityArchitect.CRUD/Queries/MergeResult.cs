@@ -14,8 +14,16 @@ internal static class MergeResult
         var type = obj1.GetType();
         if (type != obj2.GetType()) throw new InvalidOperationException("Objects must be of the same type to merge.");
 
-        var merged = Activator.CreateInstance(type)!;
-
+        object merged;
+        if (obj1.GetType().BaseType == typeof(Enumeration))
+        {
+            merged = obj1 ?? obj2;
+        }
+        else
+        {
+            merged = Activator.CreateInstance(type)!;
+        }
+        
         foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
             if (!property.CanRead || !property.CanWrite) continue;

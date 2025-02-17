@@ -25,7 +25,7 @@ public class Query<TEntity> where TEntity : Entity
         Single = single;
     }
 
-    public string Sql { get; private set; }
+    public string Sql { get; internal set; }
     public bool UseSqlFile { get; private set; }
     public bool Single { get; private set; }
 }

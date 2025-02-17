@@ -5,6 +5,7 @@ using EntityArchitect.CRUD.CustomEndpoints;
 using EntityArchitect.CRUD.Entities.Context;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Entities.Repository;
+using EntityArchitect.CRUD.Files;
 using EntityArchitect.CRUD.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -60,5 +61,12 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
 
         return services;
+    }
+    
+    public static IServiceCollection UseFiles(this IServiceCollection app)
+    {
+        app.AddTransient<IFileService, FileService>();
+        
+        return app;
     }
 }

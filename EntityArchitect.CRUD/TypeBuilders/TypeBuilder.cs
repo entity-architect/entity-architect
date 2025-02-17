@@ -11,6 +11,7 @@ using EntityArchitect.CRUD.Entities.Attributes;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Enumerations;
 using EntityArchitect.CRUD.Queries;
+using File = EntityArchitect.CRUD.Files.File;
 using LightListPropertyAttribute = EntityArchitect.CRUD.Attributes.CrudAttributes.LightListPropertyAttribute;
 
 namespace EntityArchitect.CRUD.TypeBuilders;
@@ -46,6 +47,9 @@ public partial class TypeBuilder
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
+            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.File))
+                continue;
+            
             if (property.PropertyType == parentType ||
                 (parentType is not null &&
                  typeof(List<>).MakeGenericType(parentType) == property.PropertyType))
@@ -133,6 +137,9 @@ public partial class TypeBuilder
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
+            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.File))
+                continue;
+            
             if (property.PropertyType == parentType ||
                 (parentType is not null &&
                  typeof(List<>).MakeGenericType(parentType) == property.PropertyType))
@@ -225,6 +232,9 @@ public partial class TypeBuilder
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
+            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.File))
+                continue;
+            
             if(property.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationPasswordAttribute)))
                 continue;
             
@@ -305,6 +315,9 @@ public partial class TypeBuilder
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
+            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.File))
+                continue;
+            
             if (property.PropertyType.BaseType != typeof(object) &&
                 property.CustomAttributes.Any(c => c.AttributeType == typeof(LightListPropertyAttribute)))
                 throw new Exception("Property in light list response must be a simple type");

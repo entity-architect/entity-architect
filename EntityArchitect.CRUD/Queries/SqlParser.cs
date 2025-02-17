@@ -137,9 +137,10 @@ public abstract class SqlParser
         var step3 = Regex.Replace(step2, @"\[\]", "", RegexOptions.IgnoreCase);
         step3 = Regex.Replace(step3, @"\s{2,}", " ").Trim();
         step3 = Regex.Replace(step3, @"^,|,$", "", RegexOptions.IgnoreCase);
-
+        
         return step3;
     }
+    
 
     public class Field
     {

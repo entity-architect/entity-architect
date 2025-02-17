@@ -3,8 +3,10 @@ using System.Linq;
 using EntityArchitect.CRUD.Entities.Attributes;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Enumerations;
+using EntityArchitect.CRUD.Files;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using File = EntityArchitect.CRUD.Files.File;
 
 namespace EntityArchitect.CRUD.Entities.Context;
 
@@ -29,6 +31,18 @@ public static class EntityBuilder
 
         foreach (var property in properties)
         {
+            if (property.PropertyType == typeof(EntityArchitect.CRUD.Files.File))
+            {
+                if (property.CustomAttributes.All(c => c.AttributeType != typeof(FilePathAttribute)))
+                {
+                    throw new Exception(
+                        $"File property {property.Name} in entity {entity.Name} must have FilePathAttribute.");
+                }
+                
+                modelBuilder.Entity(entity)
+                    .OwnsOne(property.PropertyType, property.Name);
+            }
+            
             if (property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(RelationOneToManyAttribute<>)))
             {
                 var relationType = property.CustomAttributes

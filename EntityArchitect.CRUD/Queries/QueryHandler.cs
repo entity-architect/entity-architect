@@ -6,6 +6,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Net;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
@@ -70,14 +71,13 @@ internal class QueryHandler<TParam, TEntity>
             return Result.Failure(new Error(HttpStatusCode.InternalServerError, e.Message));
         }
     }
-
+   
     private static object QueryWithDynamicSplit(IDbConnection connection, string sql,
         List<SqlParser.Field> parameterFields, object param, string queryName, Query<TEntity> query)
     {
         TypeBuilder typeBuilder = new();
         var typeArray = typeBuilder.BuildQueryTypes(parameterFields, queryName, out var splitOn);
         typeArray = ReorderTypes(typeArray.ToList()).ToArray();
-
         var resultType = typeBuilder.BuildQueryResultType(typeArray.First());
         var typList = typeArray.ToList();
         typList.Add(typeArray.First());
