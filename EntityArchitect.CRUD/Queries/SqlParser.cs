@@ -54,13 +54,11 @@ public abstract class SqlParser
 
     private static bool IsComplexType(string column)
     {
-        return Regex.IsMatch(column, @":\(.+\)") || Regex.IsMatch(column, ":^(?i):enumeration:$") || Regex.IsMatch(column, "(?i):file");
+        return Regex.IsMatch(column, @":\(.+\)") || Regex.IsMatch(column, ":^(?i):enumeration:$");
     }
 
     private static Field ParseComplexField(string column, Assembly assembly)
     {
-        
-        //todo handle file type
         var mainFieldMatch = Regex.Match(column, @"([\w\.]+):\((.+)\)(\[\])?:([\w]+)");
         if (!mainFieldMatch.Success)
             throw new ArgumentException($"Column format is invalid: {column}");
@@ -75,11 +73,6 @@ public abstract class SqlParser
         if (mainType.Equals("enumeration", StringComparison.CurrentCultureIgnoreCase))
         {
             enumerationType = assembly.GetTypes().FirstOrDefault(x => x.Name == mainName);
-        }
-        
-        if (mainType.Equals("file", StringComparison.CurrentCultureIgnoreCase))
-        {
-            filePropertyName = mainName;
         }
 
         var extracted = ExtractColumns(nestedFields);
@@ -114,11 +107,6 @@ public abstract class SqlParser
         if (match.Groups[2].Value.Equals("enumeration", StringComparison.CurrentCultureIgnoreCase))
         {
             enumerationType = assembly.GetTypes().FirstOrDefault(x => x.Name == match.Groups[3].Value.Replace(":", ""));
-        }
-                
-        if (match.Groups[2].Value.Equals("file", StringComparison.CurrentCultureIgnoreCase))
-        {
-            filePropertyName = match.Groups[1].Value;
         }
         
         return new Field

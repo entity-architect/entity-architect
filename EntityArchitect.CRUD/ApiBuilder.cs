@@ -342,10 +342,10 @@ public static partial class ApiBuilder
                             .MakeGenericType(entity)
                             .GetMethod("Create")?
                             .MakeGenericMethod(entity)
-                            .Invoke(null, new object[] { endpoints.ServiceProvider , file.Name, file.GetCustomAttribute<FilePathAttribute>()!.Path });
+                            .Invoke(null, new object[] { endpoints.ServiceProvider , file.Name, file.GetCustomAttribute<EntityFileAttribute>()!.Path });
                         
                         var uploadFileDelegate = fileManagementDelegateBuilder!.GetType().GetProperty("UploadFile")!.GetValue(fileManagementDelegateBuilder) as Delegate;
-                        var endpoint = group.MapPost($"{file.Name.ToLower()}/upload/{{id}}", uploadFileDelegate!)
+                        var endpoint = group.MapPost($"{file.Name.ToLower()}/{{id}}", uploadFileDelegate!)
                             .DisableAntiforgery();
                         endpoint.WithSummary($"Upload file for {entity.Name}");
                         endpoint.WithDisplayName($"Upload file for {entity.Name}");
@@ -354,12 +354,17 @@ public static partial class ApiBuilder
                         endpoint.Produces(500, typeof(Result));
                         
                         var deleteFileDelegate = fileManagementDelegateBuilder!.GetType().GetProperty("DeleteFile")!.GetValue(fileManagementDelegateBuilder) as Delegate;
-                        endpoint = group.MapDelete($"{file.Name}/delete/{entity.Name.ToLower()}/{{id}}", deleteFileDelegate!);
+                        endpoint = group.MapDelete($"{file.Name.ToLower()}/{{id}}", deleteFileDelegate!);
                         endpoint.WithSummary($"Delete file for {entity.Name}");
                         endpoint.WithDisplayName($"Delete file for {entity.Name}");
                         endpoint.Produces(200, typeof(Result));
                         endpoint.Produces(404, typeof(Result));
                         endpoint.Produces(500, typeof(Result));
+                        
+                        var streamFileDelegate = fileManagementDelegateBuilder!.GetType().GetProperty("DownloadFile")!.GetValue(fileManagementDelegateBuilder) as Delegate;
+                        endpoint = group.MapGet($"{file.Name.ToLower()}/{{id}}", streamFileDelegate!);
+                        endpoint.WithSummary($"Download file for {entity.Name}");
+                        endpoint.WithDisplayName($"Download file for {entity.Name}");
                     }
                 }
                 group.WithTags(name);

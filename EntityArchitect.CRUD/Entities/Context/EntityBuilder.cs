@@ -32,10 +32,10 @@ public static class EntityBuilder
         {
             if (property.PropertyType == typeof(EntityArchitect.CRUD.Files.EntityFile))
             {
-                if (property.CustomAttributes.All(c => c.AttributeType != typeof(FilePathAttribute)))
+                if (property.CustomAttributes.All(c => c.AttributeType != typeof(EntityFileAttribute)))
                 {
                     throw new Exception(
-                        $"EntityFile property {property.Name} in entity {entity.Name} must have FilePathAttribute.");
+                        $"EntityFile property {property.Name} in entity {entity.Name} must have EntityFileAttribute.");
                 }
                 
                 modelBuilder.Entity(entity)
