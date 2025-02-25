@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using EntityArchitect.CRUD.Enumerations;
 
 namespace EntityArchitect.CRUD.Files;

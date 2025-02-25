@@ -1,6 +1,12 @@
+using System;
 using System.Diagnostics;
+using System.IO;
 using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
 using EntityArchitect.CRUD.Results.Abstracts;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 
 namespace EntityArchitect.CRUD.Files;
 
@@ -13,10 +19,11 @@ public class FileService(IConfiguration configuration) : IFileService
             return Result.Failure(new Error(HttpStatusCode.InternalServerError,
                 "Ftp section is not found in appsettings.json"));
 
-        var fileLocation = section.Root + path + "/" + entityFile.Id + entityFile.Extension;
+        var fileLocation = Path.Combine(section.Root, path, entityFile.Id + entityFile.Extension);
         var fileServer = $"{section.Protocol}://{section.Host}:{section.Port}";
-
-        var ftpWebRequest = (FtpWebRequest)WebRequest.Create(fileServer + fileLocation);
+        var streamPath = Path.Combine(fileServer, fileLocation);
+        Console.WriteLine(fileServer + fileLocation);
+        var ftpWebRequest = (FtpWebRequest)WebRequest.Create(streamPath);
         ftpWebRequest.Method = WebRequestMethods.Ftp.UploadFile;
         ftpWebRequest.Credentials = new NetworkCredential(section.Login, section.Password);
         ftpWebRequest.UseBinary = true;

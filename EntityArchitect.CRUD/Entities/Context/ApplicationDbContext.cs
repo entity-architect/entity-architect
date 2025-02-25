@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EntityArchitect.CRUD.Entities.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace EntityArchitect.CRUD.Entities.Context;
 

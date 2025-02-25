@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Linq;
+
 namespace EntityArchitect.CRUD.Entities.Entities;
 
 public abstract class ValueObject
