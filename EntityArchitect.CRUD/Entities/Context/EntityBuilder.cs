@@ -1,6 +1,8 @@
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
+using EFCore.NamingConventions.Internal;
 using EntityArchitect.CRUD.Entities.Attributes;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Enumerations;
@@ -50,7 +52,7 @@ public static class EntityBuilder
                     modelBuilder.Entity(entity)
                         .HasOne(relationType)
                         .WithMany(fk)
-                        .HasForeignKey(nameof(Entity.Id));
+                        .HasForeignKey(relationType.Name + "Id");
                 }
             }
             else if (property.PropertyType.IsGenericType && property.PropertyType.GetGenericArguments().First().BaseType == typeof(Entity))
@@ -70,10 +72,11 @@ public static class EntityBuilder
                     var relation = property.CustomAttributes
                         .First(c => c.AttributeType == attributeManyToOneType);
                     var fk = relation.ConstructorArguments.First().Value as string;
+                    
                     modelBuilder.Entity(entity)
                         .HasMany(relationType)
                         .WithOne(fk)
-                        .HasForeignKey(fk.ToLower() + "_id");
+                        .HasForeignKey(fk + "Id");
                 }
             }
             else if (property.PropertyType.BaseType == typeof(Enumeration))
