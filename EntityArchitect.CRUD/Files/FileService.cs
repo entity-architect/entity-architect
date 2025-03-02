@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using EntityArchitect.CRUD.Results.Abstracts;
@@ -21,18 +22,26 @@ public class FileService(IConfiguration configuration) : IFileService
 
         var fileLocation = Path.Combine(section.Root, path, entityFile.Id + entityFile.Extension);
         var fileServer = $"{section.Protocol}://{section.Host}:{section.Port}";
-        var streamPath = Path.Combine(fileServer, fileLocation);
-        Console.WriteLine(fileServer + fileLocation);
-        var ftpWebRequest = (FtpWebRequest)WebRequest.Create(streamPath);
-        ftpWebRequest.Method = WebRequestMethods.Ftp.UploadFile;
-        ftpWebRequest.Credentials = new NetworkCredential(section.Login, section.Password);
-        ftpWebRequest.UseBinary = true;
-        ftpWebRequest.Timeout = section.Timeout;
+        var uploadUrl = fileServer + fileLocation;
+        Console.WriteLine(uploadUrl);
 
-        await using var requestStream = await ftpWebRequest.GetRequestStreamAsync();
-        await fileStream.CopyToAsync(requestStream, cancellationToken);
+        var request = (FtpWebRequest)WebRequest.Create(uploadUrl);
+        request.Method = WebRequestMethods.Ftp.UploadFile;
+        request.Credentials = new NetworkCredential(section.Login, section.Password);
+        request.UseBinary = true;
+        request.UsePassive = true;
+        request.KeepAlive = false;
 
-        return Result.Success();
+        await using (var requestStream = await request.GetRequestStreamAsync())
+        {
+            await fileStream.OpenReadStream().CopyToAsync(requestStream, cancellationToken);
+        }
+
+        using (var response = (FtpWebResponse)await request.GetResponseAsync())
+        {
+            Console.WriteLine($"Upload status: {response.StatusDescription}");
+            return Result.Success();
+        }
     }
 
     public async Task<Result> DeleteFileAsync(EntityFile entityFile, string path, CancellationToken cancellationToken)
@@ -41,18 +50,25 @@ public class FileService(IConfiguration configuration) : IFileService
         if (section is null)
             return Result.Failure(new Error(HttpStatusCode.InternalServerError,
                 "Ftp section is not found in appsettings.json"));
-
         var fileLocation = section.Root + path + "/" + entityFile.Id + entityFile.Extension;
         var fileServer = $"{section.Protocol}://{section.Host}:{section.Port}";
 
-        var ftpWebRequest = (FtpWebRequest)WebRequest.Create(fileServer + fileLocation);
-        ftpWebRequest.Method = WebRequestMethods.Ftp.DeleteFile;
-        ftpWebRequest.Credentials = new NetworkCredential(section.Login, section.Password);
-        ftpWebRequest.UseBinary = true;
-        ftpWebRequest.Timeout = section.Timeout;
-
-        using var response = await ftpWebRequest.GetResponseAsync();
-
+        try
+        {
+            var ftpWebRequest = (FtpWebRequest)WebRequest.Create(fileServer + fileLocation);
+            ftpWebRequest.Method = WebRequestMethods.Ftp.DeleteFile;
+            ftpWebRequest.Credentials = new NetworkCredential(section.Login, section.Password);
+            ftpWebRequest.UseBinary = true;
+            ftpWebRequest.UsePassive = section.UsePassive;
+            ftpWebRequest.KeepAlive = false;
+            ftpWebRequest.Timeout = section.Timeout;
+        
+            using var response = await ftpWebRequest.GetResponseAsync();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
 
         return Result.Success();
     }

@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Runtime.Serialization;
 using EntityArchitect.CRUD.Entities.Attributes;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Enumerations;
@@ -30,7 +31,58 @@ public static class EntityBuilder
 
         foreach (var property in properties)
         {
-            if (property.PropertyType == typeof(EntityArchitect.CRUD.Files.EntityFile))
+            if (property.PropertyType.BaseType == typeof(Entity))
+            {
+                var attributeOneToManyType = typeof(RelationOneToManyAttribute<>).MakeGenericType(property.PropertyType);
+                
+                if (property.CustomAttributes.Select(c => c.AttributeType)
+                    .Contains(attributeOneToManyType))
+                {
+                    var relationType = property.CustomAttributes
+                        .First(c => c.AttributeType == attributeOneToManyType)
+                        .AttributeType.GetGenericArguments()[0];
+
+                    if (relationType is null) continue;
+                    var relation = property.CustomAttributes
+                        .First(c => c.AttributeType == attributeOneToManyType);
+                    var fk = relation.ConstructorArguments.First().Value as string;
+
+                    modelBuilder.Entity(entity)
+                        .HasOne(relationType)
+                        .WithMany(fk)
+                        .HasForeignKey(nameof(Entity.Id));
+                }
+            }
+            else if (property.PropertyType.IsGenericType && property.PropertyType.GetGenericArguments().First().BaseType == typeof(Entity))
+            {
+                var attributeManyToOneType =
+                    typeof(RelationManyToOneAttribute<>).MakeGenericType(property.PropertyType.GetGenericArguments()
+                        .First());
+
+                if (property.CustomAttributes.Select(c => c.AttributeType)
+                    .Contains(attributeManyToOneType))
+                {
+                    var relationType = property.CustomAttributes
+                        .First(c => c.AttributeType == attributeManyToOneType)
+                        .AttributeType.GetGenericArguments()[0];
+
+                    if (relationType == null) continue;
+                    var relation = property.CustomAttributes
+                        .First(c => c.AttributeType == attributeManyToOneType);
+                    var fk = relation.ConstructorArguments.First().Value as string;
+                    modelBuilder.Entity(entity)
+                        .HasMany(relationType)
+                        .WithOne(fk)
+                        .HasForeignKey(fk.ToLower() + "_id");
+                }
+            }
+            else if (property.PropertyType.BaseType == typeof(Enumeration))
+            {
+                var enumerationConverterType = typeof(EnumerationConverter<>).MakeGenericType(property.PropertyType);
+                var enumerationConverter = (ValueConverter)Activator.CreateInstance(enumerationConverterType)!;
+                modelBuilder.Entity(entity).Property(property.Name).HasConversion(enumerationConverter);
+            }
+            else if (property.PropertyType == typeof(EntityFile))
             {
                 if (property.CustomAttributes.All(c => c.AttributeType != typeof(EntityFileAttribute)))
                 {
@@ -40,47 +92,6 @@ public static class EntityBuilder
                 
                 modelBuilder.Entity(entity)
                     .OwnsOne(property.PropertyType, property.Name);
-            }
-            
-            if (property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(RelationOneToManyAttribute<>)))
-            {
-                var relationType = property.CustomAttributes
-                    .First(c => c.AttributeType == typeof(RelationOneToManyAttribute<>))
-                    .ConstructorArguments[0].Value as Type;
-
-                if (relationType == null) continue;
-
-                var relation = property.CustomAttributes
-                    .First(c => c.AttributeType == typeof(RelationOneToManyAttribute<>));
-
-                modelBuilder.Entity(entity)
-                    .HasMany(relationType)
-                    .WithOne(property.Name)
-                    .HasForeignKey(
-                        (relation.NamedArguments.First(c => c.MemberName == "ForeignKey").TypedValue.Value as string)!);
-            }
-            else if (property.CustomAttributes.Select(c => c.AttributeType)
-                     .Contains(typeof(RelationManyToOneAttribute<>)))
-            {
-                var relationType = property.CustomAttributes
-                    .First(c => c.AttributeType == typeof(RelationManyToOneAttribute<>))
-                    .ConstructorArguments[0].Value as Type;
-
-                if (relationType == null) continue;
-
-                modelBuilder.Entity(entity)
-                    .HasOne(relationType)
-                    .WithOne(property.Name)
-                    .HasForeignKey(nameof(Entity.Id));
-            }
-            else
-            {
-                if (property.PropertyType.BaseType == typeof(Enumeration))
-                {
-                    var enumerationConverterType = typeof(EnumerationConverter<>).MakeGenericType(property.PropertyType);
-                    var enumerationConverter = (ValueConverter)Activator.CreateInstance(enumerationConverterType)!;
-                    modelBuilder.Entity(entity).Property(property.Name).HasConversion(enumerationConverter);
-                }
             }
         }
         return modelBuilder;

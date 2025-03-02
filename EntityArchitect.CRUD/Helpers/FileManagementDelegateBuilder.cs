@@ -106,14 +106,12 @@ public class FileManagementDelegateBuilder<TEntity> where TEntity : Entity
         };
     
     public Func<Guid, CancellationToken, Task<IResult>> DownloadFile =>
-        async (entityId, cancellationToken) =>
+        async ([FromRoute] id, cancellationToken) =>
         {
-
-
             using (var scope = _provider.CreateScope())
             {
                 var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
-                var entity = await service.GetByIdAsync(entityId, null, cancellationToken);
+                var entity = await service.GetByIdAsync(id, null, cancellationToken);
                 if (entity is null)
                     return Microsoft.AspNetCore.Http.Results.NotFound();
 
