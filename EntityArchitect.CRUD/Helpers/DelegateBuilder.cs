@@ -64,6 +64,8 @@ public class DelegateBuilder<
                                  x.AttributeType == typeof(RelationOneToManyAttribute<>)
                                      .MakeGenericType(c.PropertyType))))
             {
+                if(item.CustomAttributes.Any(c => c.AttributeType == typeof(IgnorePostRequest)))
+                    continue;
                 var entityId = (item.GetValue(entity) as Entity)!.Id.Value;
                 var repositoryType = typeof(IRepository<>).MakeGenericType(item.PropertyType);
                 using var scope = _provider.CreateScope();

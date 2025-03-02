@@ -46,6 +46,10 @@ public partial class TypeBuilder
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
+            if (property.Name is "Id" or "CreatedAt" or "UpdatedAt" ||
+                property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(IgnorePostRequest)))
+                continue;
+            
             if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.EntityFile))
                 continue;
             
@@ -59,11 +63,7 @@ public partial class TypeBuilder
                 TypeBuilderExtension.CreateProperty(typeBuilder, property.Name, typeof(int));
                 continue;
             }
-
-            if (property.Name is "Id" or "CreatedAt" or "UpdatedAt" ||
-                property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(IgnorePostRequest)))
-                continue;
-
+            
             if (property.PropertyType.BaseType == typeof(Entity))
             {
                 var attributeType = typeof(RelationOneToManyAttribute<>)
@@ -129,13 +129,17 @@ public partial class TypeBuilder
         if (_types.Any(c => c.IsGenericType && c.GetGenericArguments()[0].FullName == typeName))
             return _types.First(c => c.IsGenericType && c.GetGenericArguments()[0].FullName == typeName)
                 .GetGenericArguments()[0];
-
+        
         var typeBuilder = TypeBuilderExtension.GetTypeBuilder(typeName, typeof(EntityRequest));
         typeBuilder.DefineDefaultConstructor(MethodAttributes.Public | MethodAttributes.SpecialName |
                                              MethodAttributes.RTSpecialName);
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
+            if (property.Name is "CreatedAt" or "UpdatedAt" ||
+                property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(IgnorePutRequest)))
+                continue;
+            
             if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.EntityFile))
                 continue;
             
@@ -144,15 +148,16 @@ public partial class TypeBuilder
                  typeof(List<>).MakeGenericType(parentType) == property.PropertyType))
                 continue;
             
+            if(property.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationPasswordAttribute)))
+                continue;
+            
             if (property.PropertyType.BaseType == typeof(Enumeration))
             {
                 TypeBuilderExtension.CreateProperty(typeBuilder, property.Name, typeof(int));
                 continue;
             }
 
-            if (property.Name is "CreatedAt" or "UpdatedAt" ||
-                property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(IgnorePutRequest)))
-                continue;
+
 
             if (property.PropertyType.BaseType == typeof(Entity))
             {

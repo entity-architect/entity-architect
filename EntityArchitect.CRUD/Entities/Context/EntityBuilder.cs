@@ -48,11 +48,11 @@ public static class EntityBuilder
                     var relation = property.CustomAttributes
                         .First(c => c.AttributeType == attributeOneToManyType);
                     var fk = relation.ConstructorArguments.First().Value as string;
-
+                    
                     modelBuilder.Entity(entity)
-                        .HasOne(relationType)
-                        .WithMany(fk)
-                        .HasForeignKey(relationType.Name + "Id");
+                        .HasOne(property.Name)
+                        .WithMany(fk)  
+                        .HasForeignKey(property.Name + "Id");
                 }
             }
             else if (property.PropertyType.IsGenericType && property.PropertyType.GetGenericArguments().First().BaseType == typeof(Entity))
@@ -72,11 +72,11 @@ public static class EntityBuilder
                     var relation = property.CustomAttributes
                         .First(c => c.AttributeType == attributeManyToOneType);
                     var fk = relation.ConstructorArguments.First().Value as string;
-                    
+
                     modelBuilder.Entity(entity)
-                        .HasMany(relationType)
-                        .WithOne(fk)
-                        .HasForeignKey(fk + "Id");
+                        .HasMany(property.Name)
+                        .WithOne(fk);
+                    //.HasForeignKey(fk + "Id");
                 }
             }
             else if (property.PropertyType.BaseType == typeof(Enumeration))
