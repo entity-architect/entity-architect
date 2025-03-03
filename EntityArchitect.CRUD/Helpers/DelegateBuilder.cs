@@ -61,7 +61,7 @@ public class DelegateBuilder<
                          .Where(c =>
                              c.PropertyType.BaseType == typeof(Entity) &&
                              c.CustomAttributes.Any(x =>
-                                 x.AttributeType == typeof(RelationOneToManyAttribute<>)
+                                 x.AttributeType == typeof(OneToManyAttribute<>)
                                      .MakeGenericType(c.PropertyType))))
             {
                 if(item.CustomAttributes.Any(c => c.AttributeType == typeof(IgnorePostRequest)))
@@ -116,7 +116,7 @@ public class DelegateBuilder<
                          .Where(c =>
                              c.PropertyType.BaseType == typeof(Entity) &&
                              c.CustomAttributes.Any(x =>
-                                 x.AttributeType == typeof(RelationOneToManyAttribute<>)
+                                 x.AttributeType == typeof(OneToManyAttribute<>)
                                      .MakeGenericType(c.PropertyType))))
             {
                 var entityId = (item.GetValue(entity) as Entity)!.Id.Value;

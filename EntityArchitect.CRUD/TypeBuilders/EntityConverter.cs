@@ -42,7 +42,7 @@ public static class EntityConverter
             
             if (propertyEntity.PropertyType.BaseType == typeof(Entity))
             {
-                var attributeType = typeof(RelationOneToManyAttribute<>)
+                var attributeType = typeof(OneToManyAttribute<>)
                     .MakeGenericType(propertyEntity.PropertyType);
 
                 if (propertyEntity.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType))

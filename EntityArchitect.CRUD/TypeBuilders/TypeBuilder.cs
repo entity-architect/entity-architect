@@ -66,7 +66,7 @@ public partial class TypeBuilder
             
             if (property.PropertyType.BaseType == typeof(Entity))
             {
-                var attributeType = typeof(RelationOneToManyAttribute<>)
+                var attributeType = typeof(OneToManyAttribute<>)
                     .MakeGenericType(property.PropertyType);
 
                 if (property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType))
@@ -161,7 +161,7 @@ public partial class TypeBuilder
 
             if (property.PropertyType.BaseType == typeof(Entity))
             {
-                var attributeType = typeof(RelationOneToManyAttribute<>)
+                var attributeType = typeof(OneToManyAttribute<>)
                     .MakeGenericType(property.PropertyType);
 
                 if (property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType))

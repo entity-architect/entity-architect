@@ -35,7 +35,8 @@ public static class EntityBuilder
         {
             if (property.PropertyType.BaseType == typeof(Entity))
             {
-                var attributeOneToManyType = typeof(RelationOneToManyAttribute<>).MakeGenericType(property.PropertyType);
+                var attributeOneToManyType = typeof(OneToManyAttribute<>).MakeGenericType(property.PropertyType);
+                var attributeOneToOneType = typeof(OneToOneAttribute<>).MakeGenericType(property.PropertyType);
                 
                 if (property.CustomAttributes.Select(c => c.AttributeType)
                     .Contains(attributeOneToManyType))
@@ -54,11 +55,28 @@ public static class EntityBuilder
                         .WithMany(fk)  
                         .HasForeignKey(property.Name + "Id");
                 }
+                else if (property.CustomAttributes.Select(c => c.AttributeType)
+                         .Contains(attributeOneToOneType))
+                {
+                    var relationType = property.CustomAttributes
+                        .First(c => c.AttributeType == attributeOneToManyType)
+                        .AttributeType.GetGenericArguments()[0];
+
+                    if (relationType is null) continue;
+                    var relation = property.CustomAttributes
+                        .First(c => c.AttributeType == attributeOneToManyType);
+                    var fk = relation.ConstructorArguments.First().Value as string;
+                    
+                    modelBuilder.Entity(entity)
+                        .HasOne(property.Name)
+                        .WithOne(fk)  
+                        .HasForeignKey(property.Name + "Id");
+                }
             }
             else if (property.PropertyType.IsGenericType && property.PropertyType.GetGenericArguments().First().BaseType == typeof(Entity))
             {
                 var attributeManyToOneType =
-                    typeof(RelationManyToOneAttribute<>).MakeGenericType(property.PropertyType.GetGenericArguments()
+                    typeof(ManyToOneAttribute<>).MakeGenericType(property.PropertyType.GetGenericArguments()
                         .First());
 
                 if (property.CustomAttributes.Select(c => c.AttributeType)
