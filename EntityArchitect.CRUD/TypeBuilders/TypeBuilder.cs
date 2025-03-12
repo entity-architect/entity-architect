@@ -30,12 +30,19 @@ public partial class TypeBuilder
         }
 
         var typeName = entityType.FullName + "CreateRequest";
-        if (_types.Any(c => c.FullName == typeName))
-            return _types.First(c => c.FullName == typeName);
 
-        if (_types.Any(c => c.IsGenericType && c.GetGenericArguments()[0].FullName == typeName))
-            return _types.First(c => c.IsGenericType && c.GetGenericArguments()[0].FullName == typeName)
-                .GetGenericArguments()[0];
+        for (int i = 0; i < _types.Count; i++)
+        {
+            if (_types[i].FullName == typeName)
+                return _types[i];
+        }
+
+        for (int i = 0; i < _types.Count; i++)
+        {
+            if (_types[i].IsGenericType && _types[i].GetGenericArguments()[0].FullName == typeName)
+                return _types[i].GetGenericArguments()[0];
+        }
+
 
         var customAttributeBuilder = new CustomAttributeBuilder(
             typeof(EntityRequestAttribute).GetConstructor(new[] { typeof(Type) })!, new object[] { entityType });
@@ -68,8 +75,11 @@ public partial class TypeBuilder
             {
                 var attributeType = typeof(OneToManyAttribute<>)
                     .MakeGenericType(property.PropertyType);
+                
+                var attributeTypeOtO = typeof(OneToOneAttribute<>)
+                    .MakeGenericType(property.PropertyType);
 
-                if (property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType))
+                if (property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType) || property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeTypeOtO))
                 {
                     TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid));
                     continue;
@@ -98,8 +108,12 @@ public partial class TypeBuilder
                 property.Name == "Id" ? typeof(Guid) : property.PropertyType);
         }
 
-        if (_types.Any(c => c.FullName == typeBuilder.FullName))
-            return _types.First(c => c.FullName == typeBuilder.FullName);
+        for (int i = 0; i < _types.Count; i++)
+        {
+            if (_types[i].FullName == typeBuilder.FullName)
+                return _types[i];
+        }
+
 
         var resultType = typeBuilder.CreateType();
         if (isList)
@@ -113,22 +127,25 @@ public partial class TypeBuilder
     public Type BuildUpdateRequestFromEntity(Type entityType, Type? parentType = null)
     {
         var isList = false;
-        if (entityType.IsGenericType &&
-            entityType.GetGenericTypeDefinition() == typeof(List<>))
+        if (entityType.IsGenericType && entityType.GetGenericTypeDefinition() == typeof(List<>))
         {
             isList = true;
             entityType = entityType.GetGenericArguments()[0];
         }
         
-        
-
         var typeName = entityType.FullName + "UpdateRequest";
-        if (_types.Any(c => c.FullName == typeName))
-            return _types.First(c => c.FullName == typeName);
+        for (int i = 0; i < _types.Count; i++)
+        {
+            if (_types[i].FullName == typeName)
+                return _types[i];
+        }
 
-        if (_types.Any(c => c.IsGenericType && c.GetGenericArguments()[0].FullName == typeName))
-            return _types.First(c => c.IsGenericType && c.GetGenericArguments()[0].FullName == typeName)
-                .GetGenericArguments()[0];
+        for (int i = 0; i < _types.Count; i++)
+        {
+            if (_types[i].IsGenericType && _types[i].GetGenericArguments()[0].FullName == typeName)
+                return _types[i].GetGenericArguments()[0];
+        }
+
         
         var typeBuilder = TypeBuilderExtension.GetTypeBuilder(typeName, typeof(EntityRequest));
         typeBuilder.DefineDefaultConstructor(MethodAttributes.Public | MethodAttributes.SpecialName |
@@ -163,8 +180,11 @@ public partial class TypeBuilder
             {
                 var attributeType = typeof(OneToManyAttribute<>)
                     .MakeGenericType(property.PropertyType);
+                
+                var attributeTypeOtO = typeof(OneToOneAttribute<>)
+                    .MakeGenericType(property.PropertyType);
 
-                if (property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType))
+                if (property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType) || property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeTypeOtO))
                 {
                     TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid));
                     continue;
@@ -216,18 +236,28 @@ public partial class TypeBuilder
             isList = true;
             entityType = entityType.GetGenericArguments()[0];
         }
-
         var nameParentTypes = "";
-        foreach (var item in (parentType?.Select(c => c.Name) ?? Array.Empty<string>()).ToList())
-            nameParentTypes += item;
+        var parentNames = (parentType?.Select(c => c.Name) ?? Array.Empty<string>()).ToList();
+
+        for (int i = 0; i < parentNames.Count; i++)
+        {
+            nameParentTypes += parentNames[i];
+        }
+
 
         var typeName = entityType.FullName + nameParentTypes + "Response";
-        if (_types.Any(c => c.FullName == typeName))
-            return _types.First(c => c.FullName == typeName);
+        for (int i = 0; i < _types.Count; i++)
+        {
+            if (_types[i].FullName == typeName)
+                return _types[i];
+        }
 
-        if (_types.Any(c => c.IsGenericType && c.GetGenericArguments()[0].FullName == typeName))
-            return _types.First(c => c.IsGenericType && c.GetGenericArguments()[0].FullName == typeName)
-                .GetGenericArguments()[0];
+        for (int i = 0; i < _types.Count; i++)
+        {
+            if (_types[i].IsGenericType && _types[i].GetGenericArguments()[0].FullName == typeName)
+                return _types[i].GetGenericArguments()[0];
+        }
+
 
         var typeBuilder = TypeBuilderExtension.GetTypeBuilder(typeName, typeof(EntityResponse));
         typeBuilder.DefineDefaultConstructor(MethodAttributes.Public | MethodAttributes.SpecialName |

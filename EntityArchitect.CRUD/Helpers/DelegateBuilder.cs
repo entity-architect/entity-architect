@@ -61,8 +61,8 @@ public class DelegateBuilder<
                          .Where(c =>
                              c.PropertyType.BaseType == typeof(Entity) &&
                              c.CustomAttributes.Any(x =>
-                                 x.AttributeType == typeof(OneToManyAttribute<>)
-                                     .MakeGenericType(c.PropertyType))))
+                                 x.AttributeType == typeof(OneToManyAttribute<>).MakeGenericType(c.PropertyType) ||
+                                 x.AttributeType == typeof(OneToOneAttribute<>).MakeGenericType(c.PropertyType))))
             {
                 if(item.CustomAttributes.Any(c => c.AttributeType == typeof(IgnorePostRequest)))
                     continue;
@@ -116,8 +116,10 @@ public class DelegateBuilder<
                          .Where(c =>
                              c.PropertyType.BaseType == typeof(Entity) &&
                              c.CustomAttributes.Any(x =>
-                                 x.AttributeType == typeof(OneToManyAttribute<>)
-                                     .MakeGenericType(c.PropertyType))))
+                                 x.AttributeType == typeof(OneToManyAttribute<>).MakeGenericType(c.PropertyType) ||
+                                 x.AttributeType == typeof(OneToOneAttribute<>).MakeGenericType(c.PropertyType)) &&
+                                c.CustomAttributes.All(x => x.AttributeType != typeof(IgnorePutRequest))
+                     ))
             {
                 var entityId = (item.GetValue(entity) as Entity)!.Id.Value;
                 var repositoryType = typeof(IRepository<>).MakeGenericType(item.PropertyType);
@@ -135,6 +137,12 @@ public class DelegateBuilder<
             
             using (var scope = _provider.CreateScope())
             {
+                var x = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
+                
+                var claimProvider = scope.ServiceProvider.GetRequiredService<IClaimProvider>();
+                claimProvider.SetClaims(x.HttpContext.User.Claims.ToList());
+                Console.WriteLine(claimProvider.GetHashCode());
+                
                 var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
                 var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var actions = scope.GetEndpointActionsAsync<TEntity>();
@@ -177,6 +185,12 @@ public class DelegateBuilder<
         {
             using (var scope = _provider.CreateScope())
             {
+                var x = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
+                
+                var claimProvider = scope.ServiceProvider.GetRequiredService<IClaimProvider>();
+                claimProvider.SetClaims(x.HttpContext.User.Claims.ToList());
+                Console.WriteLine(claimProvider.GetHashCode());
+                
                 var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
                 var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var actions = scope.GetEndpointActionsAsync<TEntity>();
@@ -200,6 +214,12 @@ public class DelegateBuilder<
         async (id, cancellationToken) =>
         {
             using var scope = _provider.CreateScope();
+            var x = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
+                
+            var claimProvider = scope.ServiceProvider.GetRequiredService<IClaimProvider>();
+            claimProvider.SetClaims(x.HttpContext.User.Claims.ToList());
+            Console.WriteLine(claimProvider.GetHashCode());
+            
             var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
             var actions = scope.GetEndpointActionsAsync<TEntity>();
 

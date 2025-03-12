@@ -339,6 +339,69 @@ public static partial class ApiBuilder
                                         }
                                         break;
                                     }
+                                    case "GET":
+                                    {
+                                        var parameters = method.GetParameters();
+
+                                        var endpoint = group.MapGet(name, async (HttpContext context, IServiceProvider services, CancellationToken cancellationToken) =>
+                                        {
+                                            var service = services.GetRequiredService(customEndpoint.GetType());
+                                            var cp = services.GetRequiredService<IClaimProvider>();
+                                            cp.SetClaims(context.User.Claims.ToList());
+                                            var args = new object?[parameters.Length];
+
+                                            for (int i = 0; i < parameters.Length; i++)
+                                            {
+                                                if (parameters[i].ParameterType == typeof(CancellationToken))
+                                                {
+                                                    args[i] = cancellationToken;
+                                                    continue;
+                                                }
+                                                var param = parameters[i];
+
+                                                if (param.ParameterType == typeof(Guid))
+                                                {
+                                                    var paramValue = await context.Request.ReadFromJsonAsync<Guid>(cancellationToken: cancellationToken);
+                                                    args[i] = paramValue;
+                                                }
+                                                else if (param.ParameterType == typeof(string))
+                                                {
+                                                    var paramValue = await context.Request.ReadFromJsonAsync<string>(cancellationToken: cancellationToken);
+                                                    args[i] = paramValue;
+                                                }
+                                                else
+                                                {
+                                                    var paramValue = await context.Request.ReadFromJsonAsync(param.ParameterType, cancellationToken: cancellationToken);
+                                                    args[i] = paramValue;
+                                                }
+                                            }
+
+                                            var result = method.Invoke(service, args);
+
+
+                                            if (result is Task task)
+                                            {
+                                                await task;
+                                                var resultProperty = task.GetType().GetProperty("Result");
+                                                result = resultProperty?.GetValue(task);
+                                            }
+
+                                            return result;
+                                        });
+                                        
+                                        if(method.CustomAttributes.Any(c => c.AttributeType == typeof(SecuredAttribute)))
+                                            endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
+                                        
+                                        endpoint.Produces(200, typeof(Result<>).MakeGenericType(method.ReturnType.GetGenericArguments()[0]));
+                                        endpoint.Produces(400, typeof(Result));
+                                        endpoint.Produces(500, typeof(Result));
+                                        if (parameters.Length > 0)
+                                        {
+                                            var requestBodyType = parameters.First().ParameterType;
+                                            endpoint.Accepts(requestBodyType, "application/x-www-form-urlencoded");
+                                        }
+                                        break;
+                                    }
                                     default:
                                         throw new Exception($"HttpMethod {httpMethod} not supported now.");
                                 }

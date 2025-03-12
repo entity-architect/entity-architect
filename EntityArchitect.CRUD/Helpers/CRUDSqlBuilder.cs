@@ -21,11 +21,18 @@ public static partial class CrudSqlBuilder
             
             if (property.CustomAttributes
                 .Select(c => c.AttributeType.Name)
-                .Any(c => c.Contains("RelationManyToOneAttribute")))
+                .Any(c => c.Contains("ManyToOneAttribute")))
                 continue;
 
             if (property.CustomAttributes.Any(c =>
-                    c.AttributeType.Name.Contains("RelationOneToManyAttribute")))
+                    c.AttributeType.Name.Contains("OneToManyAttribute")))
+            {
+                sql += $"{ToSnakeCase(property.Name)}_id, ";
+                continue;
+            }
+            
+            if (property.CustomAttributes.Any(c =>
+                    c.AttributeType.Name.Contains("OneToOneAttribute")))
             {
                 sql += $"{ToSnakeCase(property.Name)}_id, ";
                 continue;
@@ -43,7 +50,7 @@ public static partial class CrudSqlBuilder
 
             if (property.CustomAttributes
                 .Select(c => c.AttributeType.Name)
-                .Any(c => c.Contains("RelationManyToOneAttribute")))
+                .Any(c => c.Contains("ManyToOneAttribute")))
             {
                 var values = property.GetValue(entity);
                 
@@ -63,9 +70,15 @@ public static partial class CrudSqlBuilder
 
             if (property.PropertyType == typeof(int))
                 sql += property.GetValue(entity) + ", ";
-            else if (property.CustomAttributes.Any(c => c.AttributeType.Name.Contains("RelationOneToManyAttribute")))
+            else if (property.CustomAttributes.Any(c => c.AttributeType.Name.Contains("OneToManyAttribute")) && property.GetValue(entity) is not null)
+                sql += "'" + (property.GetValue(entity) as Entity)?.Id.Value + "', ";
+            else if (property.CustomAttributes.Any(c => c.AttributeType.Name.Contains("OneToOneAttribute")) && property.GetValue(entity) is not null)
                 sql += "'" + (property.GetValue(entity) as Entity).Id.Value + "', ";
-            else if (property.CustomAttributes.Any(c => c.AttributeType.Name.Contains("RelationManyToOneAttribute")))
+            else if (property.CustomAttributes.Any(c => c.AttributeType.Name.Contains("OneToManyAttribute")) && property.GetValue(entity) is null)
+                sql += "null, ";
+            else if (property.CustomAttributes.Any(c => c.AttributeType.Name.Contains("OneToOneAttribute")) && property.GetValue(entity) is null)
+                sql += "null, ";
+            else if (property.CustomAttributes.Any(c => c.AttributeType.Name.Contains("ManyToOneAttribute")))
                 sql+="";
             else if (property.PropertyType == typeof(DateTime))
                 sql += "'" + ((DateTime)property.GetValue(entity)!).ToString("yyyy-MM-dd HH:mm:ss") + "', ";

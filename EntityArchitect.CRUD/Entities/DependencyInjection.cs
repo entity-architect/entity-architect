@@ -41,7 +41,7 @@ public static class DependencyInjection
         {
             if (string.IsNullOrEmpty(connectionString)) return services;
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            //dbContext.Database.Migrate();
+            dbContext.Database.Migrate();
         }
         
         foreach (var entity in enumerable)

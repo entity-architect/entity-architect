@@ -44,8 +44,11 @@ public static class EntityConverter
             {
                 var attributeType = typeof(OneToManyAttribute<>)
                     .MakeGenericType(propertyEntity.PropertyType);
+                
+                var attributeTypeOtO = typeof(OneToOneAttribute<>)
+                    .MakeGenericType(propertyEntity.PropertyType);
 
-                if (propertyEntity.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType))
+                if (propertyEntity.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType) || propertyEntity.CustomAttributes.Select(c => c.AttributeType).Contains(attributeTypeOtO))
                 {
                     var subEntityInstance = Activator.CreateInstance(propertyEntity.PropertyType);
                     propertyEntity.PropertyType.GetProperty(nameof(Entity.Id))?.SetValue(subEntityInstance, new Id<Entity>((Guid)value!).ToId());
@@ -171,9 +174,12 @@ public static class EntityConverter
         if (passwordProperty is null) return;
         
         var password = typeof(TEntity).GetProperty(passwordProperty.Name)!
-            .GetValue(entityInstance)!.ToString();
-                
-        var hashedPassword = BCrypt.Net.BCrypt.HashPassword(password);
+            .GetValue(entityInstance);
+
+        if (password is null)
+            return;
+        
+        var hashedPassword = BCrypt.Net.BCrypt.HashPassword(password.ToString());
         passwordProperty.SetValue(entityInstance, hashedPassword);
     }
 }

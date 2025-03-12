@@ -18,4 +18,11 @@ public abstract class Entity : IEntity
     {
         CreatedAt = DateTime.Now.ToUniversalTime();
     }
+    
+    public static TEntity CreateFromId<TEntity>(Guid id) where TEntity : Entity
+    {
+        var entity = (TEntity)Activator.CreateInstance(typeof(TEntity))!;
+        entity.Id = id;
+        return entity;
+    }
 }

@@ -8,6 +8,7 @@ using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Enumerations;
 using EntityArchitect.CRUD.Files;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace EntityArchitect.CRUD.Entities.Context;
@@ -59,18 +60,19 @@ public static class EntityBuilder
                          .Contains(attributeOneToOneType))
                 {
                     var relationType = property.CustomAttributes
-                        .First(c => c.AttributeType == attributeOneToManyType)
+                        .First(c => c.AttributeType == attributeOneToOneType)
                         .AttributeType.GetGenericArguments()[0];
 
                     if (relationType is null) continue;
                     var relation = property.CustomAttributes
-                        .First(c => c.AttributeType == attributeOneToManyType);
+                        .First(c => c.AttributeType == attributeOneToOneType);
                     var fk = relation.ConstructorArguments.First().Value as string;
-                    
-                    modelBuilder.Entity(entity)
-                        .HasOne(property.Name)
-                        .WithOne(fk)  
-                        .HasForeignKey(property.Name + "Id");
+
+                    var hasForeignKeyMethods = typeof(Microsoft.EntityFrameworkCore.Metadata.Builders.ReferenceReferenceBuilder).GetMethods();
+                    var hasForeignKeyMethod = hasForeignKeyMethods.First(m => m.Name == "HasForeignKey" && m.GetParameters()[0].ParameterType == typeof(Type));
+                    hasForeignKeyMethod.Invoke(modelBuilder.Entity(entity).HasOne(property.Name).WithOne(fk), new object[] { property.PropertyType, new[] { fk + "Id"}, });
+                    modelBuilder.Entity(entity).Property<Id<Entity>>(property.Name + "Id");
+                    modelBuilder.Entity(entity).Property(property.Name + "Id").HasConversion(converter);
                 }
             }
             else if (property.PropertyType.IsGenericType && property.PropertyType.GetGenericArguments().First().BaseType == typeof(Entity))

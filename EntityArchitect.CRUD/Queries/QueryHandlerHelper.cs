@@ -8,8 +8,14 @@ public static class QueryHandlerHelper
 {
     public static T BuildResponse<T>(params object[] args) where T : class
     {
-        var mainType = args[0] as T;
-
+        T mainType = null;
+        for (int j = 0; j < args.Length - 1; j++)
+        {
+            mainType = args[j] as T;
+            if (mainType is not null)
+                break;
+        }
+        
         var properties = typeof(T).GetProperties();
         var i = 1;
 
@@ -35,7 +41,14 @@ public static class QueryHandlerHelper
                             property.PropertyType);
                     var nestedType = method.Invoke(null, new object[] { args.Skip(i).ToArray() });
 
-                    property.SetValue(mainType, nestedType ?? argument);
+                    if (nestedType != null)
+                    {  
+                        property.SetValue(mainType, nestedType);
+                    }
+                    else
+                    {
+                        property.SetValue(mainType, argument);
+                    }
                     i++;
                 }
                 else
