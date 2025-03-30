@@ -1,14 +1,7 @@
-using System;
-using System.Collections.Generic;
 using System.Data;
-using System.IO;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Net;
 using System.Reflection;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using Dapper;
 using EntityArchitect.CRUD.Attributes.QueryResponseTypeAttributes;
 using EntityArchitect.CRUD.Entities.Entities;
@@ -58,8 +51,9 @@ internal class QueryHandler<TParam, TEntity>
             }
         }
     
-        sql = sql.Replace("\n", " ");
         var parametersFields = SqlParser.ParseSql(sql, assembly);
+        sql = SqlParser.CleanupSql(sql);
+        sql = sql.Replace("\n", " ");
         dbConnection.Open();
         try
         {
@@ -81,30 +75,55 @@ internal class QueryHandler<TParam, TEntity>
         var resultType = typeBuilder.BuildQueryResultType(typeArray.First());
         var typList = typeArray.ToList();
         typList.Add(typeArray.First());
-        var map = CreateMapFunction(typeArray);
         typeArray = typList.ToArray();
 
         var dapperExtensions = typeof(SqlMapper);
 
         var methods = dapperExtensions.GetMethods();
         methods = methods.Where(m => m.Name == "Query").ToArray();
-        var method = methods.FirstOrDefault(m =>
-            m is { Name: "Query", IsGenericMethod: true } && m.GetGenericArguments().Length == typeArray.Length);
-        var genericMethod = method!.MakeGenericMethod(typeArray);
+        MethodInfo genericMethod;
+        var useGenericParams = typeArray.Length is <= 8 and > 2;
+        if (useGenericParams)
+        {
+            var method = methods.FirstOrDefault(m =>
+                m is { Name: "Query", IsGenericMethod: true } && m.GetGenericArguments().Length == typeArray.Length);
+            genericMethod = method!.MakeGenericMethod(typeArray);
+        }
+        else
+        {
+            genericMethod = methods.First(m =>
+                m is { Name: "Query", IsGenericMethod: true } && m.GetGenericArguments().Length == 1 && m.GetParameters().Length >= 3 && m.GetParameters()[2].ParameterType == typeof(Type[]))
+                .MakeGenericMethod(typeArray.First());
+        }
+        
         using var transaction = connection.BeginTransaction();
 
         var cleanSql = SqlParser.CleanupSql(sql);
         try
         {
-            var task = genericMethod.Invoke(null,
-                new[] { connection, cleanSql, map, param, transaction, false, splitOn, null, null });
+            object? task = null;
+            if (useGenericParams)
+            {
+                var map = CreateMapFunction(typeArray);
+                task = genericMethod.Invoke(null,
+                    new[] { connection, cleanSql, map, param, transaction, false, splitOn, null, null });
+            }
+            else
+            {
+                var map = CreateArrayBasedMapFunction(typeArray[0]);
+                typeArray = typeArray.Take(typeArray.Length - 1).ToArray();
+                task = genericMethod.Invoke(null,
+                    new[] { connection, cleanSql, typeArray, map, param, transaction, false, splitOn, null, null });
+            }
+
             transaction.Commit();
+
             var sqlResponse = task as IEnumerable<object>;
             if (sqlResponse == null) throw new Exception("No response from database");
 
             var grouped = sqlResponse.GroupBy(GetPropertyValue).ToList();
 
-            Type resultTypeFinal = resultType;
+            var resultTypeFinal = resultType;
             if (!query.Single)
                 resultTypeFinal = typeof(List<>).MakeGenericType(resultType);
             
@@ -113,7 +132,8 @@ internal class QueryHandler<TParam, TEntity>
             if (query.Single && grouped.Count != 0)
                 grouped = grouped.Take(1).ToList();
             
-            //TODO poinfomuj mnie jakoś że brakuje limit 1
+            if (query.Single && grouped.Count == 0)
+                return Result.Failure(new Error(HttpStatusCode.NotFound, "Element not found."));
             
             foreach (var groupedItem in grouped)
             {
@@ -130,8 +150,7 @@ internal class QueryHandler<TParam, TEntity>
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
-            throw;
+            return Result.Failure(new Error(HttpStatusCode.InternalServerError, e.Message));
         }
     }
     
@@ -196,6 +215,23 @@ internal class QueryHandler<TParam, TEntity>
         );
 
         var lambda = Expression.Lambda(callMethod, parameters);
+        return lambda.Compile();
+    }
+    
+    private static Delegate CreateArrayBasedMapFunction(Type type)
+    {
+        var param = Expression.Parameter(typeof(object[]), "args");
+
+        var method = typeof(QueryHandlerHelper)
+            .GetMethod(nameof(QueryHandlerHelper.BuildResponse), new[] { typeof(object[]) })
+            ?.MakeGenericMethod(type);
+
+        if (method == null)
+            throw new InvalidOperationException("Method BuildResponse not found.");
+
+        var call = Expression.Call(method, param);
+        var lambda = Expression.Lambda(call, param);
+
         return lambda.Compile();
     }
 }
