@@ -82,12 +82,12 @@ internal class QueryHandler<TParam, TEntity>
         var methods = dapperExtensions.GetMethods();
         methods = methods.Where(m => m.Name == "Query").ToArray();
         MethodInfo genericMethod;
-        var useGenericParams = typeArray.Length is <= 8 and > 2;
+        var useGenericParams = typeArray.Length == 2;
         if (useGenericParams)
         {
             var method = methods.FirstOrDefault(m =>
-                m is { Name: "Query", IsGenericMethod: true } && m.GetGenericArguments().Length == typeArray.Length);
-            genericMethod = method!.MakeGenericMethod(typeArray);
+                m is { Name: "Query", IsGenericMethod: true } && m.GetGenericArguments().Length == 1);
+            genericMethod = method!.MakeGenericMethod(typeArray.First());
         }
         else
         {
@@ -104,16 +104,14 @@ internal class QueryHandler<TParam, TEntity>
             object? task = null;
             if (useGenericParams)
             {
-                var map = CreateMapFunction(typeArray);
                 task = genericMethod.Invoke(null,
-                    new[] { connection, cleanSql, map, param, transaction, false, splitOn, null, null });
+                    new[] { connection, cleanSql, param, transaction, false, null, null });
             }
             else
             {
                 var map = CreateArrayBasedMapFunction(typeArray[0]);
-                typeArray = typeArray.Take(typeArray.Length - 1).ToArray();
                 task = genericMethod.Invoke(null,
-                    new[] { connection, cleanSql, typeArray, map, param, transaction, false, splitOn, null, null });
+                    new[] { connection, cleanSql, map, param, transaction, false, splitOn, null, null });
             }
 
             transaction.Commit();
