@@ -73,9 +73,6 @@ internal class QueryHandler<TParam, TEntity>
         var typeArray = typeBuilder.BuildQueryTypes(parameterFields, queryName, out var splitOn);
         typeArray = ReorderTypes(typeArray.ToList()).ToArray();
         var resultType = typeBuilder.BuildQueryResultType(typeArray.First());
-        var typList = typeArray.ToList();
-        typList.Add(typeArray.First());
-        typeArray = typList.ToArray();
 
         var dapperExtensions = typeof(SqlMapper);
 
@@ -111,7 +108,7 @@ internal class QueryHandler<TParam, TEntity>
             {
                 var map = CreateArrayBasedMapFunction(typeArray[0]);
                 task = genericMethod.Invoke(null,
-                    new[] { connection, cleanSql, map, param, transaction, false, splitOn, null, null });
+                    new[] { connection, cleanSql, typeArray, map, param, transaction, false, splitOn, null, null });
             }
 
             transaction.Commit();
