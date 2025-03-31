@@ -1,7 +1,12 @@
+using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Net;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using Dapper;
 using EntityArchitect.CRUD.Attributes.QueryResponseTypeAttributes;
 using EntityArchitect.CRUD.Entities.Entities;
@@ -79,7 +84,7 @@ internal class QueryHandler<TParam, TEntity>
         var methods = dapperExtensions.GetMethods();
         methods = methods.Where(m => m.Name == "Query").ToArray();
         MethodInfo genericMethod;
-        var useGenericParams = typeArray.Length == 2;
+        var useGenericParams = typeArray.Length == 1;
         if (useGenericParams)
         {
             var method = methods.FirstOrDefault(m =>
@@ -106,7 +111,7 @@ internal class QueryHandler<TParam, TEntity>
             }
             else
             {
-                var map = CreateArrayBasedMapFunction(typeArray[0]);
+                var map = CreateMapFunction(typeArray[0]);
                 task = genericMethod.Invoke(null,
                     new[] { connection, cleanSql, typeArray, map, param, transaction, false, splitOn, null, null });
             }
@@ -195,25 +200,8 @@ internal class QueryHandler<TParam, TEntity>
                 .Any(attributeData => attributeData.AttributeType == typeof(IsKeyAttribute)))
             .GetValue(obj, null)!;
     }
-
-    private static Delegate CreateMapFunction(Type[] types)
-    {
-        var parameters = types.Select((t, i) => Expression.Parameter(t, $"arg{i}")).ToArray();
-        var argumentsArray =
-            Expression.NewArrayInit(typeof(object), parameters.Select(p => Expression.Convert(p, typeof(object))));
-
-        var method = typeof(QueryHandlerHelper).GetMethod(nameof(QueryHandlerHelper.BuildResponse));
-        method = method!.MakeGenericMethod(types[0]);
-        var callMethod = Expression.Call(
-            method,
-            argumentsArray
-        );
-
-        var lambda = Expression.Lambda(callMethod, parameters);
-        return lambda.Compile();
-    }
     
-    private static Delegate CreateArrayBasedMapFunction(Type type)
+    private static Delegate CreateMapFunction(Type type)
     {
         var param = Expression.Parameter(typeof(object[]), "args");
 
