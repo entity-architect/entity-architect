@@ -2,12 +2,12 @@ using System;
 
 namespace EntityArchitect.CRUD.CustomEndpoints;
 
-public class CustomEndpointAttribute : Attribute
+public class FeatureAttribute : Attribute
 {
     public string Method { get; }
     public string Name { get; }
 
-    public CustomEndpointAttribute(string method, string name)
+    public FeatureAttribute(string method, string name)
     {
         Method = method;
         Name = name;

@@ -116,8 +116,6 @@ public static class CrudTest
                             throw new Exception("Failed to deserialize json object");
                         var authorizationToken = JsonConvert.SerializeObject(testModelObject.GetType()
                             .GetProperty(nameof(EndpointTestModel<EntityRequest>.AuthorizationToken))?.GetValue(testModelObject)); 
-
-
                         var result = await Get(client, testModelObject, authorizationToken);
                         responses.Add(new ValueTuple<string, string, Type>(testName, ExtractContent(result), entity));
 

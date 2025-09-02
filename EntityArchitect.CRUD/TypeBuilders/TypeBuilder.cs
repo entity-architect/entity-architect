@@ -215,9 +215,13 @@ public partial class TypeBuilder
                 property.Name == "Id" ? typeof(Guid) : property.PropertyType);
         }
 
-        if (_types.Any(c => c.FullName == typeBuilder.FullName))
-            return _types.First(c => c.FullName == typeBuilder.FullName);
-
+        //change to for loop
+        for (int i = 0; i < _types.Count; i++)
+        {
+            if (_types[i].IsGenericType && _types[i].GetGenericArguments()[0].FullName == typeBuilder.FullName)
+                return _types[i].GetGenericArguments()[0];
+        }
+        
         var resultType = typeBuilder.CreateType();
         if (isList)
             resultType = typeof(List<>).MakeGenericType(resultType);

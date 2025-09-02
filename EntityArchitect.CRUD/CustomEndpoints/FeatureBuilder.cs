@@ -7,13 +7,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace EntityArchitect.CRUD.CustomEndpoints;
 
-public static class CustomEndpointBuilder
+public static class FeatureBuilder
 {
-    public static List<CustomEndpoint<T>> Build<T>(Assembly assembly, IServiceScope serviceProvider) where T : Entity
+    public static List<Feature<T>> Build<T>(Assembly assembly, IServiceScope serviceProvider) where T : Entity
     {
-        var types = assembly.GetTypes().Where(c => c.BaseType == typeof(CustomEndpoint<T>)).ToList();
+        var types = assembly.GetTypes().Where(c => c.BaseType == typeof(Feature<T>)).ToList();
 
-        List<CustomEndpoint<T>> endpoints = new();
+        List<Feature<T>> endpoints = new();
         foreach (var item in types)
         {
             var parameters = item.GetConstructors().First().GetParameters();
@@ -27,7 +27,7 @@ public static class CustomEndpointBuilder
                 parameterObjects.Add(service);
             }
             
-            var endpoint = Activator.CreateInstance(item, parameterObjects.ToArray()) as CustomEndpoint<T>;
+            var endpoint = Activator.CreateInstance(item, parameterObjects.ToArray()) as Feature<T>;
             if(endpoint is null) throw new InvalidOperationException($"Could not create instance of {item.Name}.");
             endpoints.Add(endpoint);
         }

@@ -252,11 +252,11 @@ public static partial class ApiBuilder
 
                 using (var scope = app.ApplicationServices.CreateScope())
                 {
-                    var customEndpoints = typeof(CustomEndpointBuilder).GetMethod(nameof(CustomEndpointBuilder.Build))
+                    var customEndpoints = typeof(FeatureBuilder).GetMethod(nameof(FeatureBuilder.Build))
                         .MakeGenericMethod(entity)
                         .Invoke(null, new object[] { assembly, scope });
 
-                    var endpointListType = typeof(List<>).MakeGenericType(typeof(CustomEndpoint<>).MakeGenericType(entity));
+                    var endpointListType = typeof(List<>).MakeGenericType(typeof(Feature<>).MakeGenericType(entity));
                     var customEndpointList = Convert.ChangeType(customEndpoints, endpointListType) as IEnumerable<object>;
 
                     if (customEndpointList != null && customEndpointList.Any())
@@ -266,11 +266,11 @@ public static partial class ApiBuilder
                             foreach (var method in customEndpoint.GetType().GetMethods())
                             {
                                 if (method.CustomAttributes.All(c =>
-                                        c.AttributeType != typeof(CustomEndpointAttribute)))
+                                        c.AttributeType != typeof(FeatureAttribute)))
                                     continue;
 
                                 var customEndpointAttribute =
-                                    method.GetCustomAttribute<CustomEndpointAttribute>();
+                                    method.GetCustomAttribute<FeatureAttribute>();
                                 string httpMethod = customEndpointAttribute.Method;
                                 var name = customEndpointAttribute.Name;
                                 
@@ -361,17 +361,24 @@ public static partial class ApiBuilder
 
                                                 if (param.ParameterType == typeof(Guid))
                                                 {
-                                                    var paramValue = await context.Request.ReadFromJsonAsync<Guid>(cancellationToken: cancellationToken);
-                                                    args[i] = paramValue;
+                                                    var paramValue = context.Request.Query
+                                                        .FirstOrDefault(c => c.Key == param.Name).Value.ToString();
+                                                    args[i] = Guid.Parse(paramValue);
                                                 }
                                                 else if (param.ParameterType == typeof(string))
                                                 {
-                                                    var paramValue = await context.Request.ReadFromJsonAsync<string>(cancellationToken: cancellationToken);
+                                                    var paramValue = context.Request.Query
+                                                        .FirstOrDefault(c => c.Key == param.Name).Value.ToString();
                                                     args[i] = paramValue;
+                                                }
+                                                else if (param.ParameterType == typeof(HttpContext))
+                                                {
+                                                    args[i] = context;
                                                 }
                                                 else
                                                 {
-                                                    var paramValue = await context.Request.ReadFromJsonAsync(param.ParameterType, cancellationToken: cancellationToken);
+                                                    var paramValue = context.Request.Query
+                                                        .FirstOrDefault(c => c.Key == param.Name).Value;
                                                     args[i] = paramValue;
                                                 }
                                             }
@@ -395,11 +402,6 @@ public static partial class ApiBuilder
                                         endpoint.Produces(200, typeof(Result<>).MakeGenericType(method.ReturnType.GetGenericArguments()[0]));
                                         endpoint.Produces(400, typeof(Result));
                                         endpoint.Produces(500, typeof(Result));
-                                        if (parameters.Length > 0)
-                                        {
-                                            var requestBodyType = parameters.First().ParameterType;
-                                            endpoint.Accepts(requestBodyType, "application/x-www-form-urlencoded");
-                                        }
                                         break;
                                     }
                                     default:

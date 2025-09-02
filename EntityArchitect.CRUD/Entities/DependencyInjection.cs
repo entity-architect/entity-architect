@@ -1,4 +1,3 @@
-using System.Linq;
 using System.Reflection;
 using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.CustomEndpoints;
@@ -7,9 +6,7 @@ using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Entities.Repository;
 using EntityArchitect.CRUD.Files;
 using EntityArchitect.CRUD.Services;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace EntityArchitect.CRUD.Entities;
 
@@ -53,7 +50,7 @@ public static class DependencyInjection
         
         foreach (var entity in enumerable)
         {
-            var customEndpointType = typeof(CustomEndpoint<>).MakeGenericType(entity);
+            var customEndpointType = typeof(Feature<>).MakeGenericType(entity);
             entityAssembly.ExportedTypes.Where(c => c.BaseType == customEndpointType).ToList()
                 .ForEach(c => services.AddScoped(c));
         }
