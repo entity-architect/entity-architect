@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,46 +13,43 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Dapper;
 using EFCore.NamingConventions.Internal;
 using Microsoft.AspNetCore.Html;
+using Microsoft.EntityFrameworkCore.Query;
 
 namespace EntityArchitect.CRUD.Entities.Repository;
 
 public class Repository<TEntity>(ApplicationDbContext context) :
     IRepository<TEntity> where TEntity : Entity
 {
-    public ValueTask<EntityEntry<TEntity>> AddAsync(TEntity entity, CancellationToken cancellationToken = default)
+    public ValueTask<EntityEntry<TEntity>> AddAsync(TEntity entity, CancellationToken cancellationToken = default) => context.Set<TEntity>().AddAsync(entity, cancellationToken);
+    public void Remove(TEntity entity) => context.Set<TEntity>().Remove(entity);
+    public void Update(TEntity entity) => context.Set<TEntity>().Update(entity);
+    public Task<TEntity?> GetByIdAsync(Id<TEntity> id, CancellationToken cancellationToken = default, params string[] includePaths)
     {
-        return context.Set<TEntity>().AddAsync(entity, cancellationToken);
-    }
+        IQueryable<TEntity> query = context.Set<TEntity>();
 
-    public void Remove(TEntity entity)
-    {
-        context.Set<TEntity>().Remove(entity);
-    }
-
-    public void Update(TEntity entity)
-    {
-        context.Set<TEntity>().Update(entity);
-    }
-
-    public Task<TEntity?> GetByIdAsync(Id<TEntity> id, List<string>? includeProperties,
-        CancellationToken cancellationToken = default)
-    {
-        if(includeProperties is null)
-            includeProperties = new List<string>();
+        foreach (var path in includePaths)
+            query = query.Include(path);
         
-        var query = context.Set<TEntity>().AsQueryable();
-        foreach (var include in includeProperties) query = query.Include(include);
-        return query.FirstOrDefaultAsync(c => c.Id == id.ToId(), cancellationToken);
+        query = query.AsSplitQuery();
+
+        return query.FirstOrDefaultAsync(e => e.Id.Value == id, cancellationToken);
     }
 
-    public Task<TEntity?> GetBySpecificationIdAsync(SpecificationBySpec<TEntity> specification,
-        CancellationToken cancellationToken = default)
+    public Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken) => context.Set<TEntity>().AnyAsync(c => c.Id == id, cancellationToken: cancellationToken);
+
+    public Task<TEntity?> GetByIdAsync(
+        Id<TEntity> id,
+        CancellationToken ct = default,
+        params Expression<Func<TEntity, object>>[] includes)
     {
-        var query = context.Set<TEntity>().AsQueryable();
-        foreach (var include in specification.IncludeStrings) query = query.Include(include);
-        return query.FirstOrDefaultAsync(specification.SpecExpression, cancellationToken);
-    }
+        IQueryable<TEntity> query = context.Set<TEntity>();
 
+        foreach (var include in includes)
+            query = query.Include(include);
+        query = query.AsSplitQuery();
+        return query.FirstOrDefaultAsync(e => e.Id.Value == id, ct);
+    }
+    
     public Task<List<TEntity>> GetBySpecificationAsync(ISpecification<TEntity> specification,
         CancellationToken cancellationToken = default)
     {
@@ -60,30 +58,7 @@ public class Repository<TEntity>(ApplicationDbContext context) :
         return query.Where(specification.SpecExpression)
             .ToListAsync(cancellationToken);
     }
-    
-    public Task<int> ExecuteSqlAsync(string sql, CancellationToken cancellationToken = default) =>
-        context.Database.ExecuteSqlRawAsync(sql, cancellationToken);
 
-    public Task<List<TEntity>> GetLightListAsync(CancellationToken cancellationToken)
-    {
-        return context.Set<TEntity>().ToListAsync(cancellationToken);
-    }
-
-    public Task<List<TEntity>> GetAllPaginatedAsync(int page, int itemCount, List<string> includingProperties,
-        CancellationToken cancellationToken)
-    {
-        var query = context.Set<TEntity>().AsQueryable();
-        foreach (var include in includingProperties) query = query.Include(include);
-        return query.Skip(page * itemCount)
-            .Take(itemCount)
-            .ToListAsync(cancellationToken);
-    }
-
-    public Task<int> GetCountAsync(CancellationToken cancellationToken)
-    {
-        return context.Set<TEntity>().CountAsync(cancellationToken);
-    }
-
-    public Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken) => 
-        context.Set<TEntity>().AnyAsync(c => c.Id == id, cancellationToken: cancellationToken);
+    Task<int> IRepository<TEntity>.ExecuteSqlAsync(string sql, CancellationToken cancellationToken = default) => context.Database.ExecuteSqlRawAsync(sql, cancellationToken);
+    Task<int> IRepository<TEntity>.GetCountAsync(CancellationToken cancellationToken) => context.Set<TEntity>().CountAsync(cancellationToken);
 }
