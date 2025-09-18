@@ -12,26 +12,7 @@ public class AuthorCreateAction(ILogger logger, IClaimProvider claimProvider, IR
 {
     protected override async ValueTask<Result<Author>> BeforePostAsync(Author entity, CancellationToken cancellationToken = default)
     {
-        Console.WriteLine(claimProvider.GetHashCode());
-        var claims = Guid.Parse(claimProvider.GetClaims().FirstOrDefault(c => c.Type == "id")!.Value);
-        var client = await clientRepository.GetByIdAsync(claims, cancellationToken, c=>c.Rentals);
-        if (client == null)
-        {
-            logger.Log("Client not found");
-            return entity;
-        }
-        
-        entity.AddToName(" added by " + client.Name);
-
-        var author = new Author()
-        {
-            Name = "aaa"
-        };
-        
-        await authorRepository.AddAsync(author, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        
-        
+        Console.WriteLine("BeforePostAsync");
         return entity;
     }
 }

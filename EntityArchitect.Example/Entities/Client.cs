@@ -17,5 +17,5 @@ public class Client : Entity
     public string Password { get; private set; }
     
     [ManyToOne<Rental>(nameof(Rental.Client)), IncludeInGet(1), IgnorePostRequest, IgnorePutRequest]
-    public List<Rental> Rentals { get; private set; }
+    public ICollection<Rental> Rentals { get; private set; }
 }

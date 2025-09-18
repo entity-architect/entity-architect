@@ -1,6 +1,6 @@
-using EntityArchitect.CRUD.Authorization.Attributes;
-using EntityArchitect.CRUD.CustomEndpoints;
 using EntityArchitect.CRUD.Entities.Repository;
+using EntityArchitect.CRUD.Feature;
+using EntityArchitect.CRUD.Feature.Methods;
 using EntityArchitect.CRUD.Results.Abstracts;
 using EntityArchitect.CRUD.Services;
 using EntityArchitect.Example.Entities;
@@ -8,16 +8,13 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace EntityArchitect.Example;
 
-public class TestCustomEndpoint(IClaimProvider claimProvider, IRepository<Client> clientRepository) : Feature<Client>
+
+public record TestCustomEndpointCommand(Guid AuthorId) : ICommand<string>, IPost;
+public class TestCustomEndpointCommandHandler(IRepository<Author> authorRepository) : ICommandHandler<TestCustomEndpointCommand, string>
 {
-    [Feature("POST", "Test"), Secured(typeof(Client))]
-    public async Task<Result<string>> Test([FromBody] Author text, CancellationToken cancellationToken)
+    public async Task<Result<string>> HandleAsync(TestCustomEndpointCommand command, CancellationToken cancellationToken = default)
     {
-        var claims = claimProvider.GetClaims();
-        var id = Guid.Parse(claims.FirstOrDefault(c => c.Type == "id")?.Value!);
-        
-        var client = await clientRepository.GetByIdAsync(id, cancellationToken);
-        
-        return Result.Success("Cześć " + client.Name + " " + text);
+        var author = await authorRepository.GetByIdAsync(command.AuthorId, cancellationToken);
+        return Result.Success("Cześć " + author.Name);    
     }
 }

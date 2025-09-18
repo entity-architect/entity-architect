@@ -6,14 +6,13 @@ using EntityArchitect.CRUD.Files;
 
 namespace EntityArchitect.Example.Entities;
 
-[Secured(typeof(Entities.Client))]
 public class Author : Entity
 {
     public string Name { get; set; }
     
     [ManyToOne<Book>(nameof(Book.Author)), IgnorePostRequest, IgnorePutRequest]
-    public List<Book> Books { get; set;}
-    public EntityFile Avatar { get; set; }
+    public ICollection<Book> Books { get; set;}
+    
 
     public void AddToName(string addedByAction)
     {
