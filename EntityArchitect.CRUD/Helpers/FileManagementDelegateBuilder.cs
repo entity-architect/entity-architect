@@ -1,19 +1,10 @@
-using System;
-using System.Diagnostics;
-using System.Linq;
 using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
 using EntityArchitect.CRUD.Entities.Context;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Entities.Repository;
 using EntityArchitect.CRUD.Files;
 using EntityArchitect.CRUD.Results.Abstracts;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Net.Http.Headers;
 
 namespace EntityArchitect.CRUD.Helpers;
 
@@ -46,7 +37,7 @@ public class FileManagementDelegateBuilder<TEntity> where TEntity : Entity
                 var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
                 var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-                var entity = await service.GetByIdAsync(entityId, null,cancellationToken);
+                var entity = await service.GetByIdAsync(entityId ,cancellationToken);
                 if (entity is null)
                     return Result.Failure(Error.NotFound(entityId, _entityName));
 
@@ -80,7 +71,7 @@ public class FileManagementDelegateBuilder<TEntity> where TEntity : Entity
                 var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
                 var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-                var entity = await service.GetByIdAsync(entityId, null, cancellationToken);
+                var entity = await service.GetByIdAsync(entityId, cancellationToken);
                 if (entity is null)
                     return Result.Failure(Error.NotFound(entityId, _entityName));
 
@@ -111,7 +102,7 @@ public class FileManagementDelegateBuilder<TEntity> where TEntity : Entity
             using (var scope = _provider.CreateScope())
             {
                 var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
-                var entity = await service.GetByIdAsync(id, null, cancellationToken);
+                var entity = await service.GetByIdAsync(id, cancellationToken);
                 if (entity is null)
                     return Microsoft.AspNetCore.Http.Results.NotFound();
 

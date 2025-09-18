@@ -11,7 +11,7 @@ public class Author : Entity
 {
     public string Name { get; set; }
     
-    [RelationManyToOne<Book>(nameof(Book.Author)), IgnorePostRequest, IgnorePutRequest]
+    [ManyToOne<Book>(nameof(Book.Author)), IgnorePostRequest, IgnorePutRequest]
     public List<Book> Books { get; set;}
     public EntityFile Avatar { get; set; }
 

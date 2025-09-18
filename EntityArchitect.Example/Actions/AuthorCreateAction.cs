@@ -14,7 +14,7 @@ public class AuthorCreateAction(ILogger logger, IClaimProvider claimProvider, IR
     {
         Console.WriteLine(claimProvider.GetHashCode());
         var claims = Guid.Parse(claimProvider.GetClaims().FirstOrDefault(c => c.Type == "id")!.Value);
-        var client = await clientRepository.GetByIdAsync(claims,null, cancellationToken);
+        var client = await clientRepository.GetByIdAsync(claims, cancellationToken, c=>c.Rentals);
         if (client == null)
         {
             logger.Log("Client not found");

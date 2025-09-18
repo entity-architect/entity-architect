@@ -8,15 +8,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace EntityArchitect.Example;
 
-public class TestCustomEndpoint(IClaimProvider claimProvider, IRepository<Client> clientRepository) : CustomEndpoint<Client>
+public class TestCustomEndpoint(IClaimProvider claimProvider, IRepository<Client> clientRepository) : Feature<Client>
 {
-    [CustomEndpoint("POST", "Test"), Secured(typeof(Client))]
-    public async Task<Result<string>> Test([FromBody] Author text)
+    [Feature("POST", "Test"), Secured(typeof(Client))]
+    public async Task<Result<string>> Test([FromBody] Author text, CancellationToken cancellationToken)
     {
         var claims = claimProvider.GetClaims();
         var id = Guid.Parse(claims.FirstOrDefault(c => c.Type == "id")?.Value!);
         
-        var client = await clientRepository.GetByIdAsync(id);
+        var client = await clientRepository.GetByIdAsync(id, cancellationToken);
         
         return Result.Success("Cześć " + client.Name + " " + text);
     }

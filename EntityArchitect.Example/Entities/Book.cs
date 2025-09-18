@@ -10,11 +10,11 @@ public class Book : Entity
 {
     public string? Title { get; private set; }
 
-    [RelationOneToMany<Author>(nameof(Author.Books))]
+    [OneToMany<Author>(nameof(Author.Books))]
     [IncludeInGet(1)]
     public Author Author { get; private set;}
 
-    [RelationManyToOne<Rental>(nameof(Rental.Book))]
+    [ManyToOne<Rental>(nameof(Rental.Book))]
     [IgnorePostRequest]
     [IgnorePutRequest]
     public List<Rental> Rentals { get; private set; }

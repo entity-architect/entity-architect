@@ -1,12 +1,7 @@
-using System;
-using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Net;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.Attributes.CrudAttributes;
 using EntityArchitect.CRUD.Authorization.Attributes;
@@ -21,10 +16,7 @@ using EntityArchitect.CRUD.Results;
 using EntityArchitect.CRUD.Results.Abstracts;
 using EntityArchitect.CRUD.Services;
 using EntityArchitect.CRUD.TypeBuilders;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 
 namespace EntityArchitect.CRUD.Helpers;
@@ -151,7 +143,7 @@ public class DelegateBuilder<
                     return Result.Failure<TEntityResponse>(result.Errors);
                 
                 entity = result.Value;
-                var oldEntity = await service.GetByIdAsync(new Id<TEntity?>(entity.Id.Value), null, cancellationToken);
+                var oldEntity = await service.GetByIdAsync(new Id<TEntity?>(entity.Id.Value), cancellationToken);
                 if (oldEntity is null)
                     return Result.Failure<TEntityResponse>(Error.NotFound(entity.Id.Value, _entityName));
 
@@ -195,7 +187,7 @@ public class DelegateBuilder<
                 var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var actions = scope.GetEndpointActionsAsync<TEntity>();
 
-                var entity = await service.GetByIdAsync(id, null,cancellationToken);
+                var entity = await service.GetByIdAsync(id,cancellationToken);
                 if (entity is null)
                     return Result.Failure(Error.NotFound(id, _entityName));
                 var result = await actions!.InvokeBeforeDeleteAsync(entity, cancellationToken);
@@ -208,92 +200,6 @@ public class DelegateBuilder<
             }
 
             return Result.Success();
-        };
-
-    public Func<Guid, CancellationToken, ValueTask<Result<TEntityResponse>>> GetByIdDelegate =>
-        async (id, cancellationToken) =>
-        {
-            using var scope = _provider.CreateScope();
-            var x = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
-                
-            var claimProvider = scope.ServiceProvider.GetRequiredService<IClaimProvider>();
-            claimProvider.SetClaims(x.HttpContext.User.Claims.ToList());
-            Console.WriteLine(claimProvider.GetHashCode());
-            
-            var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
-            var actions = scope.GetEndpointActionsAsync<TEntity>();
-
-            var properties = typeof(TEntity).GetProperties()
-                .Where(x => x.CustomAttributes.Any(c => c.AttributeType == typeof(IncludeInGetAttribute)))
-                .Select(x => x.Name)
-                .ToList();
-
-            var spec = new SpecificationBySpec<TEntity>(x => x.Id == id, properties);
-
-            var entity = await service.GetBySpecificationIdAsync(spec, cancellationToken);
-            if (entity is not null)
-            {
-                var resultEntity = await actions!.InvokeAfterGetByIdAsync(entity, cancellationToken);
-                if (resultEntity.IsFailure)
-                    return Result.Failure<TEntityResponse>(resultEntity.Errors);
-                entity = resultEntity.Value;
-                return entity.ConvertEntityToResponse<TEntity, TEntityResponse>();
-            }
-            
-            var result = Result.Failure<TEntityResponse>(Error.NotFound(id, _entityName));
-            return result;
-        };
-
-    public Func<CancellationToken, ValueTask<Result<List<TLightListResponse>>>> GetLightListDelegate =>
-        async (cancellationToken) =>
-        {
-            using var scope = _provider.CreateScope();
-            var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
-            
-            var entities = await service.GetLightListAsync(cancellationToken);
-            
-            var response
-                = entities.Select(c =>
-                        c.ConvertEntityToLightListResponse<TEntity, TLightListResponse>())
-                    .ToList();
-
-            return response;
-        };
-    
-    public Func<int, CancellationToken, ValueTask<Result<PaginatedResult<TEntityResponse>>>> GetListDelegate =>
-        async (page, cancellationToken) =>
-        {
-            using var scope = _provider.CreateScope();
-            var service = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
-            var actions = scope.GetEndpointActionsAsync<TEntity>();
-
-            var itemCount = (int)typeof(TEntity).CustomAttributes
-                .First(c => c.AttributeType == typeof(GetListPaginatedAttribute)).ConstructorArguments.First().Value!;
-
-            var properties = typeof(TEntity).GetProperties()
-                .Where(x => x.CustomAttributes.Any(c => c.AttributeType == typeof(IncludeInGetAttribute)))
-                .Select(x => x.Name)
-                .ToList();
-
-            var entities = await service.GetAllPaginatedAsync(page, itemCount, properties, cancellationToken);
-            var result = await actions!.InvokeAfterGetPaginatedAsync(page, itemCount, entities, cancellationToken);
-            if (result.IsFailure)
-                return Result.Failure<PaginatedResult<TEntityResponse>>(result.Errors);
-            
-            entities = result.Value;
-            var response
-                = entities.Select(c =>
-                        c.ConvertEntityToResponse<TEntity, TEntityResponse>())
-                    .ToList();
-            
-            var totalCount = await service.GetCountAsync(cancellationToken);
-            var pageCount = (int)Math.Round((double)totalCount / itemCount, MidpointRounding.ToEven);
-            var leftPages = pageCount - (page + 1);
-            if(pageCount == 0) 
-                leftPages = 0;
-            
-            var paginatedResponse = new PaginatedResult<TEntityResponse>(response, page, leftPages, pageCount, totalCount);
-            return paginatedResponse;
         };
     
     public Func<AuthorizationRequest, CancellationToken, ValueTask<Result<AuthorizationResponse>>> Login =>
@@ -355,7 +261,7 @@ public class DelegateBuilder<
                 return Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.Unauthorized, "Invalid token."));
             var id = Guid.Parse(identity.Claims.First(c => c.Key == "id").Value.ToString() ?? string.Empty); 
             
-            var entity = await repository.GetByIdAsync(new Id<TEntity>(id),  null,cancellationToken);
+            var entity = await repository.GetByIdAsync(id,cancellationToken);
             if(entity is null)
                 return Result.Failure<AuthorizationResponse>(new Error(HttpStatusCode.NotFound, $"User {_entityName} not found."));
             
