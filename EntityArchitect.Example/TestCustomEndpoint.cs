@@ -8,8 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace EntityArchitect.Example;
 
-
-public record TestCustomEndpointCommand(Guid AuthorId) : ICommand<string>, IPost;
+[CRUD.Feature.Route(nameof(Author), "say-hi")]
+public record TestCustomEndpointCommand(Guid AuthorId) : ICommand<string>, IGet;
 public class TestCustomEndpointCommandHandler(IRepository<Author> authorRepository) : ICommandHandler<TestCustomEndpointCommand, string>
 {
     public async Task<Result<string>> HandleAsync(TestCustomEndpointCommand command, CancellationToken cancellationToken = default)

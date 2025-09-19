@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Linq;
+using System.Security.Claims;
 using EntityArchitect.CRUD.Attributes.CrudAttributes;
 using EntityArchitect.CRUD.Authorization.Attributes;
 using EntityArchitect.CRUD.Authorization.Service;
@@ -220,20 +221,48 @@ public static partial class ApiBuilder
                     if (httpMethod is null) throw new Exception($"Custom endpoint {commandType.Name} must have HTTP method attribute.");
 
                     var route = ConvertEndpointNameRegex().Replace(commandType.Name, "$1-$2");
-                    if (commandType.GetInterfaces().First().GetGenericArguments()[0]
-                            .GetCustomAttribute<RouteAttribute>() is not null)
+                    var group = "custom";
+                    if (commandType.GetCustomAttribute<RouteAttribute>() is not null)
                     {
-                        route = commandType.GetGenericArguments()[0]
-                            .GetCustomAttribute<RouteAttribute>()
-                            ?.Route;
+                        route = commandType.GetCustomAttribute<RouteAttribute>()?.Route;
+                        group = commandType.GetCustomAttribute<RouteAttribute>()?.Group ?? group;
                     }
 
-                    var customGroup = endpoints.MapGroup(JoinRoute(basePath, "custom"));
+                    //get grope by name
+                    
+                    var customGroup = endpoints.MapGroup(group);
                     RouteHandlerBuilder endpoint = null!;
 
                     if (httpMethod == typeof(IPost))
                     {
                         var delegateMapFeature = typeof(ApiBuilder).GetMethod(nameof(MapPostFeature))?.MakeGenericMethod(
+                            commandType, handler.GetType().GetInterfaces().First().GetGenericArguments()[1]);
+
+                        endpoint = delegateMapFeature!.Invoke(null, new object[] { customGroup, handler.GetType(), route! }) as RouteHandlerBuilder
+                                   ?? throw new Exception("Could not create endpoint.");
+                    }
+                    
+                    if (httpMethod == typeof(IPut))
+                    {
+                        var delegateMapFeature = typeof(ApiBuilder).GetMethod(nameof(MapPutFeature))?.MakeGenericMethod(
+                            commandType, handler.GetType().GetInterfaces().First().GetGenericArguments()[1]);
+
+                        endpoint = delegateMapFeature!.Invoke(null, new object[] { customGroup, handler.GetType(), route! }) as RouteHandlerBuilder
+                                   ?? throw new Exception("Could not create endpoint.");
+                    }
+                    
+                    if (httpMethod == typeof(IDelete))
+                    {
+                        var delegateMapFeature = typeof(ApiBuilder).GetMethod(nameof(MapDeleteFeature))?.MakeGenericMethod(
+                            commandType, handler.GetType().GetInterfaces().First().GetGenericArguments()[1]);
+
+                        endpoint = delegateMapFeature!.Invoke(null, new object[] { customGroup, handler.GetType(), route! }) as RouteHandlerBuilder
+                                   ?? throw new Exception("Could not create endpoint.");
+                    }
+                    
+                    if (httpMethod == typeof(IGet))
+                    {
+                        var delegateMapFeature = typeof(ApiBuilder).GetMethod(nameof(MapGetFeature))?.MakeGenericMethod(
                             commandType, handler.GetType().GetInterfaces().First().GetGenericArguments()[1]);
 
                         endpoint = delegateMapFeature!.Invoke(null, new object[] { customGroup, handler.GetType(), route! }) as RouteHandlerBuilder
@@ -252,20 +281,119 @@ public static partial class ApiBuilder
     }
 
     public static RouteHandlerBuilder MapPostFeature<TCommand, TResponse>(this IEndpointRouteBuilder group, Type handlerType, string name)
-        where TCommand : ICommand<TResponse> where TResponse : class
-    {
-        var endpoint = group.MapPost(name, ([FromBody] TCommand request, HttpContext context, IServiceProvider services,
-                CancellationToken cancellationToken) =>
-        {
-            var cp = services.GetRequiredService<IClaimProvider>();
-            cp.SetClaims(context.User.Claims.ToList());
-            var handler = services.GetRequiredService(handlerType) as ICommandHandler<TCommand, TResponse>;
-            
-            return handler!.HandleAsync(request, cancellationToken);
-        });
+        where TCommand : ICommand<TResponse> where TResponse : class =>
+        group.MapPost(name, MapCommandEndpoint<TCommand, TResponse>(handlerType)).ConfigureEndpoint<TResponse>();
 
+    public static RouteHandlerBuilder MapPutFeature<TCommand, TResponse>(this IEndpointRouteBuilder group, Type handlerType, string name)
+        where TCommand : ICommand<TResponse> where TResponse : class =>
+        group.MapPut(name, MapCommandEndpoint<TCommand, TResponse>(handlerType)).ConfigureEndpoint<TResponse>();
+
+    public static RouteHandlerBuilder MapDeleteFeature<TCommand, TResponse>(this IEndpointRouteBuilder group, Type handlerType, string name)
+        where TCommand : ICommand<TResponse> where TResponse : class =>
+        group.MapDelete(name, MapCommandEndpoint<TCommand, TResponse>(handlerType, true)).ConfigureEndpoint();
+
+    public static RouteHandlerBuilder MapGetFeature<TCommand, TResponse>(this IEndpointRouteBuilder group, Type handlerType, string name)
+        where TCommand : ICommand<TResponse> where TResponse : class =>
+        group.MapGet(name, MapCommandEndpoint<TCommand, TResponse>(handlerType, true)).ConfigureEndpoint();
+    
+    
+    private static RouteHandlerBuilder ConfigureEndpoint<TResponse>(this RouteHandlerBuilder endpoint) where TResponse : class
+    {
+        endpoint.Produces(500, typeof(Result));
         endpoint.Produces(200, typeof(Result<TResponse>));
         return endpoint;
+    }
+    private static RouteHandlerBuilder ConfigureEndpoint(this RouteHandlerBuilder endpoint)
+    {
+        endpoint.Produces(500, typeof(Result));
+        endpoint.Produces(200, typeof(Result));
+        return endpoint;
+    }
+
+    private static Delegate MapCommandEndpoint<TCommand, TResponse>(Type handlerType, bool fromQuery = false)
+        where TCommand : ICommand<TResponse> where TResponse : class
+    {
+        // Zwracamy METHOD GROUP, nie lambdę:
+        if (!fromQuery)
+        {
+            return (Func<TCommand, HttpContext, CancellationToken, Task<Result<TResponse>>>)
+                HandleFromBody<TCommand, TResponse>;
+        }
+        else
+        {
+            return (Func<TCommand, HttpContext, CancellationToken, Task<Result<TResponse>>>)
+                HandleFromQuery<TCommand, TResponse>;
+        }
+
+
+        Task<Result<TResponse>> HandleFromBody<TCommand, TResponse>(
+            [FromBody] TCommand request,
+            HttpContext context,
+            CancellationToken cancellationToken)
+            where TCommand : ICommand<TResponse>
+            where TResponse : class
+        {
+            var services = context.RequestServices;
+
+            var cp = services.GetRequiredService<IClaimProvider>();
+            cp.SetClaims(context.User?.Claims?.ToList() ?? new List<Claim>());
+
+            var handlerObj = services.GetRequiredService(handlerType);
+            var handler = (ICommandHandler<TCommand, TResponse>)handlerObj;
+
+            return handler.HandleAsync(request, cancellationToken);
+        }
+
+        Task<Result<TResponse>> HandleFromQuery<TCommand, TResponse>(
+            [AsParameters] TCommand request,
+            HttpContext context,
+            CancellationToken cancellationToken)
+            where TCommand : ICommand<TResponse>
+            where TResponse : class
+        {
+            var services = context.RequestServices;
+
+            var cp = services.GetRequiredService<IClaimProvider>();
+            cp.SetClaims(context.User?.Claims?.ToList() ?? new List<Claim>());
+
+            var handlerObj = services.GetRequiredService(handlerType);
+            var handler = (ICommandHandler<TCommand, TResponse>)handlerObj;
+
+            return handler.HandleAsync(request, cancellationToken);
+        }
+    }
+
+
+
+    private static Delegate MapCommandEndpoint<TCommand>(Type handlerType, bool fromQuery = false)
+        where TCommand : ICommand
+    {
+        if (!fromQuery)
+            return new Func<TCommand, HttpContext, CancellationToken, Task<Result>>(
+                ([FromBody] request, context, cancellationToken) =>
+                {
+                    var services = context.RequestServices;
+
+                    var cp = services.GetRequiredService<IClaimProvider>();
+                    cp.SetClaims(context.User?.Claims?.ToList() ?? new List<System.Security.Claims.Claim>());
+                    var handler = services.GetRequiredService(handlerType) as ICommandHandler<TCommand>;
+
+                    return handler.HandleAsync(request, cancellationToken);
+                });
+        else
+        {
+            return new Func<TCommand, HttpContext, CancellationToken, Task<Result>>(
+                ([FromQuery] request, context, cancellationToken) =>
+                {
+                    var services = context.RequestServices;
+
+                    var cp = services.GetRequiredService<IClaimProvider>();
+                    cp.SetClaims(context.User?.Claims?.ToList() ?? new List<System.Security.Claims.Claim>());
+                    var handler = services.GetRequiredService(handlerType) as ICommandHandler<TCommand>;
+
+                    return handler.HandleAsync(request, cancellationToken);
+                });
+        }
     }
 
     public static void MapGetEndpoint<TParam, TQuery, TEntity>(IEndpointRouteBuilder group, string endpointName,
