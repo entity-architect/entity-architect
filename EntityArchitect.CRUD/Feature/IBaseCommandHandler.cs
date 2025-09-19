@@ -1,3 +1,3 @@
 namespace EntityArchitect.CRUD.Feature;
 
-public record Command : ICommand<string>;
+public interface IBaseCommandHandler;

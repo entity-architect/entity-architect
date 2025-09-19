@@ -1,9 +1,8 @@
 using System.Reflection;
-using EntityArchitect.CRUD.Actions;
-using EntityArchitect.CRUD.CustomEndpoints;
 using EntityArchitect.CRUD.Entities.Context;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Entities.Repository;
+using EntityArchitect.CRUD.Feature;
 using EntityArchitect.CRUD.Files;
 using EntityArchitect.CRUD.Services;
 using Microsoft.EntityFrameworkCore;
@@ -43,14 +42,7 @@ public static class DependencyInjection
         
         foreach (var entity in enumerable)
         {
-            var actionType = typeof(EndpointAction<>).MakeGenericType(entity);
-            entityAssembly.ExportedTypes.Where(c => c.BaseType == actionType).ToList()
-                .ForEach(c => services.AddScoped(c));
-        }
-        
-        foreach (var entity in enumerable)
-        {
-            var customEndpointType = typeof(Feature<>).MakeGenericType(entity);
+            var customEndpointType = typeof(ICommand<>).MakeGenericType(entity);
             entityAssembly.ExportedTypes.Where(c => c.BaseType == customEndpointType).ToList()
                 .ForEach(c => services.AddScoped(c));
         }
@@ -58,6 +50,19 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
         services.AddAntiforgery(); 
         services.AddTransient<IFileService, FileService>();
+        
+        var assembly = Assembly.GetEntryAssembly()!;
+        var types = assembly.GetTypes().Where(c => c.GetInterfaces()
+            .Contains(typeof(IBaseCommand))).ToList();
+        var handlers = assembly.GetTypes().Where(c => c.GetInterfaces()
+            .Contains(typeof(IBaseCommandHandler)) && c is { IsInterface: false, IsAbstract: false }).ToList();
+        List<IBaseCommandHandler> endpoints = [];
+        foreach (var item in types)
+        {
+            var handlerType = handlers.FirstOrDefault(c => c.GetInterfaces().Skip(c.GetInterfaces().Length - 2).First().GetGenericArguments()[0] == item);
+            if (handlerType == null) throw new InvalidOperationException($"Handler for {item.Name} not found.");
+            services.AddScoped(handlerType);
+        }
 
         return services;
     }

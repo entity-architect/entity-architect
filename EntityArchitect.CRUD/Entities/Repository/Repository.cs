@@ -24,7 +24,8 @@ public class Repository<TEntity>(ApplicationDbContext context) :
         return query.FirstOrDefaultAsync(e => e.Id.Value == id, cancellationToken);
     }
 
-    public ValueTask<TEntity?> GetByIdAsync(Id<TEntity> id, CancellationToken cancellationToken = default) => context.Set<TEntity>().FindAsync(new object?[] { id.Value }, cancellationToken: cancellationToken);
+    public ValueTask<TEntity?> GetByIdAsync(Id<TEntity> id, CancellationToken cancellationToken = default) => 
+        context.Set<TEntity>().FindAsync(new object?[] { new Id<Entity>(id) }, cancellationToken: cancellationToken);
 
     public Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken) => context.Set<TEntity>().AnyAsync(c => c.Id == id, cancellationToken: cancellationToken);
 
