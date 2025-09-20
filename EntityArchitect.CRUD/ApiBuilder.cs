@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Linq;
+using System.Net;
 using System.Security.Claims;
 using EntityArchitect.CRUD.Attributes.CrudAttributes;
 using EntityArchitect.CRUD.Authorization.Attributes;
@@ -14,6 +16,7 @@ using EntityArchitect.CRUD.Queries;
 using EntityArchitect.CRUD.Results.Abstracts;
 using EntityArchitect.CRUD.Services;
 using EntityArchitect.CRUD.TypeBuilders;
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Builder;
@@ -82,7 +85,6 @@ public static partial class ApiBuilder
                 var responseType = typeBuilder.BuildResponseFromEntity(entity);
                 var lightListResponseType = typeBuilder.BuildLightListProperty(entity);
 
-                // ZAMIANA Path.Combine -> JoinRoute
                 var group = endpoints.MapGroup(JoinRoute(basePath, name));
 
                 var delegateBuilder = typeof(DelegateBuilder<,,,,>).MakeGenericType(entity, requestPostType, requestUpdateType, responseType, lightListResponseType)
@@ -227,7 +229,7 @@ public static partial class ApiBuilder
                         route = commandType.GetCustomAttribute<RouteAttribute>()?.Route;
                         group = commandType.GetCustomAttribute<RouteAttribute>()?.Group ?? group;
                     }
-
+                    
                     //get grope by name
                     
                     var customGroup = endpoints.MapGroup(group);
@@ -313,7 +315,6 @@ public static partial class ApiBuilder
     private static Delegate MapCommandEndpoint<TCommand, TResponse>(Type handlerType, bool fromQuery = false)
         where TCommand : ICommand<TResponse> where TResponse : class
     {
-        // Zwracamy METHOD GROUP, nie lambdę:
         if (!fromQuery)
         {
             return (Func<TCommand, HttpContext, CancellationToken, Task<Result<TResponse>>>)
@@ -326,7 +327,7 @@ public static partial class ApiBuilder
         }
 
 
-        Task<Result<TResponse>> HandleFromBody<TCommand, TResponse>(
+        async Task<Result<TResponse>> HandleFromBody<TCommand, TResponse>(
             [FromBody] TCommand request,
             HttpContext context,
             CancellationToken cancellationToken)
@@ -334,17 +335,30 @@ public static partial class ApiBuilder
             where TResponse : class
         {
             var services = context.RequestServices;
-
+            
+            var validator = typeof(TCommand).Assembly.GetTypes().FirstOrDefault(c => c.BaseType == typeof(AbstractValidator<>).MakeGenericType(typeof(TCommand)));
+            if (validator is not null)
+            {
+                if (Activator.CreateInstance(validator) is AbstractValidator<TCommand> v)
+                {
+                    var validationResult = await v.ValidateAsync(request, cancellationToken);
+                    if (!validationResult.IsValid)
+                    { 
+                        return Result.Failure<TResponse>(validationResult.Errors.Select(c => new Error(HttpStatusCode.BadRequest, c.ErrorMessage)).ToList());
+                    }
+                }
+            }
+            
             var cp = services.GetRequiredService<IClaimProvider>();
             cp.SetClaims(context.User?.Claims?.ToList() ?? new List<Claim>());
 
             var handlerObj = services.GetRequiredService(handlerType);
             var handler = (ICommandHandler<TCommand, TResponse>)handlerObj;
 
-            return handler.HandleAsync(request, cancellationToken);
+            return await handler.HandleAsync(request, cancellationToken);
         }
 
-        Task<Result<TResponse>> HandleFromQuery<TCommand, TResponse>(
+        async Task<Result<TResponse>> HandleFromQuery<TCommand, TResponse>(
             [AsParameters] TCommand request,
             HttpContext context,
             CancellationToken cancellationToken)
@@ -352,14 +366,25 @@ public static partial class ApiBuilder
             where TResponse : class
         {
             var services = context.RequestServices;
-
+            var validator = typeof(TCommand).Assembly.GetTypes().FirstOrDefault(c => c.BaseType == typeof(AbstractValidator<>).MakeGenericType(typeof(TCommand)));
+            if (validator is not null)
+            {
+                if (Activator.CreateInstance(validator) is AbstractValidator<TCommand> v)
+                {
+                    var validationResult = await v.ValidateAsync(request, cancellationToken);
+                    if (!validationResult.IsValid)
+                    { 
+                        return Result.Failure<TResponse>(validationResult.Errors.Select(c => new Error(HttpStatusCode.BadRequest, c.ErrorMessage)).ToList());
+                    }
+                }
+            }
             var cp = services.GetRequiredService<IClaimProvider>();
             cp.SetClaims(context.User?.Claims?.ToList() ?? new List<Claim>());
 
             var handlerObj = services.GetRequiredService(handlerType);
             var handler = (ICommandHandler<TCommand, TResponse>)handlerObj;
 
-            return handler.HandleAsync(request, cancellationToken);
+            return await handler.HandleAsync(request, cancellationToken);
         }
     }
 
