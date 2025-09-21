@@ -6,7 +6,6 @@ using EntityArchitect.CRUD.Entities.Entities;
 namespace EntityArchitect.Example.Entities;
 
 [IncludeInGet(2)]
-[Secured(typeof(Client))]
 public class Rental : Entity
 {
     [OneToMany<Book>(nameof(Entities.Book.Rentals))]

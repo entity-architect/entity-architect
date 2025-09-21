@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EntityArchitect.Example.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250918213429_RemoveImage")]
-    partial class RemoveImage
+    [Migration("20250921165859_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,31 @@ namespace EntityArchitect.Example.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("EntityArchitect.CRUD.Application.EndpointMap", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("HttpMethod")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("http_method");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("path");
+
+                    b.HasKey("Id")
+                        .HasName("pk___endpoint_map");
+
+                    b.ToTable("__EndpointMap", (string)null);
+                });
 
             modelBuilder.Entity("EntityArchitect.Example.Entities.Author", b =>
                 {

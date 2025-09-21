@@ -1,12 +1,13 @@
-using System.Diagnostics;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using System.Linq;
 using System.Net;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using EntityArchitect.CRUD.Application;
 using EntityArchitect.CRUD.Attributes.CrudAttributes;
 using EntityArchitect.CRUD.Authorization.Attributes;
 using EntityArchitect.CRUD.Authorization.Service;
+using EntityArchitect.CRUD.Entities.Context;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Feature;
 using EntityArchitect.CRUD.Feature.Methods;
@@ -18,11 +19,8 @@ using EntityArchitect.CRUD.Services;
 using EntityArchitect.CRUD.TypeBuilders;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Routing;
-using Microsoft.AspNetCore.Http;
-using Newtonsoft.Json;
 using RouteAttribute = EntityArchitect.CRUD.Feature.RouteAttribute;
 
 namespace EntityArchitect.CRUD;
@@ -33,19 +31,17 @@ public static partial class ApiBuilder
     {
     }
 
-    // Helper do łączenia segmentów tras (zawsze z '/')
     private static string JoinRoute(params string[] segments) =>
         "/" + string.Join('/', segments
             .Where(s => !string.IsNullOrWhiteSpace(s))
             .Select(s => s.Trim('/')));
 
     public static IApplicationBuilder MapEntityArchitectCrud(this IApplicationBuilder app, Assembly assembly,
-        string basePath = "")
+        string basePath = "", string sqlPath = "")
     {
         var enumerable = assembly.ExportedTypes.Where(c => c.BaseType == typeof(Entity)).ToList();
         var typeBuilder = new TypeBuilder();
 
-        // Middleware MUSZĄ być dodane przed mapowaniem endpointów
         app.UseRouting();
 
         var auth = app.ApplicationServices.GetService(typeof(IAuthorizationBuilderService));
@@ -57,6 +53,12 @@ public static partial class ApiBuilder
         }
 
         app.UseAntiforgery();
+        
+        var queryFiles = string.IsNullOrEmpty(sqlPath)
+            ? Array.Empty<string>()
+            : Directory.GetFiles(sqlPath, "*.sql", SearchOption.AllDirectories)
+                .Select(f => f.Replace('\\', '/'))
+                .ToArray();
 
         // Konfiguracja endpointów – synchroniczna
         void Configure(IEndpointRouteBuilder endpoints)
@@ -67,29 +69,28 @@ public static partial class ApiBuilder
                 var name = result.ToLower();
 
                 var authorizationPolicies = new List<Type>();
-                var haveAuthorization = entity.CustomAttributes.Any(c => c.AttributeType == typeof(SecuredAttribute));
-                var authorizationEntityAttribute = entity.GetCustomAttribute<SecuredAttribute>();
-                if (authorizationEntityAttribute is not null)
-                {
-                    foreach (var type in authorizationEntityAttribute.EntityTypes)
-                    {
-                        if (type.CustomAttributes.All(c => c.AttributeType != typeof(AuthorizationEntityAttribute)))
-                            throw new Exception($"AuthorizationEntityAttribute can only have AuthorizationEntityAttribute as EntityTypes. {type.Name}");
-
-                        authorizationPolicies.Add(type);
-                    }
-                }
+                var haveAuthorization = false;//entity.CustomAttributes.Any(c => c.AttributeType == typeof(SecuredAttribute));
+                //var authorizationEntityAttribute = entity.GetCustomAttribute<SecuredAttribute>();
+                //if (authorizationEntityAttribute is not null)
+                //{
+                //    foreach (var type in authorizationEntityAttribute.EntityTypes)
+                //    {
+                //        if (type.CustomAttributes.All(c => c.AttributeType != typeof(AuthorizationEntityAttribute)))
+                //            throw new Exception($"AuthorizationEntityAttribute can only have AuthorizationEntityAttribute as EntityTypes. {type.Name}");
+//
+                //        authorizationPolicies.Add(type);
+                //    }
+                //}
 
                 var requestPostType = typeBuilder.BuildCreateRequestFromEntity(entity);
                 var requestUpdateType = typeBuilder.BuildUpdateRequestFromEntity(entity);
                 var responseType = typeBuilder.BuildResponseFromEntity(entity);
-                var lightListResponseType = typeBuilder.BuildLightListProperty(entity);
 
-                var group = endpoints.MapGroup(JoinRoute(basePath, name));
+                var group = endpoints.MapGroup(JoinRoute(basePath, name)).WithTags(entity.Name.ToLower());
 
-                var delegateBuilder = typeof(DelegateBuilder<,,,,>).MakeGenericType(entity, requestPostType, requestUpdateType, responseType, lightListResponseType)
+                var delegateBuilder = typeof(DelegateBuilder<,,,>).MakeGenericType(entity, requestPostType, requestUpdateType, responseType)
                     .GetMethod("Create")
-                    ?.MakeGenericMethod(entity, requestPostType, requestUpdateType, responseType, lightListResponseType)
+                    ?.MakeGenericMethod(entity, requestPostType, requestUpdateType, responseType)
                     .Invoke(null, new object[] { endpoints.ServiceProvider });
 
                 if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotCreateAttribute)))
@@ -122,7 +123,7 @@ public static partial class ApiBuilder
 
                 if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotDeleteAttribute)))
                 {
-                    var deleteHandler = delegateBuilder!.GetType().GetProperty("DeleteDelegate")!.GetValue(delegateBuilder) as Delegate;
+                    var deleteHandler = delegateBuilder!.GetType().GetProperty(nameof(DelegateBuilder<Entity, Entity, Entity, Response>.DeleteDelegate))!.GetValue(delegateBuilder) as Delegate;
                     var endpoint = group.MapDelete("{id}", deleteHandler!);
 
                     if (haveAuthorization) endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
@@ -155,21 +156,19 @@ public static partial class ApiBuilder
                     if (haveAuthorization) endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
                 }
 
-                var queries = assembly.GetTypes().Where(c => c.BaseType == typeof(Query<>).MakeGenericType(entity));
-                foreach (var query in queries)
+                
+                foreach (var query in queryFiles.Where(c => 
+                             string.Equals(c.Split("/")[0], sqlPath,     StringComparison.CurrentCultureIgnoreCase) &&
+                             string.Equals(c.Split("/")[1], entity.Name, StringComparison.CurrentCultureIgnoreCase)))
                 {
-                    var instance = Activator.CreateInstance(query);
-                    var sql = query.GetProperty(nameof(Query<Entity>.Sql))?.GetValue(instance);
-                    if (sql is null) continue;
+                    var sql = File.ReadAllText(query);
 
-                    // Synchronous read – konfiguracja endpointów nie jest async
-                    if ((bool)query.GetProperty(nameof(Query<Entity>.UseSqlFile))?.GetValue(instance)!)
-                        sql = File.ReadAllText((string)sql);
+                    var endpointName = query.Split("/").Last().Replace(".sql", "").ToLower();
+                    var queryType = typeBuilder.BuildQueryRequest(sql, endpointName);
+                    var mi = typeof(ApiBuilder).GetMethod(nameof(MapGetEndpoint))?.MakeGenericMethod(queryType, entity);
 
-                    var queryType = typeBuilder.BuildQueryRequest((sql as string)!, query.Name);
-                    var mi = typeof(ApiBuilder).GetMethod("MapGetEndpoint")?.MakeGenericMethod(queryType, query, entity);
-
-                    mi!.Invoke(group, new object[] { group, query.Name, app });
+                    var isSingle = false;
+                    mi!.Invoke(group, new object[] { group, query.Replace(sqlPath + "/" + entity.Name + "/", "").Replace(".sql", ""), sql ,isSingle, app });
                 }
 
                 var fileProperties = entity.GetProperties().Where(c => c.PropertyType == typeof(EntityFile)).ToList();
@@ -203,7 +202,7 @@ public static partial class ApiBuilder
                     endpoint.WithDisplayName($"Download file for {entity.Name}");
                 }
 
-                group.WithTags(name);
+                group.WithTags(name.ToLower());
             }
 
             using (var scope = app.ApplicationServices.CreateScope())
@@ -230,9 +229,7 @@ public static partial class ApiBuilder
                         group = commandType.GetCustomAttribute<RouteAttribute>()?.Group ?? group;
                     }
                     
-                    //get grope by name
-                    
-                    var customGroup = endpoints.MapGroup(group);
+                    var customGroup = endpoints.MapGroup(group).WithTags(group);
                     RouteHandlerBuilder endpoint = null!;
 
                     if (httpMethod == typeof(IPost))
@@ -279,7 +276,73 @@ public static partial class ApiBuilder
         }
 
         app.UseEndpoints(Configure);
+        var endpointDataSource = app.ApplicationServices.GetRequiredService<EndpointDataSource>();
+
+        var authorizationEntities = enumerable
+            .Where(c => c.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationEntityAttribute)))
+            .ToList();
+        using (var scope = app.ApplicationServices.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            // Zbuduj aktualną listę map
+            var current = endpointDataSource.Endpoints.Select(e =>
+            {
+                var hash = e.CreateEndpointHash(); // lub Twoje CreateEndpointHash(e)
+                var path = (e.Metadata.FirstOrDefault(m => m is IRouteDiagnosticsMetadata) as IRouteDiagnosticsMetadata)?.Route 
+                           ?? "UNKNOWN";
+                var httpMethod = e.Metadata.FirstOrDefault(m => m is IHttpMethodMetadata) is IHttpMethodMetadata m
+                    ? string.Join(",", m.HttpMethods)
+                    : "UNKNOWN";
+
+                return new EndpointMap
+                {
+                    Hash = hash,
+                    Path = path,
+                    HttpMethod = httpMethod,
+                    Accesses = authorizationEntities.Select(c => new Access()
+                    {
+                        User = c.Name,
+                        Allowed = true
+                    }).ToList()
+                };
+            }).ToList();
+
+            var existingByHash = db.Set<EndpointMap>()
+                .AsQueryable()
+                .ToDictionary(x => x.Hash, x => x);
+
+            foreach (var map in current)
+            {
+                if (existingByHash.TryGetValue(map.Hash, out var existing))
+                {
+                    existing.Path = map.Path;
+                    existing.HttpMethod = map.HttpMethod;
+                    existingByHash.Remove(map.Hash);
+                }
+                else
+                {
+                    db.Set<EndpointMap>().Add(map);
+                }
+            }
+
+            if (existingByHash.Count > 0)
+            {
+                db.Set<EndpointMap>().RemoveRange(existingByHash.Values);
+            }
+
+            db.SaveChanges();
+        }
+        
         return app;
+    }
+
+    private static string CreateEndpointHash(this Endpoint c)
+    {
+        var s = (c.Metadata.First(m => m is IRouteDiagnosticsMetadata) as IRouteDiagnosticsMetadata)?.Route.Replace("/",
+                    "") +
+                (c.Metadata.First(m => m is IHttpMethodMetadata) as IHttpMethodMetadata)?.HttpMethods[0];
+        return Convert.ToHexString(MD5.HashData(System.Text.Encoding.UTF8.GetBytes(s)));
     }
 
     public static RouteHandlerBuilder MapPostFeature<TCommand, TResponse>(this IEndpointRouteBuilder group, Type handlerType, string name)
@@ -421,40 +484,37 @@ public static partial class ApiBuilder
         }
     }
 
-    public static void MapGetEndpoint<TParam, TQuery, TEntity>(IEndpointRouteBuilder group, string endpointName,
+    public static void MapGetEndpoint<TParam, TEntity>(IEndpointRouteBuilder group, string endpointName, string sql, bool isSingle,
         IApplicationBuilder app)
         where TEntity : Entity
-        where TQuery : Query<TEntity>
         where TParam : class
     {
-        QueryHandler<TParam, TEntity> queryHandler = new();
-        var query = Activator.CreateInstance<TQuery>();
-        var result = ConvertEndpointNameRegex().Replace(endpointName, "$1-$2");
+        QueryHandler<TParam> queryHandler = new();
 
-        var endpoint = group.MapGet(result.ToLower(), ([AsParameters] TParam param) =>
+        var endpoint = group.MapGet(endpointName.ToLower(), ([AsParameters] TParam param) =>
         {
             var context = app.ApplicationServices.GetService<IConfiguration>();
             var connectionString = context!.GetConnectionString("DefaultConnection");
-            var r = queryHandler.HandleAsync(query, param, connectionString, typeof(TQuery).Assembly, default);
+            var r = queryHandler.HandleAsync(sql, endpointName, param, connectionString, typeof(TEntity).Assembly, isSingle);
             return r;
         });
 
-        var authorizationPolicies = new List<Type>();
-        var haveAuthorization = typeof(TQuery).CustomAttributes.Any(c => c.AttributeType == typeof(SecuredAttribute));
-        var authorizationEntityAttribute = typeof(TQuery).GetCustomAttribute<SecuredAttribute>();
-        if (authorizationEntityAttribute is not null)
-        {
-            foreach (var type in authorizationEntityAttribute.EntityTypes)
-            {
-                if (type.BaseType != typeof(SecuredAttribute))
-                    throw new Exception($"AuthorizationEntityAttribute can only have AuthorizationEntityAttribute as EntityTypes. {type.Name}");
+        //var authorizationPolicies = new List<Type>();
+        //var haveAuthorization = typeof(TQuery).CustomAttributes.Any(c => c.AttributeType == typeof(SecuredAttribute));
+        //var authorizationEntityAttribute = typeof(TQuery).GetCustomAttribute<SecuredAttribute>();
+        //if (authorizationEntityAttribute is not null)
+        //{
+        //    foreach (var type in authorizationEntityAttribute.EntityTypes)
+        //    {
+        //        if (type.BaseType != typeof(SecuredAttribute))
+        //            throw new Exception($"AuthorizationEntityAttribute can only have AuthorizationEntityAttribute as EntityTypes. {type.Name}");
 
-                authorizationPolicies.Add(type);
-            }
-        }
+        //        authorizationPolicies.Add(type);
+        //    }
+        //}
 
-        if (haveAuthorization)
-            endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
+        //if (haveAuthorization)
+        //    endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
     }
 
     [GeneratedRegex("([a-z])([A-Z])")]

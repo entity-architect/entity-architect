@@ -5,18 +5,25 @@
 namespace EntityArchitect.Example.Migrations
 {
     /// <inheritdoc />
-    public partial class RemoveImage : Migration
+    public partial class MapEndpoint : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-
+            migrationBuilder.AddColumn<string>(
+                name: "hash",
+                table: "__EndpointMap",
+                type: "text",
+                nullable: false,
+                defaultValue: "");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-
+            migrationBuilder.DropColumn(
+                name: "hash",
+                table: "__EndpointMap");
         }
     }
 }

@@ -1,37 +1,24 @@
-using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Net;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 using Dapper;
 using EntityArchitect.CRUD.Attributes.QueryResponseTypeAttributes;
-using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Results.Abstracts;
 using EntityArchitect.CRUD.TypeBuilders;
 using Npgsql;
 
 namespace EntityArchitect.CRUD.Queries;
 
-internal class QueryHandler<TParam, TEntity>
+internal class QueryHandler<TParam>
     where TParam : class
-    where TEntity : Entity
 {
-    protected Query<TEntity> Query { get; set; }
     
-    internal async Task<Result> HandleAsync(Query<TEntity> query, TParam param, string connectionString, Assembly assembly,
+    internal async Task<Result> HandleAsync(string sql, string queryName, TParam param, string connectionString, Assembly assembly, bool isSingle = false,
         CancellationToken cancellationToken = default)
     {
-        Query = query;
         using IDbConnection dbConnection = new NpgsqlConnection(connectionString);
-        string sql;
-        if (query.UseSqlFile)
-            sql = await File.ReadAllTextAsync(query.Sql, cancellationToken);
-        else
-            sql = SqlParser.RemoveTypes(query.Sql);
+        queryName = queryName.Replace("/", "");
 
         foreach (var props in param.GetType().GetProperties())
         {
@@ -62,7 +49,7 @@ internal class QueryHandler<TParam, TEntity>
         dbConnection.Open();
         try
         {
-            var result = QueryWithDynamicSplit(dbConnection, sql, parametersFields, param, query.GetType().Name, query);
+            var result = QueryWithDynamicSplit(dbConnection, sql, parametersFields, param, queryName, isSingle);
             return Result.Success(result);
         }
         catch (Exception e)
@@ -72,14 +59,16 @@ internal class QueryHandler<TParam, TEntity>
     }
    
     private static object QueryWithDynamicSplit(IDbConnection connection, string sql,
-        List<SqlParser.Field> parameterFields, object param, string queryName, Query<TEntity> query)
+        List<SqlParser.Field> parameterFields, object param, string queryName, bool isSingle = false)
     {
         TypeBuilder typeBuilder = new();
         var typeArray = typeBuilder.BuildQueryTypes(parameterFields, queryName, out var splitOn);
         typeArray = ReorderTypes(typeArray.ToList()).ToArray();
         var resultType = typeBuilder.BuildQueryResultType(typeArray.First());
+        
 
         var dapperExtensions = typeof(SqlMapper);
+        Console.WriteLine("Executing SQL: \n\n" + sql + " \n\n");
 
         var methods = dapperExtensions.GetMethods();
         methods = methods.Where(m => m.Name == "Query").ToArray();
@@ -124,15 +113,15 @@ internal class QueryHandler<TParam, TEntity>
             var grouped = sqlResponse.GroupBy(GetPropertyValue).ToList();
 
             var resultTypeFinal = resultType;
-            if (!query.Single)
+            if (!isSingle)
                 resultTypeFinal = typeof(List<>).MakeGenericType(resultType);
             
             var result = Activator.CreateInstance(resultTypeFinal)!;
 
-            if (query.Single && grouped.Count != 0)
+            if (isSingle && grouped.Count != 0)
                 grouped = grouped.Take(1).ToList();
             
-            if (query.Single && grouped.Count == 0)
+            if (isSingle && grouped.Count == 0)
                 return Result.Failure(new Error(HttpStatusCode.NotFound, "Element not found."));
             
             foreach (var groupedItem in grouped)
@@ -140,7 +129,7 @@ internal class QueryHandler<TParam, TEntity>
                 var convertedTypes = groupedItem.Select(c => MergeResult.ConvertType(resultType, c));
                 var merged = MergeResult.MergeAllObjects(convertedTypes);
                 
-                if(query.Single)
+                if(isSingle)
                     return merged;
                 
                 result.GetType().GetMethod("Add")?.Invoke(result, new[] { merged });

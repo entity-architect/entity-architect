@@ -1,16 +1,31 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace EntityArchitect.Example.Migrations
 {
     /// <inheritdoc />
-    public partial class addEnumerations : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.CreateTable(
+                name: "__EndpointMap",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    path = table.Column<string>(type: "text", nullable: false),
+                    http_method = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk___endpoint_map", x => x.id);
+                });
+
             migrationBuilder.CreateTable(
                 name: "author",
                 columns: table => new
@@ -110,6 +125,9 @@ namespace EntityArchitect.Example.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "__EndpointMap");
+
             migrationBuilder.DropTable(
                 name: "rental");
 

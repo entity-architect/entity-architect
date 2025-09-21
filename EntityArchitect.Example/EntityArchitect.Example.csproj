@@ -23,20 +23,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="Sql\GetAuthorsWithBooks.sql">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="Sql\GetAuthorsWithBooksAndRentals.sql">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="Sql\GetClientsWithRentals.sql">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-
-      <Folder Include="Migrations\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <Content Include="..\.dockerignore">
         <Link>.dockerignore</Link>
       </Content>

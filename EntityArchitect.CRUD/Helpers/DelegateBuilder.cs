@@ -25,8 +25,7 @@ public class DelegateBuilder<
     TEntity,
     TEntityCreateRequest,
     TEntityUpdateRequest,
-    TEntityResponse,
-    TLightListResponse>
+    TEntityResponse>
     where TEntity : Entity
     where TEntityResponse : EntityResponse, new()
 {
@@ -35,8 +34,8 @@ public class DelegateBuilder<
     private DelegateBuilder(IServiceProvider provider) =>
         _provider = provider;
 
-    public static DelegateBuilder<TE, TEcRq, TEuRq, TErs, TLlr> 
-        Create<TE, TEcRq, TEuRq, TErs, TLlr>(
+    public static DelegateBuilder<TE, TEcRq, TEuRq, TErs> 
+        Create<TE, TEcRq, TEuRq, TErs>(
         IServiceProvider provider)
         where TE : Entity
         where TEcRq : class, new()

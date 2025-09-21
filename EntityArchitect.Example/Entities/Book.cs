@@ -5,7 +5,6 @@ using EntityArchitect.CRUD.Authorization.Attributes;
 namespace EntityArchitect.Example.Entities;
 
 [GetListPaginated(3)]
-[Secured(typeof(Client))]
 public class Book : Entity
 {
     public string? Title { get; private set; }

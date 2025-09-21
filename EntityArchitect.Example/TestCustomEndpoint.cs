@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace EntityArchitect.Example;
 
-[CRUD.Feature.Route(nameof(Author), "say-hi")]
+[CRUD.Feature.Route(nameof(Author), "say-hi1")]
 public record TestCustomEndpointCommand(Guid AuthorId = default!) : ICommand<string>, IPost;
 public class TestCustomEndpointCommandHandler(IRepository<Author> authorRepository) : ICommandHandler<TestCustomEndpointCommand, string>
 {
