@@ -44,6 +44,7 @@ public static partial class ApiBuilder
         var typeBuilder = new TypeBuilder();
 
         app.UseRouting();
+        app.UseMiddleware<ExceptionMiddleware>();
 
         var auth = app.ApplicationServices.GetService(typeof(IAuthorizationBuilderService));
         if (auth is not null)

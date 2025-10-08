@@ -1,4 +1,5 @@
 using System.Reflection;
+using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.Entities.Context;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Entities.Repository;
@@ -14,6 +15,8 @@ public static class DependencyInjection
     public static IServiceCollection AddEntityArchitect(this IServiceCollection services, Assembly entityAssembly,
         string connectionString)
     {
+        services.UseActions();
+
         services.AddSingleton(entityAssembly);
         services.AddScoped<IClaimProvider, ClaimProvider>();
         services.AddHttpContextAccessor();
