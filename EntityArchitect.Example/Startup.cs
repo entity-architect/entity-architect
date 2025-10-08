@@ -1,5 +1,6 @@
 using EntityArchitect.CRUD;
 using EntityArchitect.CRUD.Actions;
+using EntityArchitect.CRUD.Application;
 using EntityArchitect.CRUD.Authorization;
 using EntityArchitect.CRUD.Entities;
 using EntityArchitect.Example.Services.Logger;
@@ -62,6 +63,7 @@ public class Startup
     {
         app.UseSwagger();
         app.UseSwaggerUI();
+        app.UseMiddleware<ExceptionMiddleware>();
         app.MapEntityArchitectCrud(typeof(Program).Assembly, "", "Sql");
     }
 }

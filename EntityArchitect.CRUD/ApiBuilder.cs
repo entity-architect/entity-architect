@@ -5,6 +5,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using EntityArchitect.CRUD.Application;
 using EntityArchitect.CRUD.Attributes.CrudAttributes;
+using EntityArchitect.CRUD.Authorization;
 using EntityArchitect.CRUD.Authorization.Attributes;
 using EntityArchitect.CRUD.Authorization.Service;
 using EntityArchitect.CRUD.Entities.Context;
@@ -69,18 +70,17 @@ public static partial class ApiBuilder
                 var name = result.ToLower();
 
                 var authorizationPolicies = new List<Type>();
-                var haveAuthorization = false;//entity.CustomAttributes.Any(c => c.AttributeType == typeof(SecuredAttribute));
-                //var authorizationEntityAttribute = entity.GetCustomAttribute<SecuredAttribute>();
-                //if (authorizationEntityAttribute is not null)
-                //{
-                //    foreach (var type in authorizationEntityAttribute.EntityTypes)
-                //    {
-                //        if (type.CustomAttributes.All(c => c.AttributeType != typeof(AuthorizationEntityAttribute)))
-                //            throw new Exception($"AuthorizationEntityAttribute can only have AuthorizationEntityAttribute as EntityTypes. {type.Name}");
-//
-                //        authorizationPolicies.Add(type);
-                //    }
-                //}
+                var haveAuthorization = entity.CustomAttributes.Any(c => c.AttributeType == typeof(SecuredAttribute));
+                var authorizationEntityAttribute = entity.GetCustomAttribute<SecuredAttribute>();
+                if (authorizationEntityAttribute is not null)
+                {
+                    foreach (var type in authorizationEntityAttribute.SecuredByTypes)
+                    {
+                        if (type.CustomAttributes.All(c => c.AttributeType != typeof(AuthorizationEntityAttribute)))
+                            throw new Exception($"AuthorizationEntityAttribute can only have AuthorizationEntityAttribute as EntityTypes. {type.Name}");
+                        authorizationPolicies.Add(type);
+                    }
+                }
 
                 var requestPostType = typeBuilder.BuildCreateRequestFromEntity(entity);
                 var requestUpdateType = typeBuilder.BuildUpdateRequestFromEntity(entity);

@@ -17,12 +17,13 @@ public static class DependencyInjection
         services.AddSingleton(entityAssembly);
         services.AddScoped<IClaimProvider, ClaimProvider>();
         services.AddHttpContextAccessor();
-    
         services.AddDbContext<ApplicationDbContext>(opt =>
         {
             opt.UseNpgsql(connectionString, builder => { builder.MigrationsAssembly(entityAssembly.FullName); })
                 .UseSnakeCaseNamingConvention();
         });
+        
+
 
         var enumerable = entityAssembly.ExportedTypes.Where(c => c.BaseType == typeof(Entity)).ToList();
         foreach (var entity in enumerable)
