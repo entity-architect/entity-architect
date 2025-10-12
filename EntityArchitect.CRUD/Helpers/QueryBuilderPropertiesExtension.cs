@@ -64,6 +64,7 @@ public static class QueryBuilderPropertiesExtension
             result += "-------------------------------\n\n";
             result += content + $"\nFROM {ToSnakeCase(entity.Name)} {entityShortcut}\n\n";
         }
+        Console.WriteLine(result);
         File.WriteAllText("query.txt", result);
 
     }
