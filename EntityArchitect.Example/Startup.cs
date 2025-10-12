@@ -3,6 +3,7 @@ using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.Application;
 using EntityArchitect.CRUD.Authorization;
 using EntityArchitect.CRUD.Entities;
+using EntityArchitect.CRUD.Helpers;
 using EntityArchitect.Example.Services.Logger;
 using Microsoft.OpenApi.Models;
 using ILogger = EntityArchitect.Example.Services.Logger.ILogger;
@@ -22,7 +23,6 @@ public class Startup
     {
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
-        services.UseActions();
         services.AddSwaggerGen(options =>
         {
             options.SwaggerDoc("v1", new OpenApiInfo { Title = "API", Version = "v1" });
@@ -61,9 +61,9 @@ public class Startup
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
+        app.QueryBuilderPropertiesBuild();
         app.UseSwagger();
         app.UseSwaggerUI();
-        app.UseMiddleware<ExceptionMiddleware>();
         app.MapEntityArchitectCrud(typeof(Program).Assembly, "", "Sql");
     }
 }
