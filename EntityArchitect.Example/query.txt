@@ -1,0 +1,36 @@
+-------------------------------
+
+SELECT 
+ a.id AS Id:GUID:Key,
+ a.name AS Name:STRING,
+ a.created_at AS CreatedAt:DATETIME,
+ a.updated_at AS UpdatedAt:DATETIME
+FROM author a
+
+-------------------------------
+
+SELECT 
+ b.id AS Id:GUID:Key,
+ b.title AS Title:STRING,
+ b.created_at AS CreatedAt:DATETIME,
+ b.updated_at AS UpdatedAt:DATETIME
+FROM book b
+
+-------------------------------
+
+SELECT 
+ c.id AS Id:GUID:Key,
+ c.name AS Name:STRING,
+ c.email AS Email:STRING,
+ c.created_at AS CreatedAt:DATETIME,
+ c.updated_at AS UpdatedAt:DATETIME
+FROM client c
+
+-------------------------------
+
+SELECT 
+ r.id AS Id:GUID:Key,
+ r.created_at AS CreatedAt:DATETIME,
+ r.updated_at AS UpdatedAt:DATETIME
+FROM rental r
+

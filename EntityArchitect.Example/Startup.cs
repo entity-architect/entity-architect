@@ -2,6 +2,7 @@ using EntityArchitect.CRUD;
 using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.Application;
 using EntityArchitect.CRUD.Authorization;
+using EntityArchitect.CRUD.Designer;
 using EntityArchitect.CRUD.Entities;
 using EntityArchitect.CRUD.Helpers;
 using EntityArchitect.Example.Services.Logger;
@@ -21,6 +22,7 @@ public class Startup
 
     public void ConfigureServices(IServiceCollection services)
     {
+        typeof(Program).Assembly.MigrateAsync();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
         services.AddSwaggerGen(options =>

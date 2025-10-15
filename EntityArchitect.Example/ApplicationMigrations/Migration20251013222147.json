@@ -1,0 +1,78 @@
+{
+  "Entities": [
+    {
+      "Name": "User",
+      "CannotPost": false,
+      "CannotPut": false,
+      "CannotDelete": false,
+      "Properties": [
+        {
+          "Name": "Id",
+          "Type": "int",
+          "IgnorePostRequest": false,
+          "IgnorePutRequest": false,
+          "Relation": null
+        },
+        {
+          "Name": "Name",
+          "Type": "string",
+          "IgnorePostRequest": false,
+          "IgnorePutRequest": false,
+          "Relation": null
+        },
+        {
+          "Name": "Posts",
+          "Type": "List<Post>",
+          "IgnorePostRequest": false,
+          "IgnorePutRequest": false,
+          "Relation": {
+            "Type": "OneToMany",
+            "TargetEntity": "Post",
+            "PropertyName": "Posts",
+            "TargetPropertyName": "User"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "Post",
+      "CannotPost": false,
+      "CannotPut": false,
+      "CannotDelete": true,
+      "Properties": [
+        {
+          "Name": "Id",
+          "Type": "int",
+          "IgnorePostRequest": false,
+          "IgnorePutRequest": false,
+          "Relation": null
+        },
+        {
+          "Name": "Title",
+          "Type": "string",
+          "IgnorePostRequest": false,
+          "IgnorePutRequest": false,
+          "Relation": null
+        },
+        {
+          "Name": "User",
+          "Type": "User",
+          "IgnorePostRequest": false,
+          "IgnorePutRequest": false,
+          "Relation": {
+            "Type": "ManyToOne",
+            "TargetEntity": "User",
+            "PropertyName": "User",
+            "TargetPropertyName": "Posts"
+          }
+        }
+      ]
+    }
+  ],
+  "SqlModels": [
+    {
+      "Path": "scripts/user_post.sql",
+      "Content": "SELECT * FROM Users u JOIN Posts p ON u.Id = p.UserId;"
+    }
+  ]
+}

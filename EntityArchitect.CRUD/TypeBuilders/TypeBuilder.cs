@@ -390,9 +390,14 @@ public partial class TypeBuilder
                     typeof(SqlParameterPositionTypeAttribute).GetConstructor(new[] { typeof(SqlParameterPosition) })!,
                     new object[] { sqlParameterPosition });
 
+            var nullableType = type;
+            if(type != typeof(string) && type.IsValueType && Nullable.GetUnderlyingType(type) == null)
+            {
+                nullableType = typeof(Nullable<>).MakeGenericType(type);
+            }
             customAttributeBuilders.Add(attributeBuilder);
 
-            TypeBuilderExtension.CreateProperty(typeBuilder, name, type, customAttributeBuilders);
+            TypeBuilderExtension.CreateProperty(typeBuilder, name, nullableType, customAttributeBuilders);
         }
 
         var resultType = typeBuilder.CreateType();

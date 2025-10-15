@@ -4,3 +4,4 @@ SELECT
 FROM 
     author a
 WHERE a.name like CONCAT('%', @Filter:STRING, '%')
+AND @a:BOOLEAN = TRUE
