@@ -95,7 +95,7 @@ public static partial class ApiBuilder
                     ?.MakeGenericMethod(entity, requestPostType, requestUpdateType, responseType)
                     .Invoke(null, new object[] { endpoints.ServiceProvider });
 
-                if (entity.CustomAttributes.Any(c => c.AttributeType != typeof(AuthorizationEntityAttribute)))
+                if (entity.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationEntityAttribute)))
                 {
                     var loginHandler = delegateBuilder!.GetType().GetProperty("Login")!.GetValue(delegateBuilder) as Delegate;
                     var loginEndpoint = group.MapPost("login", loginHandler!);
