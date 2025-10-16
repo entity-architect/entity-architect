@@ -7,6 +7,7 @@ using EntityArchitect.CRUD.Application;
 using EntityArchitect.CRUD.Attributes.CrudAttributes;
 using EntityArchitect.CRUD.Authorization;
 using EntityArchitect.CRUD.Authorization.Attributes;
+using EntityArchitect.CRUD.Authorization.Responses;
 using EntityArchitect.CRUD.Authorization.Service;
 using EntityArchitect.CRUD.Entities.Context;
 using EntityArchitect.CRUD.Entities.Entities;
@@ -93,6 +94,26 @@ public static partial class ApiBuilder
                     .GetMethod("Create")
                     ?.MakeGenericMethod(entity, requestPostType, requestUpdateType, responseType)
                     .Invoke(null, new object[] { endpoints.ServiceProvider });
+
+                if (entity.CustomAttributes.Any(c => c.AttributeType != typeof(AuthorizationEntityAttribute)))
+                {
+                    var loginHandler = delegateBuilder!.GetType().GetProperty("Login")!.GetValue(delegateBuilder) as Delegate;
+                    var loginEndpoint = group.MapPost("login", loginHandler!);
+                    loginEndpoint.WithSummary($"Login {entity.Name}");
+                    loginEndpoint.WithDisplayName($"Login {entity.Name}");
+                    loginEndpoint.Produces(200, typeof(Result<AuthorizationResponse>));
+                    loginEndpoint.Produces(400, typeof(Result));
+                    loginEndpoint.Produces(500, typeof(Result));
+                    
+                    var refreshTokenHandler = delegateBuilder!.GetType().GetProperty("Login")!.GetValue(delegateBuilder) as Delegate;
+                    var refreshTokenEndpoint = group.MapPost("refresh", refreshTokenHandler!);
+                    refreshTokenEndpoint.WithSummary($"Refresh Token {entity.Name}");
+                    refreshTokenEndpoint.WithDisplayName($"Refresh Token {entity.Name}");
+                    refreshTokenEndpoint.Produces(200, typeof(Result<AuthorizationResponse>));
+                    refreshTokenEndpoint.Produces(400, typeof(Result));
+                    refreshTokenEndpoint.Produces(500, typeof(Result));
+                }
+                
 
                 if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotCreateAttribute)))
                 {
