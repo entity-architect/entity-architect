@@ -23,6 +23,8 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
 using RouteAttribute = EntityArchitect.CRUD.Feature.RouteAttribute;
 
 namespace EntityArchitect.CRUD;
@@ -56,7 +58,7 @@ public static partial class ApiBuilder
         }
 
         app.UseAntiforgery();
-        
+
         var queryFiles = string.IsNullOrEmpty(sqlPath)
             ? Array.Empty<string>()
             : Directory.GetFiles(sqlPath, "*.sql", SearchOption.AllDirectories)
@@ -252,45 +254,20 @@ public static partial class ApiBuilder
                     }
                     
                     var customGroup = endpoints.MapGroup(group).WithTags(group);
-                    RouteHandlerBuilder endpoint = null!;
 
-                    if (httpMethod == typeof(IPost))
+                    // Determine HTTP method name
+                    var httpMethodName = httpMethod.Name switch
                     {
-                        var delegateMapFeature = typeof(ApiBuilder).GetMethod(nameof(MapPostFeature))?.MakeGenericMethod(
-                            commandType, handler.GetType().GetInterfaces().First().GetGenericArguments()[1]);
+                        "IPost" => "Post",
+                        "IPut" => "Put",
+                        "IDelete" => "Delete",
+                        "IGet" => "Get",
+                        _ => throw new Exception($"Unsupported HTTP method: {httpMethod.Name}")
+                    };
 
-                        endpoint = delegateMapFeature!.Invoke(null, new object[] { customGroup, handler.GetType(), route! }) as RouteHandlerBuilder
-                                   ?? throw new Exception("Could not create endpoint.");
-                    }
-                    
-                    if (httpMethod == typeof(IPut))
-                    {
-                        var delegateMapFeature = typeof(ApiBuilder).GetMethod(nameof(MapPutFeature))?.MakeGenericMethod(
-                            commandType, handler.GetType().GetInterfaces().First().GetGenericArguments()[1]);
+                    // Use unified method that handles both response and non-response commands
+                    var endpoint = customGroup.MapCommandFeature(handler.GetType(), route!, httpMethodName);
 
-                        endpoint = delegateMapFeature!.Invoke(null, new object[] { customGroup, handler.GetType(), route! }) as RouteHandlerBuilder
-                                   ?? throw new Exception("Could not create endpoint.");
-                    }
-                    
-                    if (httpMethod == typeof(IDelete))
-                    {
-                        var delegateMapFeature = typeof(ApiBuilder).GetMethod(nameof(MapDeleteFeature))?.MakeGenericMethod(
-                            commandType, handler.GetType().GetInterfaces().First().GetGenericArguments()[1]);
-
-                        endpoint = delegateMapFeature!.Invoke(null, new object[] { customGroup, handler.GetType(), route! }) as RouteHandlerBuilder
-                                   ?? throw new Exception("Could not create endpoint.");
-                    }
-                    
-                    if (httpMethod == typeof(IGet))
-                    {
-                        var delegateMapFeature = typeof(ApiBuilder).GetMethod(nameof(MapGetFeature))?.MakeGenericMethod(
-                            commandType, handler.GetType().GetInterfaces().First().GetGenericArguments()[1]);
-
-                        endpoint = delegateMapFeature!.Invoke(null, new object[] { customGroup, handler.GetType(), route! }) as RouteHandlerBuilder
-                                   ?? throw new Exception("Could not create endpoint.");
-                    }
-
-                    endpoint.Produces(500, typeof(Result));
                     endpoint.WithSummary($"Custom endpoint {commandType.Name}");
                     endpoint.WithDisplayName($"Custom endpoint {commandType.Name}");
                 }
@@ -383,6 +360,71 @@ public static partial class ApiBuilder
         where TCommand : ICommand<TResponse> where TResponse : class =>
         group.MapGet(name, MapCommandEndpoint<TCommand, TResponse>(handlerType, true)).ConfigureEndpoint();
     
+    public static RouteHandlerBuilder MapPostFeatureSingle<TCommand>(this IEndpointRouteBuilder group, Type handlerType, string name)
+        where TCommand : ICommand =>
+        group.MapPost(name, MapCommandEndpoint<TCommand>(handlerType)).ConfigureEndpoint();
+
+    public static RouteHandlerBuilder MapPutFeatureSingle<TCommand>(this IEndpointRouteBuilder group, Type handlerType, string name)
+        where TCommand : ICommand =>
+        group.MapPut(name, MapCommandEndpoint<TCommand>(handlerType)).ConfigureEndpoint();
+
+    public static RouteHandlerBuilder MapDeleteFeatureSingle<TCommand>(this IEndpointRouteBuilder group, Type handlerType, string name)
+        where TCommand : ICommand =>
+        group.MapDelete(name, MapCommandEndpoint<TCommand>(handlerType, true)).ConfigureEndpoint();
+
+    public static RouteHandlerBuilder MapGetFeatureSingle<TCommand>(this IEndpointRouteBuilder group, Type handlerType, string name)
+        where TCommand : ICommand =>
+        group.MapGet(name, (Func<HttpContext, CancellationToken, Task<Result>>)MapCommandEndpoint<TCommand>(handlerType, true)).ConfigureEndpoint();
+
+    /// <summary>
+    /// Unified method to map any command endpoint (with or without response)
+    /// </summary>
+    public static RouteHandlerBuilder MapCommandFeature(this IEndpointRouteBuilder group, Type handlerType, string name, string httpMethod)
+    {
+        Type handlerInterface = null;
+        var tmpType = handlerType.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ICommandHandler<,>));
+        if (tmpType is not null)
+        {
+            handlerInterface = tmpType;
+        }
+        else
+        {
+            tmpType = handlerType.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ICommandHandler<>));
+            if (tmpType is not null)
+            {
+                handlerInterface = tmpType;
+            }
+        }
+        var genericArgs = handlerInterface.GetGenericArguments();
+
+        // Check if this handler has a response type (2 generic args) or not (1 generic arg)
+        if (genericArgs.Length == 2)
+        {
+            // Has response: ICommandHandler<TCommand, TResponse>
+            var commandType = genericArgs[0];
+            var responseType = genericArgs[1];
+
+            var method = typeof(ApiBuilder).GetMethod($"Map{httpMethod}Feature")
+                ?.MakeGenericMethod(commandType, responseType);
+            var endpoint = method!.Invoke(null, new object[] { group, handlerType, name }) as RouteHandlerBuilder
+                   ?? throw new Exception($"Could not create {httpMethod} endpoint with response.");
+
+            return endpoint.ConfigureEndpoint(handlerType);
+        }
+        else
+        {
+            // No response: ICommandHandler<TCommand>
+            var commandType = genericArgs[0];
+
+            var method = typeof(ApiBuilder).GetMethod($"Map{httpMethod}FeatureSingle")
+                ?.MakeGenericMethod(commandType);
+            var endpoint = method!.Invoke(null, new object[] { group, handlerType, name }) as RouteHandlerBuilder
+                   ?? throw new Exception($"Could not create {httpMethod} endpoint without response.");
+
+            return endpoint.ConfigureEndpoint(handlerType);
+        }
+    }
+
     
     private static RouteHandlerBuilder ConfigureEndpoint<TResponse>(this RouteHandlerBuilder endpoint) where TResponse : class
     {
@@ -397,6 +439,46 @@ public static partial class ApiBuilder
         return endpoint;
     }
 
+    /// <summary>
+    /// Unified endpoint configuration that automatically detects response type
+    /// </summary>
+    private static RouteHandlerBuilder ConfigureEndpoint(this RouteHandlerBuilder endpoint, Type handlerType)
+    {
+        endpoint.Produces(500, typeof(Result));
+
+        // Check if handler has response type
+        Type handlerInterface = null;
+        var tmpType = handlerType.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ICommandHandler<,>));
+        if (tmpType is not null)
+        {
+            handlerInterface = tmpType;
+        }
+        else
+        {
+            tmpType = handlerType.GetInterfaces().First(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ICommandHandler<>));
+            if (tmpType is not null)
+            {
+                handlerInterface = tmpType;
+            }
+        }
+        var genericArgs = handlerInterface.GetGenericArguments();
+
+        if (genericArgs.Length == 2)
+        {
+            // Has response type
+            var responseType = genericArgs[1];
+            var resultType = typeof(Result<>).MakeGenericType(responseType);
+            endpoint.Produces(200, resultType);
+        }
+        else
+        {
+            // No response type
+            endpoint.Produces(200, typeof(Result));
+        }
+
+        return endpoint;
+    }
+
     private static Delegate MapCommandEndpoint<TCommand, TResponse>(Type handlerType, bool fromQuery = false)
         where TCommand : ICommand<TResponse> where TResponse : class
     {
@@ -407,7 +489,7 @@ public static partial class ApiBuilder
         }
         else
         {
-            return (Func<TCommand, HttpContext, CancellationToken, Task<Result<TResponse>>>)
+            return (Func<HttpContext, CancellationToken, Task<Result<TResponse>>>)
                 HandleFromQuery<TCommand, TResponse>;
         }
 
@@ -444,13 +526,16 @@ public static partial class ApiBuilder
         }
 
         async Task<Result<TResponse>> HandleFromQuery<TCommand, TResponse>(
-            [AsParameters] TCommand request,
             HttpContext context,
             CancellationToken cancellationToken)
             where TCommand : ICommand<TResponse>
             where TResponse : class
         {
             var services = context.RequestServices;
+
+            // Custom parameter binding for commands
+            var request = BindCommandFromRequest<TCommand, TResponse>(context);
+
             var validator = typeof(TCommand).Assembly.GetTypes().FirstOrDefault(c => c.BaseType == typeof(AbstractValidator<>).MakeGenericType(typeof(TCommand)));
             if (validator is not null)
             {
@@ -458,7 +543,7 @@ public static partial class ApiBuilder
                 {
                     var validationResult = await v.ValidateAsync(request, cancellationToken);
                     if (!validationResult.IsValid)
-                    { 
+                    {
                         return Result.Failure<TResponse>(validationResult.Errors.Select(c => new Error(HttpStatusCode.BadRequest, c.ErrorMessage)).ToList());
                     }
                 }
@@ -492,20 +577,201 @@ public static partial class ApiBuilder
                 });
         else
         {
-            return new Func<TCommand, HttpContext, CancellationToken, Task<Result>>(
-                ([FromQuery] request, context, cancellationToken) =>
+            return new Func<HttpContext, CancellationToken, Task<Result>>(
+                async (context, cancellationToken) =>
                 {
                     var services = context.RequestServices;
+
+                    // Custom parameter binding for commands
+                    var command = BindCommandFromRequest<TCommand>(context);
 
                     var cp = services.GetRequiredService<IClaimProvider>();
                     cp.SetClaims(context.User?.Claims?.ToList() ?? new List<System.Security.Claims.Claim>());
                     var handler = services.GetRequiredService(handlerType) as ICommandHandler<TCommand>;
 
-                    return handler.HandleAsync(request, cancellationToken);
+                    return await handler.HandleAsync(command, cancellationToken);
                 });
         }
     }
 
+    private static TCommand BindCommandFromRequest<TCommand, TResponse>(HttpContext context) where TCommand : ICommand<TResponse>
+    
+    {
+        var commandType = typeof(TCommand);
+        var constructor = commandType.GetConstructors().FirstOrDefault();
+        if (constructor == null)
+            throw new InvalidOperationException($"No constructor found for {commandType.Name}");
+
+        var parameters = constructor.GetParameters();
+        var args = new object[parameters.Length];
+
+        for (int i = 0; i < parameters.Length; i++)
+        {
+            var param = parameters[i];
+            var paramName = param.Name!;
+            var paramType = param.ParameterType;
+
+            // Try to bind from route data first, then query string
+            string? value = null;
+
+            // Check route data
+            if (context.Request.RouteValues.TryGetValue(paramName, out var routeValue))
+            {
+                value = routeValue?.ToString();
+            }
+            // Check query string
+            else if (context.Request.Query.TryGetValue(paramName, out var queryValue))
+            {
+                value = queryValue.FirstOrDefault();
+            }
+
+            if (value != null)
+            {
+                // Try to convert the value to the parameter type
+                try
+                {
+                    if (paramType == typeof(Guid))
+                    {
+                        if (Guid.TryParse(value, out var guidValue))
+                            args[i] = guidValue;
+                        else
+                            throw new ArgumentException($"Invalid Guid format: {value}");
+                    }
+                    else if (paramType == typeof(string))
+                    {
+                        args[i] = value;
+                    }
+                    else if (paramType == typeof(int))
+                    {
+                        if (int.TryParse(value, out var intValue))
+                            args[i] = intValue;
+                        else
+                            throw new ArgumentException($"Invalid integer format: {value}");
+                    }
+                    else if (paramType == typeof(bool))
+                    {
+                        if (bool.TryParse(value, out var boolValue))
+                            args[i] = boolValue;
+                        else
+                            throw new ArgumentException($"Invalid boolean format: {value}");
+                    }
+                    else
+                    {
+                        // For other types, try to use Convert.ChangeType
+                        args[i] = Convert.ChangeType(value, paramType);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    throw new ArgumentException($"Error converting parameter '{paramName}' with value '{value}' to type {paramType.Name}: {ex.Message}");
+                }
+            }
+            else
+            {
+                // If no value found and parameter is not nullable, throw error
+                if (Nullable.GetUnderlyingType(paramType) == null && paramType != typeof(string))
+                {
+                    throw new ArgumentException($"Required parameter '{paramName}' not found in route or query string");
+                }
+                else
+                {
+                    args[i] = paramType.IsValueType ? Activator.CreateInstance(paramType)! : null!;
+                }
+            }
+        }
+
+        return (TCommand)constructor.Invoke(args);
+    }
+
+    private static TCommand BindCommandFromRequest<TCommand>(HttpContext context) where TCommand : ICommand
+    
+    {
+        var commandType = typeof(TCommand);
+        var constructor = commandType.GetConstructors().FirstOrDefault();
+        if (constructor == null)
+            throw new InvalidOperationException($"No constructor found for {commandType.Name}");
+
+        var parameters = constructor.GetParameters();
+        var args = new object[parameters.Length];
+
+        for (int i = 0; i < parameters.Length; i++)
+        {
+            var param = parameters[i];
+            var paramName = param.Name!;
+            var paramType = param.ParameterType;
+
+            // Try to bind from route data first, then query string
+            string? value = null;
+
+            // Check route data
+            if (context.Request.RouteValues.TryGetValue(paramName, out var routeValue))
+            {
+                value = routeValue?.ToString();
+            }
+            // Check query string
+            else if (context.Request.Query.TryGetValue(paramName, out var queryValue))
+            {
+                value = queryValue.FirstOrDefault();
+            }
+
+            if (value != null)
+            {
+                // Try to convert the value to the parameter type
+                try
+                {
+                    if (paramType == typeof(Guid))
+                    {
+                        if (Guid.TryParse(value, out var guidValue))
+                            args[i] = guidValue;
+                        else
+                            throw new ArgumentException($"Invalid Guid format: {value}");
+                    }
+                    else if (paramType == typeof(string))
+                    {
+                        args[i] = value;
+                    }
+                    else if (paramType == typeof(int))
+                    {
+                        if (int.TryParse(value, out var intValue))
+                            args[i] = intValue;
+                        else
+                            throw new ArgumentException($"Invalid integer format: {value}");
+                    }
+                    else if (paramType == typeof(bool))
+                    {
+                        if (bool.TryParse(value, out var boolValue))
+                            args[i] = boolValue;
+                        else
+                            throw new ArgumentException($"Invalid boolean format: {value}");
+                    }
+                    else
+                    {
+                        // For other types, try to use Convert.ChangeType
+                        args[i] = Convert.ChangeType(value, paramType);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    throw new ArgumentException($"Error converting parameter '{paramName}' with value '{value}' to type {paramType.Name}: {ex.Message}");
+                }
+            }
+            else
+            {
+                // If no value found and parameter is not nullable, throw error
+                if (Nullable.GetUnderlyingType(paramType) == null && paramType != typeof(string))
+                {
+                    throw new ArgumentException($"Required parameter '{paramName}' not found in route or query string");
+                }
+                else
+                {
+                    args[i] = paramType.IsValueType ? Activator.CreateInstance(paramType)! : null!;
+                }
+            }
+        }
+
+        return (TCommand)constructor.Invoke(args);
+    }
+    
     public static void MapGetEndpoint<TParam, TEntity>(IEndpointRouteBuilder group, string endpointName, string sql, bool isSingle,
         IApplicationBuilder app)
         where TEntity : Entity
@@ -541,4 +807,137 @@ public static partial class ApiBuilder
 
     [GeneratedRegex("([a-z])([A-Z])")]
     private static partial Regex ConvertEndpointNameRegex();
+
+    /// <summary>
+    /// Custom model binder for command types that can parse parameters from route data or query string
+    /// </summary>
+    public class CommandModelBinder : IModelBinder
+    {
+        public Task BindModelAsync(ModelBindingContext bindingContext)
+        {
+            if (bindingContext == null)
+                throw new ArgumentNullException(nameof(bindingContext));
+
+            var commandType = bindingContext.ModelType;
+            var properties = commandType.GetProperties();
+
+            // Try to create the command instance
+            var constructor = commandType.GetConstructors().FirstOrDefault();
+            if (constructor == null)
+                return Task.CompletedTask;
+
+            var parameters = constructor.GetParameters();
+            var args = new object[parameters.Length];
+
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                var param = parameters[i];
+                var paramName = param.Name!;
+                var paramType = param.ParameterType;
+
+                // Try to bind from route data first, then query string
+                string? value = null;
+
+                // Check route data
+                if (bindingContext.HttpContext.Request.RouteValues.TryGetValue(paramName, out var routeValue))
+                {
+                    value = routeValue?.ToString();
+                }
+                // Check query string
+                else if (bindingContext.HttpContext.Request.Query.TryGetValue(paramName, out var queryValue))
+                {
+                    value = queryValue.FirstOrDefault();
+                }
+
+                if (value != null)
+                {
+                    // Try to convert the value to the parameter type
+                    try
+                    {
+                        if (paramType == typeof(Guid))
+                        {
+                            if (Guid.TryParse(value, out var guidValue))
+                                args[i] = guidValue;
+                            else
+                                bindingContext.ModelState.AddModelError(paramName, $"Invalid Guid format: {value}");
+                        }
+                        else if (paramType == typeof(string))
+                        {
+                            args[i] = value;
+                        }
+                        else if (paramType == typeof(int))
+                        {
+                            if (int.TryParse(value, out var intValue))
+                                args[i] = intValue;
+                            else
+                                bindingContext.ModelState.AddModelError(paramName, $"Invalid integer format: {value}");
+                        }
+                        else if (paramType == typeof(bool))
+                        {
+                            if (bool.TryParse(value, out var boolValue))
+                                args[i] = boolValue;
+                            else
+                                bindingContext.ModelState.AddModelError(paramName, $"Invalid boolean format: {value}");
+                        }
+                        else
+                        {
+                            // For other types, try to use Convert.ChangeType
+                            args[i] = Convert.ChangeType(value, paramType);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        bindingContext.ModelState.AddModelError(paramName, $"Error converting value '{value}' to type {paramType.Name}: {ex.Message}");
+                    }
+                }
+                else
+                {
+                    // If no value found and parameter is not nullable, add error
+                    if (Nullable.GetUnderlyingType(paramType) == null && paramType != typeof(string))
+                    {
+                        bindingContext.ModelState.AddModelError(paramName, $"Required parameter '{paramName}' not found in route or query string");
+                    }
+                    else
+                    {
+                        args[i] = paramType.IsValueType ? Activator.CreateInstance(paramType)! : null!;
+                    }
+                }
+            }
+
+            if (bindingContext.ModelState.IsValid)
+            {
+                try
+                {
+                    var model = constructor.Invoke(args);
+                    bindingContext.Result = ModelBindingResult.Success(model);
+                }
+                catch (Exception ex)
+                {
+                    bindingContext.ModelState.AddModelError("", $"Error creating command instance: {ex.Message}");
+                }
+            }
+
+            return Task.CompletedTask;
+        }
+    }
+
+    /// <summary>
+    /// Model binder provider for command types
+    /// </summary>
+    public class CommandModelBinderProvider : IModelBinderProvider
+    {
+        public IModelBinder? GetBinder(ModelBinderProviderContext context)
+        {
+            if (context == null)
+                throw new ArgumentNullException(nameof(context));
+
+            // Check if the model type implements ICommand interface
+            if (typeof(ICommand).IsAssignableFrom(context.Metadata.ModelType))
+            {
+                return new BinderTypeModelBinder(typeof(CommandModelBinder));
+            }
+
+            return null;
+        }
+    }
 }
