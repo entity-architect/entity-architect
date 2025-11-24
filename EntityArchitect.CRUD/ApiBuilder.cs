@@ -252,6 +252,7 @@ public static partial class ApiBuilder
                         route = commandType.GetCustomAttribute<RouteAttribute>()?.Route;
                         group = commandType.GetCustomAttribute<RouteAttribute>()?.Group ?? group;
                     }
+                    group = Regex.Replace(group, "([a-z])([A-Z])", "$1-$2").ToLower();
                     
                     var customGroup = endpoints.MapGroup(group).WithTags(group);
 
