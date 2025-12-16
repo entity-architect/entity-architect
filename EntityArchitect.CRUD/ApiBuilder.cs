@@ -43,7 +43,9 @@ public static partial class ApiBuilder
     public static IApplicationBuilder MapEntityArchitectCrud(this IApplicationBuilder app, Assembly assembly,
         string basePath = "", string sqlPath = "")
     {
-        var enumerable = assembly.ExportedTypes.Where(c => c.BaseType == typeof(Entity)).ToList();
+        var enumerable = assembly.ExportedTypes
+            .Where(c => c.IsSubclassOf(typeof(Entity)) && !c.IsAbstract)
+            .ToList();
         var typeBuilder = new TypeBuilder();
 
         app.UseRouting();
@@ -64,6 +66,8 @@ public static partial class ApiBuilder
             : Directory.GetFiles(sqlPath, "*.sql", SearchOption.AllDirectories)
                 .Select(f => f.Replace('\\', '/'))
                 .ToArray();
+        
+        var normalizedSqlPath = string.IsNullOrEmpty(sqlPath) ? "" : sqlPath.Replace('\\', '/').TrimEnd('/');
 
         // Konfiguracja endpointów – synchroniczna
         void Configure(IEndpointRouteBuilder endpoints)
@@ -107,7 +111,7 @@ public static partial class ApiBuilder
                     loginEndpoint.Produces(400, typeof(Result));
                     loginEndpoint.Produces(500, typeof(Result));
                     
-                    var refreshTokenHandler = delegateBuilder!.GetType().GetProperty("Login")!.GetValue(delegateBuilder) as Delegate;
+                    var refreshTokenHandler = delegateBuilder!.GetType().GetProperty("RefreshToken")!.GetValue(delegateBuilder) as Delegate;
                     var refreshTokenEndpoint = group.MapPost("refresh", refreshTokenHandler!);
                     refreshTokenEndpoint.WithSummary($"Refresh Token {entity.Name}");
                     refreshTokenEndpoint.WithDisplayName($"Refresh Token {entity.Name}");
@@ -180,19 +184,22 @@ public static partial class ApiBuilder
                     if (haveAuthorization) endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
                 }
 
-                
-                foreach (var query in queryFiles.Where(c => 
-                             string.Equals(c.Split("/")[0], sqlPath,     StringComparison.CurrentCultureIgnoreCase) &&
-                             string.Equals(c.Split("/")[1], entity.Name, StringComparison.CurrentCultureIgnoreCase)))
+                var entityPrefix = $"{normalizedSqlPath}/{entity.Name}/";
+                foreach (var query in queryFiles.Where(c => c.StartsWith(entityPrefix, StringComparison.OrdinalIgnoreCase)))
                 {
                     var sql = File.ReadAllText(query);
 
-                    var endpointName = query.Split("/").Last().Replace(".sql", "").ToLower();
+                    // Generate endpoint name with snake_case and spaces replaced with dashes
+                    var rawEndpointName = Path.GetFileNameWithoutExtension(query);
+                    var endpointName = ConvertToSnakeCaseAndReplaceSpaces(rawEndpointName);
                     var queryType = typeBuilder.BuildQueryRequest(sql, endpointName);
                     var mi = typeof(ApiBuilder).GetMethod(nameof(MapGetEndpoint))?.MakeGenericMethod(queryType, entity);
 
                     var isSingle = false;
-                    mi!.Invoke(group, new object[] { group, query.Replace(sqlPath + "/" + entity.Name + "/", "").Replace(".sql", ""), sql ,isSingle, app });
+                    
+                    var relativePath = query.Substring(entityPrefix.Length);
+                    var finalEndpointName = ConvertToSnakeCaseAndReplaceSpaces(relativePath.Replace(".sql", ""));
+                    mi!.Invoke(group, new object[] { group, finalEndpointName, sql, isSingle, app });
                 }
 
                 var fileProperties = entity.GetProperties().Where(c => c.PropertyType == typeof(EntityFile)).ToList();
@@ -229,6 +236,62 @@ public static partial class ApiBuilder
                 group.WithTags(name.ToLower());
             }
 
+            var allEntityNames = enumerable.Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var proxyEntity = enumerable.FirstOrDefault();
+
+            if (proxyEntity != null && !string.IsNullOrEmpty(normalizedSqlPath))
+            {
+                var otherQueries = queryFiles.Where(c =>
+                {
+                    if (!c.StartsWith(normalizedSqlPath + "/", StringComparison.OrdinalIgnoreCase)) return false;
+                    var relative = c.Substring(normalizedSqlPath.Length + 1);
+                    if (relative.Contains('/'))
+                    {
+                        var firstSegment = relative.Split('/')[0];
+                        return !allEntityNames.Contains(firstSegment);
+                    }
+                    return true;
+                });
+
+                foreach (var query in otherQueries)
+                {
+                    var relative = query.Substring(normalizedSqlPath.Length + 1);
+                    var parts = relative.Split('/');
+                    
+                    string groupNameRaw;
+                    string relativePathInGroup;
+
+                    if (parts.Length == 1)
+                    {
+                        // Root file: Queries/Root.sql
+                        groupNameRaw = "other";
+                        relativePathInGroup = Path.GetFileNameWithoutExtension(parts[0]);
+                    }
+                    else
+                    {
+                        // Subfolder: Queries/Group/File.sql
+                        groupNameRaw = parts[0];
+                        relativePathInGroup = relative.Substring(groupNameRaw.Length).TrimStart('/').Replace(".sql", "");
+                    }
+
+                    var groupName = ConvertToSnakeCaseAndReplaceSpaces(groupNameRaw);
+                    var group = endpoints.MapGroup(JoinRoute(basePath, groupName)).WithTags(groupName);
+
+                    var sql = File.ReadAllText(query);
+
+                    var rawEndpointName = Path.GetFileNameWithoutExtension(query);
+                    var requestEndpointName = ConvertToSnakeCaseAndReplaceSpaces(rawEndpointName);
+
+                    var queryType = typeBuilder.BuildQueryRequest(sql, requestEndpointName);
+                    var mi = typeof(ApiBuilder).GetMethod(nameof(MapGetEndpoint))?.MakeGenericMethod(queryType, proxyEntity);
+
+                    var finalEndpointName = ConvertToSnakeCaseAndReplaceSpaces(relativePathInGroup);
+
+                    var isSingle = false;
+                    mi!.Invoke(group, new object[] { group, finalEndpointName, sql, isSingle, app });
+                }
+            }
+
             using (var scope = app.ApplicationServices.CreateScope())
             {
                 var handlers = typeof(CommandBuilder).GetMethod(nameof(CommandBuilder.Build))!.Invoke(null, new object[] { assembly, scope }) as ICollection<IBaseCommandHandler>;
@@ -247,10 +310,12 @@ public static partial class ApiBuilder
 
                     var route = ConvertEndpointNameRegex().Replace(commandType.Name, "$1-$2");
                     var group = "custom";
+                    var fixedRoute = route.ToLower();
                     if (commandType.GetCustomAttribute<RouteAttribute>() is not null)
                     {
                         route = commandType.GetCustomAttribute<RouteAttribute>()?.Route;
                         group = commandType.GetCustomAttribute<RouteAttribute>()?.Group ?? group;
+                        fixedRoute = commandType.GetCustomAttribute<RouteAttribute>()?.FixedRoute ?? fixedRoute;
                     }
                     group = Regex.Replace(group, "([a-z])([A-Z])", "$1-$2").ToLower();
                     
@@ -267,7 +332,7 @@ public static partial class ApiBuilder
                     };
 
                     // Use unified method that handles both response and non-response commands
-                    var endpoint = customGroup.MapCommandFeature(handler.GetType(), route!, httpMethodName);
+                    var endpoint = customGroup.MapCommandFeature(handler.GetType(), fixedRoute!, httpMethodName);
 
                     endpoint.WithSummary($"Custom endpoint {commandType.Name}");
                     endpoint.WithDisplayName($"Custom endpoint {commandType.Name}");
@@ -808,6 +873,21 @@ public static partial class ApiBuilder
 
     [GeneratedRegex("([a-z])([A-Z])")]
     private static partial Regex ConvertEndpointNameRegex();
+
+    /// <summary>
+    /// Converts a string to snake_case and replaces spaces with dashes
+    /// </summary>
+    private static string ConvertToSnakeCaseAndReplaceSpaces(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return input;
+
+        // First convert PascalCase to snake_case with underscores
+        var snakeCase = ConvertEndpointNameRegex().Replace(input, "$1-$2");
+
+        // Then replace spaces with dashes and convert to lowercase
+        return snakeCase.Replace(" ", "-").ToLower();
+    }
 
     /// <summary>
     /// Custom model binder for command types that can parse parameters from route data or query string

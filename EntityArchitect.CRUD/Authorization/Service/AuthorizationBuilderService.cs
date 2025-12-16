@@ -17,7 +17,6 @@ public class AuthorizationBuilderService : IAuthorizationBuilderService
 {
     public AuthorizationResponse CreateAuthorizationToken<TAuthorizationEntity>(TAuthorizationEntity entity) where TAuthorizationEntity : Entity
     {
-        
         var builder = new ConfigurationBuilder()
             .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
