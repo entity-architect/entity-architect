@@ -745,6 +745,8 @@ public static partial class ApiBuilder
                 }
             }
         }
+        var cp = context.RequestServices.GetRequiredService<IClaimProvider>();
+        cp.SetClaims(context.User?.Claims?.ToList() ?? new List<Claim>());
 
         return (TCommand)constructor.Invoke(args);
     }
