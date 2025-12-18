@@ -25,6 +25,7 @@ using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
+using Microsoft.OpenApi.Models;
 using RouteAttribute = EntityArchitect.CRUD.Feature.RouteAttribute;
 
 namespace EntityArchitect.CRUD;
@@ -423,8 +424,11 @@ public static partial class ApiBuilder
         group.MapDelete(name, MapCommandEndpoint<TCommand, TResponse>(handlerType, true)).ConfigureEndpoint();
 
     public static RouteHandlerBuilder MapGetFeature<TCommand, TResponse>(this IEndpointRouteBuilder group, Type handlerType, string name)
-        where TCommand : ICommand<TResponse> where TResponse : class =>
-        group.MapGet(name, MapCommandEndpoint<TCommand, TResponse>(handlerType, true)).ConfigureEndpoint();
+        where TCommand : ICommand<TResponse> where TResponse : class
+    {
+        var endpoint = group.MapGet(name, MapCommandEndpoint<TCommand, TResponse>(handlerType, true)).ConfigureEndpoint();
+        return AddQueryParametersToOpenApi<TCommand>(endpoint);
+    }
     
     public static RouteHandlerBuilder MapPostFeatureSingle<TCommand>(this IEndpointRouteBuilder group, Type handlerType, string name)
         where TCommand : ICommand =>
@@ -439,8 +443,11 @@ public static partial class ApiBuilder
         group.MapDelete(name, MapCommandEndpoint<TCommand>(handlerType, true)).ConfigureEndpoint();
 
     public static RouteHandlerBuilder MapGetFeatureSingle<TCommand>(this IEndpointRouteBuilder group, Type handlerType, string name)
-        where TCommand : ICommand =>
-        group.MapGet(name, (Func<HttpContext, CancellationToken, Task<Result>>)MapCommandEndpoint<TCommand>(handlerType, true)).ConfigureEndpoint();
+        where TCommand : ICommand
+    {
+        var endpoint = group.MapGet(name, (Func<HttpContext, CancellationToken, Task<Result>>)MapCommandEndpoint<TCommand>(handlerType, true)).ConfigureEndpoint();
+        return AddQueryParametersToOpenApi<TCommand>(endpoint);
+    }
 
     /// <summary>
     /// Unified method to map any command endpoint (with or without response)
@@ -545,6 +552,162 @@ public static partial class ApiBuilder
         return endpoint;
     }
 
+    private static RouteHandlerBuilder AddQueryParametersToOpenApi<TCommand>(RouteHandlerBuilder endpoint)
+    {
+        var commandType = typeof(TCommand);
+        
+        // Try to get parameters from constructor first (for record types with constructor parameters)
+        var constructor = commandType.GetConstructors()
+            .Where(c => c.GetParameters().Length > 0)
+            .FirstOrDefault();
+        
+        List<(string name, Type type, bool isNullable)> parameters = new();
+        
+        if (constructor != null)
+        {
+            // Use constructor parameters (for record types like GetMailsCommand(int Page, int ItemCount))
+            foreach (var param in constructor.GetParameters())
+            {
+                var paramType = param.ParameterType;
+                var isNullable = Nullable.GetUnderlyingType(paramType) != null || paramType == typeof(string);
+                parameters.Add((param.Name!, paramType, isNullable));
+            }
+        }
+        else
+        {
+            // Use properties (for types generated from SQL queries with properties)
+            // Get all properties including inherited ones, but filter out base class properties
+            var allProperties = commandType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            var properties = allProperties
+                .Where(p => p.DeclaringType != typeof(EntityRequest) && 
+                           p.DeclaringType != typeof(object) &&
+                           p.CanRead && p.CanWrite)
+                .ToList();
+            
+            foreach (var prop in properties)
+            {
+                var propType = prop.PropertyType;
+                var isNullable = Nullable.GetUnderlyingType(propType) != null || propType == typeof(string);
+                parameters.Add((prop.Name, propType, isNullable));
+            }
+        }
+        
+        if (parameters.Count == 0)
+            return endpoint;
+
+        endpoint.WithOpenApi(op =>
+        {
+            op.Parameters ??= new List<OpenApiParameter>();
+            
+            foreach (var (name, type, isNullable) in parameters)
+            {
+                var openApiParam = new OpenApiParameter
+                {
+                    Name = name,
+                    In = ParameterLocation.Query,
+                    Required = !isNullable,
+                    Description = $"Parameter {name} of type {type.Name}",
+                    Schema = GetOpenApiSchema(type)
+                };
+                
+                op.Parameters.Add(openApiParam);
+            }
+            
+            return op;
+        });
+
+        return endpoint;
+    }
+
+    private static void AddQueryParametersToOpenApiForEndpoint<TParam>(IEndpointConventionBuilder endpoint)
+    {
+        var type = typeof(TParam);
+        
+        // Try to get parameters from constructor first (for record types with constructor parameters)
+        var constructor = type.GetConstructors()
+            .Where(c => c.GetParameters().Length > 0)
+            .FirstOrDefault();
+        
+        List<(string name, Type type, bool isNullable)> parameters = new();
+        
+        if (constructor != null)
+        {
+            // Use constructor parameters (for record types like GetMailsCommand(int Page, int ItemCount))
+            foreach (var param in constructor.GetParameters())
+            {
+                var parameterType = param.ParameterType;
+                var isNullable = Nullable.GetUnderlyingType(parameterType) != null || parameterType == typeof(string);
+                parameters.Add((param.Name!, parameterType, isNullable));
+            }
+        }
+        else
+        {
+            // Use properties (for types generated from SQL queries with properties)
+            // Get only properties declared in this type, not inherited from base classes
+            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .Where(p => p.DeclaringType == type || p.DeclaringType?.IsSubclassOf(typeof(EntityRequest)) == false)
+                .ToList();
+            
+            // If no declared-only properties found, try all properties and filter out base class ones
+            if (properties.Count == 0)
+            {
+                properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                    .Where(p => p.DeclaringType != typeof(EntityRequest) && p.DeclaringType != typeof(object))
+                    .ToList();
+            }
+            
+            foreach (var prop in properties)
+            {
+                var propertyType = prop.PropertyType;
+                var isNullable = Nullable.GetUnderlyingType(propertyType) != null || propertyType == typeof(string);
+                parameters.Add((prop.Name, propertyType, isNullable));
+            }
+        }
+        
+        if (parameters.Count == 0)
+            return;
+
+        endpoint.WithOpenApi(op =>
+        {
+            op.Parameters ??= new List<OpenApiParameter>();
+            
+            foreach (var (name, type, isNullable) in parameters)
+            {
+                var openApiParam = new OpenApiParameter
+                {
+                    Name = name,
+                    In = ParameterLocation.Query,
+                    Required = !isNullable,
+                    Description = $"Parameter {name} of type {type.Name}",
+                    Schema = GetOpenApiSchema(type)
+                };
+                
+                op.Parameters.Add(openApiParam);
+            }
+            
+            return op;
+        });
+    }
+
+    private static OpenApiSchema GetOpenApiSchema(Type type)
+    {
+        var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
+        
+        return underlyingType.Name switch
+        {
+            nameof(Int32) => new OpenApiSchema { Type = "integer", Format = "int32" },
+            nameof(Int64) => new OpenApiSchema { Type = "integer", Format = "int64" },
+            nameof(String) => new OpenApiSchema { Type = "string" },
+            nameof(Boolean) => new OpenApiSchema { Type = "boolean" },
+            nameof(Guid) => new OpenApiSchema { Type = "string", Format = "uuid" },
+            nameof(DateTime) => new OpenApiSchema { Type = "string", Format = "date-time" },
+            nameof(Double) => new OpenApiSchema { Type = "number", Format = "double" },
+            nameof(Single) => new OpenApiSchema { Type = "number", Format = "float" },
+            nameof(Decimal) => new OpenApiSchema { Type = "number", Format = "decimal" },
+            _ => new OpenApiSchema { Type = "string" }
+        };
+    }
+
     private static Delegate MapCommandEndpoint<TCommand, TResponse>(Type handlerType, bool fromQuery = false)
         where TCommand : ICommand<TResponse> where TResponse : class
     {
@@ -599,6 +762,10 @@ public static partial class ApiBuilder
         {
             var services = context.RequestServices;
 
+            // Set claims before binding command (in case command constructor uses IClaimProvider)
+            var cp = services.GetRequiredService<IClaimProvider>();
+            cp.SetClaims(context.User?.Claims?.ToList() ?? new List<Claim>());
+
             // Custom parameter binding for commands
             var request = BindCommandFromRequest<TCommand, TResponse>(context);
 
@@ -614,8 +781,9 @@ public static partial class ApiBuilder
                     }
                 }
             }
-            var cp = services.GetRequiredService<IClaimProvider>();
-            cp.SetClaims(context.User?.Claims?.ToList() ?? new List<Claim>());
+            
+            // Ensure claims are set before handler execution (in case handler uses IClaimProvider)
+          
 
             var handlerObj = services.GetRequiredService(handlerType);
             var handler = (ICommandHandler<TCommand, TResponse>)handlerObj;
@@ -648,11 +816,16 @@ public static partial class ApiBuilder
                 {
                     var services = context.RequestServices;
 
+                    // Set claims before binding command (in case command constructor uses IClaimProvider)
+                    var cp = services.GetRequiredService<IClaimProvider>();
+                    cp.SetClaims(context.User?.Claims?.ToList() ?? new List<System.Security.Claims.Claim>());
+
                     // Custom parameter binding for commands
                     var command = BindCommandFromRequest<TCommand>(context);
 
-                    var cp = services.GetRequiredService<IClaimProvider>();
+                    // Ensure claims are set before handler execution (in case handler uses IClaimProvider)
                     cp.SetClaims(context.User?.Claims?.ToList() ?? new List<System.Security.Claims.Claim>());
+
                     var handler = services.GetRequiredService(handlerType) as ICommandHandler<TCommand>;
 
                     return await handler.HandleAsync(command, cancellationToken);
@@ -663,6 +836,10 @@ public static partial class ApiBuilder
     private static TCommand BindCommandFromRequest<TCommand, TResponse>(HttpContext context) where TCommand : ICommand<TResponse>
     
     {
+        // Set claims before creating command instance (in case constructor uses IClaimProvider)
+        var cp = context.RequestServices.GetRequiredService<IClaimProvider>();
+        cp.SetClaims(context.User?.Claims?.ToList() ?? new List<Claim>());
+        
         var commandType = typeof(TCommand);
         var constructor = commandType.GetConstructors().FirstOrDefault();
         if (constructor == null)
@@ -745,15 +922,17 @@ public static partial class ApiBuilder
                 }
             }
         }
-        var cp = context.RequestServices.GetRequiredService<IClaimProvider>();
-        cp.SetClaims(context.User?.Claims?.ToList() ?? new List<Claim>());
-
+      
         return (TCommand)constructor.Invoke(args);
     }
 
     private static TCommand BindCommandFromRequest<TCommand>(HttpContext context) where TCommand : ICommand
     
     {
+        // Set claims before creating command instance (in case constructor uses IClaimProvider)
+        var cp = context.RequestServices.GetRequiredService<IClaimProvider>();
+        cp.SetClaims(context.User?.Claims?.ToList() ?? new List<Claim>());
+        
         var commandType = typeof(TCommand);
         var constructor = commandType.GetConstructors().FirstOrDefault();
         if (constructor == null)
@@ -839,7 +1018,7 @@ public static partial class ApiBuilder
 
         return (TCommand)constructor.Invoke(args);
     }
-    
+
     public static void MapGetEndpoint<TParam, TEntity>(IEndpointRouteBuilder group, string endpointName, string sql, bool isSingle,
         IApplicationBuilder app)
         where TEntity : Entity
@@ -847,9 +1026,12 @@ public static partial class ApiBuilder
     {
         QueryHandler<TParam> queryHandler = new();
 
-        var endpoint = group.MapGet(endpointName.ToLower(), ([AsParameters] TParam param) =>
+        var endpoint = group.MapGet(endpointName.ToLower(), ([AsParameters] TParam param, HttpContext httpContext) =>
         {
-            var context = app.ApplicationServices.GetService<IConfiguration>();
+            var cp = httpContext.RequestServices.GetRequiredService<IClaimProvider>();
+            cp.SetClaims(httpContext.User?.Claims?.ToList() ?? new List<Claim>());
+            
+            var context = httpContext.RequestServices.GetService<IConfiguration>();
             var connectionString = context!.GetConnectionString("DefaultConnection");
             var r = queryHandler.HandleAsync(sql, endpointName, param, connectionString, typeof(TEntity).Assembly, isSingle);
             return r;
