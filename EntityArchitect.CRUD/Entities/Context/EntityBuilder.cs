@@ -38,6 +38,12 @@ public static class EntityBuilder
             {
                 var attributeOneToManyType = typeof(OneToManyAttribute<>).MakeGenericType(property.PropertyType);
                 var attributeOneToOneType = typeof(OneToOneAttribute<>).MakeGenericType(property.PropertyType);
+
+                if (property.PropertyType.BaseType == typeof(ValueObject))
+                {
+                    modelBuilder.Entity(entity).OwnsOne(property.PropertyType, property.Name);
+                    continue;
+                }
                 
                 if (property.CustomAttributes.Select(c => c.AttributeType)
                     .Contains(attributeOneToManyType))
