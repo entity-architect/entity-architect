@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using EntityArchitect.CRUD.Authorization.Requests;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Results.Abstracts;
 
@@ -55,5 +56,19 @@ public abstract class EndpointAction<TEntity>
         List<TEntity> entities, CancellationToken cancellationToken = default)
     {
         return new ValueTask<Result<List<TEntity>>>(entities);
+    }
+    
+    protected internal virtual ValueTask<Result<AuthorizationRequest>> BeforeAuthorizationRequest(
+        AuthorizationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return new  ValueTask<Result<AuthorizationRequest>>(request!); 
+    }
+    
+    protected internal virtual ValueTask<Result<string>> BeforeRefreshTokenRequest(
+        string request,
+        CancellationToken cancellationToken = default)
+    {
+        return new  ValueTask<Result<string>>(request!); 
     }
 }

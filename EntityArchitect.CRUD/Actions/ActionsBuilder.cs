@@ -3,6 +3,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using EntityArchitect.CRUD.Authorization.Requests;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Results.Abstracts;
 using Microsoft.Extensions.DependencyInjection;
@@ -145,6 +146,30 @@ public static class ActionsBuilder
         Result<List<TEntity>> result = entity;
         await foreach (var element in list.WithCancellation(cancellationToken))
             result = await element.AfterGetPaginated(page, itemCount, result.Value, cancellationToken);
+
+        return result;
+    }
+    
+    public static async Task<Result<AuthorizationRequest>> InvokeBeforeAuthorizationRequestAsync<TEntity>(
+        this IAsyncEnumerable<EndpointAction<TEntity>> list, AuthorizationRequest request,
+        CancellationToken cancellationToken = default)
+        where TEntity : Entity
+    {
+        Result<AuthorizationRequest> result = request;
+        await foreach (var element in list.WithCancellation(cancellationToken))
+            result = await element.BeforeAuthorizationRequest(result.Value, cancellationToken);
+
+        return result;
+    }
+    
+    public static async Task<Result<string>> InvokeBeforeRefreshTokenRequestAsync<TEntity>(
+        this IAsyncEnumerable<EndpointAction<TEntity>> list, string request,
+        CancellationToken cancellationToken = default)
+        where TEntity : Entity
+    {
+        Result<string> result = request;
+        await foreach (var element in list.WithCancellation(cancellationToken))
+            result = await element.BeforeRefreshTokenRequest(result.Value, cancellationToken);
 
         return result;
     }

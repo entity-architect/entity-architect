@@ -205,6 +205,11 @@ public class DelegateBuilder<
         async ([FromBody] loginRequest, cancellationToken) =>
         {
             using var scope = _provider.CreateScope();
+            var actions = scope.GetEndpointActionsAsync<TEntity>();
+            var result = await actions!.InvokeBeforeAuthorizationRequestAsync(loginRequest, cancellationToken);
+            if (result.IsFailure)
+                return Result.Failure<AuthorizationResponse>(result.Errors);
+            
             var repository = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
             var authService = scope.ServiceProvider.GetRequiredService<IAuthorizationBuilderService>();
             
@@ -244,6 +249,11 @@ public class DelegateBuilder<
             using var scope = _provider.CreateScope();
             var authService = scope.ServiceProvider.GetRequiredService<IAuthorizationBuilderService>();
             var repository = scope.ServiceProvider.GetRequiredService<IRepository<TEntity>>();
+            
+            var actions = scope.GetEndpointActionsAsync<TEntity>();
+            var result = await actions!.InvokeBeforeRefreshTokenRequestAsync(refreshRequest, cancellationToken);
+            if (result.IsFailure)
+                return Result.Failure<AuthorizationResponse>(result.Errors);
             
             var handler = new JwtSecurityTokenHandler();
             var tokenValidationParameters = new TokenValidationParameters
