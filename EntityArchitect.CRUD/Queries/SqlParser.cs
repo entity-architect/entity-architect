@@ -1,22 +1,20 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using EntityArchitect.CRUD.Files;
+using EntityArchitect.CRUD.Helpers;
 
 namespace EntityArchitect.CRUD.Queries
 {
     public abstract class SqlParser
     {
-        public static List<Field> ParseSql(string sql, Assembly assembly)
+        public static List<Field> ParseSql(string sql, Assembly assembly, string fileUrl)
         {
             var columnsSegment = ExtractColumnsSegment(sql);
             var columns = ExtractColumns(columnsSegment);
-            return ParseFields(columns, assembly);
+            return ParseFields(columns, assembly, fileUrl);
         }
-
-
+        
         private static string ExtractColumnsSegment(string sql)
         {
             var selectIndex = sql.IndexOf("SELECT", StringComparison.OrdinalIgnoreCase);
@@ -71,12 +69,50 @@ namespace EntityArchitect.CRUD.Queries
             return columns;
         }
 
-        private static List<Field> ParseFields(List<string> columnStrings, Assembly assembly)
+        private static List<Field> ParseFields(List<string> columnStrings, Assembly assembly, string fileUrl)
         {
             var fields = new List<Field>();
 
             foreach (var column in columnStrings)
             {
+                if (column.ToUpper().Split(":")[1] == "FILE")
+                {
+                    var instanceShortcut = column.Split(".")[0];
+                    var entityName = column.ToUpper().Split(".")[1].Split("AS ")[1].Split(":")[0].Trim();
+                    var propertyName = column.Split(".")[1].Split(" ")[0];
+                    var entity = assembly.ExportedTypes.FirstOrDefault(c => c.Name.Equals(entityName, StringComparison.OrdinalIgnoreCase));
+                    if (entity == null)
+                        throw new ArgumentException($"Entity type '{entityName}' not found in assembly.");
+                    
+                    var fileField = entity.GetProperties()
+                        .FirstOrDefault(p => p.CustomAttributes
+                            .Any(a => a.AttributeType == typeof(EntityFileAttribute)) && 
+                                             string.Equals(p.Name, propertyName, StringComparison.CurrentCultureIgnoreCase));
+                    if (fileField == null)
+                        throw new ArgumentException($"Property '{propertyName}' with EntityFileAttribute not found in entity '{entityName}'.");
+
+                    var filePath = fileField.CustomAttributes.First(a => a.AttributeType == typeof(EntityFileAttribute))
+                        .ConstructorArguments[0].Value?.ToString() ?? "";
+                    var url = "CONCAT('" + fileUrl + "/" + filePath + "/" +  "', " +
+                              instanceShortcut + "." + CrudSqlBuilder.ToSnakeCase(fileField.Name) + "_id" + ", " +
+                              instanceShortcut + "." + CrudSqlBuilder.ToSnakeCase(fileField.Name) + $"_extension) AS {propertyName}";
+                    
+                    var field = new Field
+                    {
+                        Name = propertyName,
+                        Type = "file",
+                        IsKey = false,
+                        Fields = [],
+                        IsArray = false,
+                        SubQuery = null,
+                        Value = url,
+                        OldValue = column
+                    };
+                    fields.Add(field);
+                    
+                    continue;
+                }
+                
                 if(string.IsNullOrEmpty(column))
                     continue;
                 if (IsComplexType(column))
@@ -181,8 +217,16 @@ namespace EntityArchitect.CRUD.Queries
             return Regex.Replace(text, pattern, "$1");
         }
 
-        internal static string CleanupSql(string inputSql)
+        internal static string CleanupSql(string inputSql, List<Field> parametersFields)
         {
+            foreach (var field in parametersFields)
+            {
+                if (field.Value is not null && field.OldValue is not null)
+                {
+                    inputSql = inputSql.Replace(field.OldValue, field.Value);
+                }
+            }
+            
             // Zamień nazwapola:((subquery)):alias na (subquery) AS alias
             var subQueryPattern = @"\w+:\(\((.*?)\)\):(?<alias>\w+)";
             var step0 = Regex.Replace(inputSql, subQueryPattern, "($1) AS ${alias}", RegexOptions.Singleline);
@@ -223,6 +267,8 @@ namespace EntityArchitect.CRUD.Queries
             public bool IsKey { get; set; }
             public Type? EnumerationType { get; set; }
             public string? SubQuery { get; set; }
+            public string? Value { get; set; } = null;
+            public string? OldValue { get; set; } = null;
         }
     }
 }

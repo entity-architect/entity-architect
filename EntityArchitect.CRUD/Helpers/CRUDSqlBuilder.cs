@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using EntityArchitect.CRUD.Entities.Attributes;
 using EntityArchitect.CRUD.Entities.Entities;
 using EntityArchitect.CRUD.Enumerations;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace EntityArchitect.CRUD.Helpers;
 
@@ -102,7 +103,7 @@ public static partial class CrudSqlBuilder
         return sql;
     }
 
-    private static string ToSnakeCase(string input)
+    public static string ToSnakeCase(string input)
     {
         if (string.IsNullOrEmpty(input))
             return input;

@@ -450,6 +450,7 @@ public partial class TypeBuilder
             "BOOL" => typeof(bool),
             "BOOLEAN" => typeof(bool),
             "BYTE" => typeof(byte),
+            "FILE" => typeof(string),
             "ENUMERATION" => typeof(int),
             _ => typeof(string)
         };

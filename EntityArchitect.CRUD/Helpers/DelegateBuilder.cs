@@ -57,7 +57,13 @@ public class DelegateBuilder<
             {
                 if(item.CustomAttributes.Any(c => c.AttributeType == typeof(IgnorePostRequest)))
                     continue;
-                var entityId = (item.GetValue(entity) as Entity)!.Id.Value;
+                
+                // Handle nullable relations - skip validation if the relation is null
+                var relatedEntity = item.GetValue(entity) as Entity;
+                if (relatedEntity is null)
+                    continue;
+                    
+                var entityId = relatedEntity.Id.Value;
                 var repositoryType = typeof(IRepository<>).MakeGenericType(item.PropertyType);
                 using var scope = _provider.CreateScope();
                 var repository = scope.ServiceProvider.GetRequiredService(repositoryType);
@@ -109,10 +115,15 @@ public class DelegateBuilder<
                              c.CustomAttributes.Any(x =>
                                  x.AttributeType == typeof(OneToManyAttribute<>).MakeGenericType(c.PropertyType) ||
                                  x.AttributeType == typeof(OneToOneAttribute<>).MakeGenericType(c.PropertyType)) &&
-                                c.CustomAttributes.All(x => x.AttributeType != typeof(IgnorePutRequest))
+                               c.CustomAttributes.All(x => x.AttributeType != typeof(IgnorePutRequest))
                      ))
             {
-                var entityId = (item.GetValue(entity) as Entity)!.Id.Value;
+                // Handle nullable relations - skip validation if the relation is null
+                var relatedEntity = item.GetValue(entity) as Entity;
+                if (relatedEntity is null)
+                    continue;
+                    
+                var entityId = relatedEntity.Id.Value;
                 var repositoryType = typeof(IRepository<>).MakeGenericType(item.PropertyType);
                 using var scope = _provider.CreateScope();
                 var repository = scope.ServiceProvider.GetRequiredService(repositoryType);

@@ -50,8 +50,15 @@ public static class EntityConverter
 
                 if (propertyEntity.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType) || propertyEntity.CustomAttributes.Select(c => c.AttributeType).Contains(attributeTypeOtO))
                 {
+                    // Handle nullable OneToOne/OneToMany relations - if value is null, don't create sub entity
+                    if (value is null || (value is Guid guidValue && guidValue == Guid.Empty))
+                    {
+                        propertyEntity.SetValue(entityInstance, null);
+                        continue;
+                    }
+                    
                     var subEntityInstance = Activator.CreateInstance(propertyEntity.PropertyType);
-                    propertyEntity.PropertyType.GetProperty(nameof(Entity.Id))?.SetValue(subEntityInstance, new Id<Entity>((Guid)value!).ToId());
+                    propertyEntity.PropertyType.GetProperty(nameof(Entity.Id))?.SetValue(subEntityInstance, new Id<Entity>((Guid)value).ToId());
                     propertyEntity.SetValue(entityInstance, subEntityInstance);
                     continue;
                 }

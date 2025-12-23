@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using EntityArchitect.CRUD.Application;
@@ -42,7 +43,7 @@ public static partial class ApiBuilder
             .Select(s => s.Trim('/')));
 
     public static IApplicationBuilder MapEntityArchitectCrud(this IApplicationBuilder app, Assembly assembly,
-        string basePath = "", string sqlPath = "")
+        string basePath = "", string sqlPath = "", string fileUrl = "")
     {
         var enumerable = assembly.ExportedTypes
             .Where(c => c.IsSubclassOf(typeof(Entity)) && !c.IsAbstract)
@@ -200,7 +201,7 @@ public static partial class ApiBuilder
                     
                     var relativePath = query.Substring(entityPrefix.Length);
                     var finalEndpointName = ConvertToSnakeCaseAndReplaceSpaces(relativePath.Replace(".sql", ""));
-                    mi!.Invoke(group, new object[] { group, finalEndpointName, sql, isSingle, app });
+                    mi!.Invoke(group, new object[] { group, finalEndpointName, sql, isSingle, app, fileUrl });
                 }
 
                 var fileProperties = entity.GetProperties().Where(c => c.PropertyType == typeof(EntityFile)).ToList();
@@ -1020,7 +1021,7 @@ public static partial class ApiBuilder
     }
 
     public static void MapGetEndpoint<TParam, TEntity>(IEndpointRouteBuilder group, string endpointName, string sql, bool isSingle,
-        IApplicationBuilder app)
+        IApplicationBuilder app, string fileUrl)
         where TEntity : Entity
         where TParam : class
     {
@@ -1033,7 +1034,7 @@ public static partial class ApiBuilder
             
             var context = httpContext.RequestServices.GetService<IConfiguration>();
             var connectionString = context!.GetConnectionString("DefaultConnection");
-            var r = queryHandler.HandleAsync(sql, endpointName, param, connectionString, typeof(TEntity).Assembly, isSingle);
+            var r = queryHandler.HandleAsync(sql, endpointName, param, connectionString, typeof(TEntity).Assembly, fileUrl, isSingle);
             return r;
         });
 

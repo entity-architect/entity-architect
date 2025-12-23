@@ -14,7 +14,7 @@ internal class QueryHandler<TParam>
     where TParam : class
 {
     
-    internal async Task<Result> HandleAsync(string sql, string queryName, TParam param, string connectionString, Assembly assembly, bool isSingle = false,
+    internal async Task<Result> HandleAsync(string sql, string queryName, TParam param, string connectionString, Assembly assembly, string fileUrl, bool isSingle = false,
         CancellationToken cancellationToken = default)
     {
         using IDbConnection dbConnection = new NpgsqlConnection(connectionString);
@@ -43,8 +43,8 @@ internal class QueryHandler<TParam>
             }
         }
     
-        var parametersFields = SqlParser.ParseSql(sql, assembly);
-        sql = SqlParser.CleanupSql(sql);
+        var parametersFields = SqlParser.ParseSql(sql, assembly, fileUrl);
+        sql = SqlParser.CleanupSql(sql, parametersFields);
         sql = sql.Replace("\n", " ");
         dbConnection.Open();
         try
@@ -89,7 +89,7 @@ internal class QueryHandler<TParam>
         
         using var transaction = connection.BeginTransaction();
 
-        var cleanSql = SqlParser.CleanupSql(sql);
+        var cleanSql = SqlParser.CleanupSql(sql, parameterFields);
         try
         {
             object? task = null;

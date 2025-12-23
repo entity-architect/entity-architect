@@ -21,7 +21,7 @@ public class Repository<TEntity>(ApplicationDbContext context) :
         
         query = query.AsSplitQuery();
 
-        return query.FirstOrDefaultAsync(e => e.Id.Value == id, cancellationToken);
+        return query.FirstOrDefaultAsync(e => e.Id == id.Value, cancellationToken);
     }
 
     public ValueTask<TEntity?> GetByIdAsync(Id<TEntity> id, CancellationToken cancellationToken = default) => 
