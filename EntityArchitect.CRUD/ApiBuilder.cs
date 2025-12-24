@@ -96,7 +96,9 @@ public static partial class ApiBuilder
                 var requestUpdateType = typeBuilder.BuildUpdateRequestFromEntity(entity);
                 var responseType = typeBuilder.BuildResponseFromEntity(entity);
 
-                var group = endpoints.MapGroup(JoinRoute(basePath, name)).WithTags(entity.Name.ToLower());
+                var prefix = JoinRoute(basePath, name);
+                var tag = QueryBuilderPropertiesExtension.ToSnakeCase(name, '-');
+                var group = endpoints.MapGroup(prefix).WithTags(tag);
 
                 var delegateBuilder = typeof(DelegateBuilder<,,,>).MakeGenericType(entity, requestPostType, requestUpdateType, responseType)
                     .GetMethod("Create")
@@ -235,7 +237,7 @@ public static partial class ApiBuilder
                     endpoint.WithDisplayName($"Download file for {entity.Name}");
                 }
 
-                group.WithTags(name.ToLower());
+                // Tag already set in MapGroup above
             }
 
             var allEntityNames = enumerable.Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -277,7 +279,9 @@ public static partial class ApiBuilder
                     }
 
                     var groupName = ConvertToSnakeCaseAndReplaceSpaces(groupNameRaw);
-                    var group = endpoints.MapGroup(JoinRoute(basePath, groupName)).WithTags(groupName);
+                    var prefix = JoinRoute(basePath, groupName); 
+                    var tag = QueryBuilderPropertiesExtension.ToSnakeCase(groupName, '-');
+                    var group = endpoints.MapGroup(prefix).WithTags(tag);
 
                     var sql = File.ReadAllText(query);
 
@@ -319,9 +323,10 @@ public static partial class ApiBuilder
                         group = commandType.GetCustomAttribute<RouteAttribute>()?.Group ?? group;
                         fixedRoute = commandType.GetCustomAttribute<RouteAttribute>()?.FixedRoute ?? fixedRoute;
                     }
+                    var tag = QueryBuilderPropertiesExtension.ToSnakeCase(group, '-');
                     group = Regex.Replace(group, "([a-z])([A-Z])", "$1-$2").ToLower();
-                    
-                    var customGroup = endpoints.MapGroup(group).WithTags(group);
+
+                    var customGroup = endpoints.MapGroup(group).WithTags(tag);
 
                     // Determine HTTP method name
                     var httpMethodName = httpMethod.Name switch

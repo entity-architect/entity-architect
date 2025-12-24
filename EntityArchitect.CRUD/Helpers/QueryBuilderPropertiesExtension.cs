@@ -68,12 +68,12 @@ public static class QueryBuilderPropertiesExtension
         File.WriteAllText("query.txt", result);
 
     }
-    private static string ToSnakeCase(string input)
+    internal static string ToSnakeCase(string input, char separator = '_')
     {
         if (string.IsNullOrEmpty(input)) return input;
 
         var startUnderscores = Regex.Match(input, @"^_+");
-        return startUnderscores + Regex.Replace(input, @"([a-z0-9])([A-Z])", "$1_$2").ToLower();
+        return startUnderscores + Regex.Replace(input, @"([a-z0-9])([A-Z])", $"$1{separator}$2").ToLower();
     }
     
 }
