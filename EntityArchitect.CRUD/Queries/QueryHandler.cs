@@ -17,6 +17,7 @@ internal class QueryHandler<TParam>
     internal async Task<Result> HandleAsync(string sql, string queryName, TParam param, string connectionString, Assembly assembly, string fileUrl, bool isSingle = false,
         CancellationToken cancellationToken = default)
     {
+        isSingle = sql.Replace("--", "").ToUpper().Contains("#SINGLE") || isSingle;
         using IDbConnection dbConnection = new NpgsqlConnection(connectionString);
         queryName = queryName.Replace("/", "");
 

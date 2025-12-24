@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -75,6 +76,8 @@ namespace EntityArchitect.CRUD.Queries
 
             foreach (var column in columnStrings)
             {
+                if(column.TrimStart().StartsWith("--")) 
+                    continue;
                 if (column.ToUpper().Split(":")[1] == "FILE")
                 {
                     var instanceShortcut = column.Split(".")[0];
@@ -94,10 +97,13 @@ namespace EntityArchitect.CRUD.Queries
                     var filePath = fileField.CustomAttributes.First(a => a.AttributeType == typeof(EntityFileAttribute))
                         .ConstructorArguments[0].Value?.ToString() ?? "";
                     var fieldSnake = CrudSqlBuilder.ToSnakeCase(fileField.Name);
+                    var defaultValue = fileField.CustomAttributes
+                        .First(a => a.AttributeType == typeof(EntityFileAttribute)).ConstructorArguments[1].Value;
+                    var defaultValueString = defaultValue != null ? $"CONCAT('" + fileUrl + "/" + filePath + "/','" + defaultValue + "')" : "NULL";
 
                     var url =
                         "CASE WHEN " + instanceShortcut + "." + fieldSnake + "_id IS NULL " +
-                        "THEN NULL ELSE " +
+                        $"THEN {defaultValueString} ELSE " +
                         "CONCAT('" + fileUrl + "/" + filePath + "/'," +
                         instanceShortcut + "." + fieldSnake + "_id," +
                         instanceShortcut + "." + fieldSnake + "_extension) " +
@@ -227,10 +233,12 @@ namespace EntityArchitect.CRUD.Queries
                 var filePath = fileField.CustomAttributes.First(a => a.AttributeType == typeof(EntityFileAttribute))
                     .ConstructorArguments[0].Value?.ToString() ?? "";
                 var fieldSnake = CrudSqlBuilder.ToSnakeCase(fileField.Name);
-
+                var defaultValue = fileField.CustomAttributes
+                    .First(a => a.AttributeType == typeof(EntityFileAttribute)).ConstructorArguments[1].Value;
+                var defaultValueString = defaultValue != null ? $"CONCAT('" + fileUrl + "/" + filePath + "/','" + defaultValue + "')" : "NULL";
                 var url =
                     "CASE WHEN " + instanceShortcut + "." + fieldSnake + "_id IS NULL " +
-                    "THEN NULL ELSE " +
+                    $"THEN {defaultValueString} ELSE " +
                     "CONCAT('" + fileUrl + "/" + filePath + "/'," +
                     instanceShortcut + "." + fieldSnake + "_id," +
                     instanceShortcut + "." + fieldSnake + "_extension) " +
@@ -288,8 +296,6 @@ namespace EntityArchitect.CRUD.Queries
         internal static string CleanupSql(string inputSql, List<Field> parametersFields)
         {
             var flatFields = FlattenFields(parametersFields);
-            
-            
             foreach (var field in flatFields)
             {
                 if (field.Value is not null && field.OldValue is not null)
@@ -297,6 +303,9 @@ namespace EntityArchitect.CRUD.Queries
                     inputSql = inputSql.Replace(field.OldValue, field.Value);
                 }
             }
+            
+            //remove form -- to end of line
+            inputSql = Regex.Replace(inputSql, @"--.*$", "", RegexOptions.Multiline);
             
             // Zamień nazwapola:((subquery)):alias na (subquery) AS alias
             var subQueryPattern = @"\w+:\(\((.*?)\)\):(?<alias>\w+)";

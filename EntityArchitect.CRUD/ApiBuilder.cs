@@ -1034,7 +1034,7 @@ public static partial class ApiBuilder
             
             var context = httpContext.RequestServices.GetService<IConfiguration>();
             var connectionString = context!.GetConnectionString("DefaultConnection");
-            var r = queryHandler.HandleAsync(sql, endpointName, param, connectionString, typeof(TEntity).Assembly, fileUrl, isSingle);
+            var r = queryHandler.HandleAsync(sql, endpointName, param, connectionString, typeof(TEntity).Assembly, fileUrl);
             return r;
         });
 
