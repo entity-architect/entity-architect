@@ -11,6 +11,7 @@ namespace EntityArchitect.CRUD.Queries
     {
         public static List<Field> ParseSql(string sql, Assembly assembly, string fileUrl)
         {
+            sql = AddMinFile(sql, assembly);
             var columnsSegment = ExtractColumnsSegment(sql);
             var columns = ExtractColumns(columnsSegment);
             return ParseFields(columns, assembly, fileUrl);
@@ -80,48 +81,13 @@ namespace EntityArchitect.CRUD.Queries
                     continue;
                 if (column.ToUpper().Split(":")[1] == "FILE")
                 {
-                    var instanceShortcut = column.Split(".")[0];
-                    var entityName = column.ToUpper().Split(".")[1].Split("AS ")[1].Split(":")[0].Trim();
-                    var propertyName = column.Split(".")[1].Split(" ")[0];
-                    var entity = assembly.ExportedTypes.FirstOrDefault(c => c.Name.Equals(entityName, StringComparison.OrdinalIgnoreCase));
-                    if (entity == null)
-                        throw new ArgumentException($"Entity type '{entityName}' not found in assembly.");
-                    
-                    var fileField = entity.GetProperties()
-                        .FirstOrDefault(p => p.CustomAttributes
-                            .Any(a => a.AttributeType == typeof(EntityFileAttribute)) && 
-                                             string.Equals(p.Name, propertyName, StringComparison.CurrentCultureIgnoreCase));
-                    if (fileField == null)
-                        throw new ArgumentException($"Property '{propertyName}' with EntityFileAttribute not found in entity '{entityName}'.");
-
-                    var filePath = fileField.CustomAttributes.First(a => a.AttributeType == typeof(EntityFileAttribute))
-                        .ConstructorArguments[0].Value?.ToString() ?? "";
-                    var fieldSnake = CrudSqlBuilder.ToSnakeCase(fileField.Name);
-                    var defaultValue = fileField.CustomAttributes
-                        .First(a => a.AttributeType == typeof(EntityFileAttribute)).ConstructorArguments[1].Value;
-                    var defaultValueString = defaultValue != null ? $"CONCAT('" + fileUrl + "/" + filePath + "/','" + defaultValue + "')" : "NULL";
-
-                    var url =
-                        "CASE WHEN " + instanceShortcut + "." + fieldSnake + "_id IS NULL " +
-                        $"THEN {defaultValueString} ELSE " +
-                        "CONCAT('" + fileUrl + "/" + filePath + "/'," +
-                        instanceShortcut + "." + fieldSnake + "_id," +
-                        instanceShortcut + "." + fieldSnake + "_extension) " +
-                        "END AS " + propertyName;
-
-                    var field = new Field
-                    {
-                        Name = propertyName,
-                        Type = "file",
-                        IsKey = false,
-                        Fields = [],
-                        IsArray = false,
-                        SubQuery = null,
-                        Value = url,
-                        OldValue = column
-                    };
-                    fields.Add(field);
-                    
+                    fields.Add(HandleFileField(column, assembly, fileUrl));
+                    continue;
+                }
+                
+                if (column.ToUpper().Split(":")[1] == "FILEMIN")
+                {
+                    fields.Add(HandleFileMinField(column, assembly, fileUrl));
                     continue;
                 }
                 
@@ -213,50 +179,14 @@ namespace EntityArchitect.CRUD.Queries
 
             if (column.ToUpper().Split(":")[1] == "FILE")
             {
-                var instanceShortcut = column.Split(".")[0];
-                var entityName = column.ToUpper().Split(".")[1].Split("AS ")[1].Split(":")[0].Trim();
-                var propertyName = column.Split(".")[1].Split(" ")[0];
-                var entity = assembly.ExportedTypes.FirstOrDefault(c =>
-                    c.Name.Equals(entityName, StringComparison.OrdinalIgnoreCase));
-                if (entity == null)
-                    throw new ArgumentException($"Entity type '{entityName}' not found in assembly.");
-
-                var fileField = entity.GetProperties()
-                    .FirstOrDefault(p => p.CustomAttributes
-                                             .Any(a => a.AttributeType == typeof(EntityFileAttribute)) &&
-                                         string.Equals(p.Name, propertyName,
-                                             StringComparison.CurrentCultureIgnoreCase));
-                if (fileField == null)
-                    throw new ArgumentException(
-                        $"Property '{propertyName}' with EntityFileAttribute not found in entity '{entityName}'.");
-
-                var filePath = fileField.CustomAttributes.First(a => a.AttributeType == typeof(EntityFileAttribute))
-                    .ConstructorArguments[0].Value?.ToString() ?? "";
-                var fieldSnake = CrudSqlBuilder.ToSnakeCase(fileField.Name);
-                var defaultValue = fileField.CustomAttributes
-                    .First(a => a.AttributeType == typeof(EntityFileAttribute)).ConstructorArguments[1].Value;
-                var defaultValueString = defaultValue != null ? $"CONCAT('" + fileUrl + "/" + filePath + "/','" + defaultValue + "')" : "NULL";
-                var url =
-                    "CASE WHEN " + instanceShortcut + "." + fieldSnake + "_id IS NULL " +
-                    $"THEN {defaultValueString} ELSE " +
-                    "CONCAT('" + fileUrl + "/" + filePath + "/'," +
-                    instanceShortcut + "." + fieldSnake + "_id," +
-                    instanceShortcut + "." + fieldSnake + "_extension) " +
-                    "END AS " + propertyName;
-
-                return new Field
-                {
-                    Name = propertyName,
-                    Type = "file",
-                    IsKey = false,
-                    Fields = [],
-                    IsArray = false,
-                    SubQuery = null,
-                    Value = url,
-                    OldValue = column
-                };
+                return HandleFileField(column, assembly, fileUrl);
             }
 
+            if (column.ToUpper().Split(":")[1] == "FILEMIN")
+            {
+                return HandleFileMinField(column, assembly, fileUrl);
+            }
+            
             return new Field
             {
                 Name = alias,
@@ -300,7 +230,7 @@ namespace EntityArchitect.CRUD.Queries
             {
                 if (field.Value is not null && field.OldValue is not null)
                 {
-                    inputSql = inputSql.Replace(field.OldValue, field.Value);
+                    inputSql = inputSql.Replace(field.OldValue + ",", field.Value + ",");
                 }
             }
             
@@ -333,6 +263,137 @@ namespace EntityArchitect.CRUD.Queries
             return step1;
         }
 
+        public static string AddMinFile(string sql, Assembly assembly)
+        {
+            // Najpierw sprawdź czy w SQL już jest FILEMIN - jeśli tak, pomiń całkowicie
+            if (sql.Contains(":FILEMIN", StringComparison.OrdinalIgnoreCase))
+            {
+                return sql;
+            }
+            
+            //example u.avatar AS User:FILE 
+            // Pattern dopasowuje :FILE ale NIE dopasowuje :FILEMIN
+            var pattern = @"(?<instance>\w+)\.(?<property>\w+)\s+AS\s+(?<entity>\w+):FILE\b";
+            
+            var result = Regex.Replace(sql, pattern, m =>
+            {
+                var instance = m.Groups["instance"].Value;
+                var property = m.Groups["property"].Value;
+                var entity = m.Groups["entity"].Value;
+                
+                var e = assembly.ExportedTypes.FirstOrDefault(c => c.Name.Equals(entity, StringComparison.OrdinalIgnoreCase));
+                if (e == null)
+                    throw new ArgumentException($"Entity type '{entity}' not found in assembly.");
+                
+                var propInfo = e.GetProperties().FirstOrDefault(p => p.Name.Equals(property, StringComparison.OrdinalIgnoreCase));
+                if (propInfo == null)
+                    throw new ArgumentException($"Property '{property}' not found in entity '{entity}'.");
+                
+                var hasEntityFileAttr = propInfo.CustomAttributes.Any(c => c.AttributeType == typeof(EntityFileAttribute));
+                var minAttribute = propInfo.GetCustomAttribute<MinFileAttribute>();
+
+                if (hasEntityFileAttr && minAttribute is not null)
+                {
+                    return $"{instance}.{property} AS {entity}:FILE,\n{instance}.{property} AS {entity}:FILEMIN";
+                }
+                return m.Value;
+                
+            }, RegexOptions.IgnoreCase);
+            return result;
+        }
+
+        private static Field HandleFileField(string column, Assembly assembly , string fileUrl)
+        {
+             var instanceShortcut = column.Split(".")[0];
+                    var entityName = column.ToUpper().Split(".")[1].Split("AS ")[1].Split(":")[0].Trim();
+                    var propertyName = column.Split(".")[1].Split(" ")[0];
+                    var entity = assembly.ExportedTypes.FirstOrDefault(c => c.Name.Equals(entityName, StringComparison.OrdinalIgnoreCase));
+                    if (entity == null)
+                        throw new ArgumentException($"Entity type '{entityName}' not found in assembly.");
+                    
+                    var fileField = entity.GetProperties()
+                        .FirstOrDefault(p => p.CustomAttributes
+                            .Any(a => a.AttributeType == typeof(EntityFileAttribute)) && 
+                                             string.Equals(p.Name, propertyName, StringComparison.CurrentCultureIgnoreCase));
+                    if (fileField == null)
+                        throw new ArgumentException($"Property '{propertyName}' with EntityFileAttribute not found in entity '{entityName}'.");
+
+                    var filePath = fileField.CustomAttributes.First(a => a.AttributeType == typeof(EntityFileAttribute))
+                        .ConstructorArguments[0].Value?.ToString() ?? "";
+                    var fieldSnake = CrudSqlBuilder.ToSnakeCase(fileField.Name);
+                    var defaultValue = fileField.CustomAttributes
+                        .First(a => a.AttributeType == typeof(EntityFileAttribute)).ConstructorArguments[1].Value;
+                    var defaultValueString = defaultValue != null ? $"CONCAT('" + fileUrl + "/" + filePath + "/','" + defaultValue + "')" : "NULL";
+
+                    var url =
+                        "CASE WHEN " + instanceShortcut + "." + fieldSnake + "_id IS NULL " +
+                        $"THEN {defaultValueString} ELSE " +
+                        "CONCAT('" + fileUrl + "/" + filePath + "/'," +
+                        instanceShortcut + "." + fieldSnake + "_id," +
+                        instanceShortcut + "." + fieldSnake + "_extension) " +
+                        "END AS " + propertyName;
+
+                    var field = new Field
+                    {
+                        Name = propertyName,
+                        Type = "file",
+                        IsKey = false,
+                        Fields = [],
+                        IsArray = false,
+                        SubQuery = null,
+                        Value = url,
+                        OldValue = column
+                    };
+                    
+            return field;
+        }
+        
+        private static Field HandleFileMinField(string column, Assembly assembly , string fileUrl)
+        {
+             var instanceShortcut = column.Split(".")[0];
+                    var entityName = column.ToUpper().Split(".")[1].Split("AS ")[1].Split(":")[0].Trim();
+                    var propertyName = column.Split(".")[1].Split(" ")[0];
+                    var entity = assembly.ExportedTypes.FirstOrDefault(c => c.Name.Equals(entityName, StringComparison.OrdinalIgnoreCase));
+                    if (entity == null)
+                        throw new ArgumentException($"Entity type '{entityName}' not found in assembly.");
+                    
+                    var fileField = entity.GetProperties()
+                        .FirstOrDefault(p => p.CustomAttributes
+                            .Any(a => a.AttributeType == typeof(EntityFileAttribute)) && 
+                                             string.Equals(p.Name, propertyName, StringComparison.CurrentCultureIgnoreCase));
+                    if (fileField == null)
+                        throw new ArgumentException($"Property '{propertyName}' with EntityFileAttribute not found in entity '{entityName}'.");
+
+                    var filePath = fileField.CustomAttributes.First(a => a.AttributeType == typeof(EntityFileAttribute))
+                        .ConstructorArguments[0].Value?.ToString() ?? "";
+                    var fieldSnake = CrudSqlBuilder.ToSnakeCase(fileField.Name);
+                    var defaultValue = fileField.CustomAttributes
+                        .First(a => a.AttributeType == typeof(EntityFileAttribute)).ConstructorArguments[1].Value;
+                    var defaultMin = defaultValue.ToString().Split(".")[0] + "." + defaultValue.ToString().Split(".")[1];
+                    var defaultValueString = defaultValue != null ? $"CONCAT('" + fileUrl + "/" + filePath + "/min/','" + defaultMin + "')" : "NULL";
+
+                    var url =
+                        "CASE WHEN " + instanceShortcut + "." + fieldSnake + "_id IS NULL " +
+                        $"THEN {defaultValueString} ELSE " +
+                        "CONCAT('" + fileUrl + "/" + filePath + "/min/'," +
+                        instanceShortcut + "." + fieldSnake + "_id," +
+                        instanceShortcut + "." + fieldSnake + "_extension) " +
+                        "END AS " + propertyName + "Min";
+
+                    var field = new Field
+                    {
+                        Name = propertyName+"Min",
+                        Type = "file",
+                        IsKey = false,
+                        Fields = [],
+                        IsArray = false,
+                        SubQuery = null,
+                        Value = url,
+                        OldValue = column
+                    };
+                    
+            return field;
+        }
 
 
         /// <summary>

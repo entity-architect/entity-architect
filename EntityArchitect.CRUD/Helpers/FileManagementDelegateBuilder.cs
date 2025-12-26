@@ -49,8 +49,8 @@ public class FileManagementDelegateBuilder<TEntity> where TEntity : Entity
                 }
                 
                 var entityFile = EntityFile.Create(file);  
-                
-                var result = await fileService.UploadFileAsync(file, entityFile, _path, cancellationToken);
+                var fileAttribute = entity.GetType().GetProperty(_field)!.GetCustomAttributes(typeof(MinFileAttribute), false).FirstOrDefault() as MinFileAttribute;
+                var result = await fileService.UploadFileAsync(file, entityFile, _path,fileAttribute, cancellationToken);
                 if (result.IsFailure)
                     return result;
 

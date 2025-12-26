@@ -7,7 +7,7 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
         <PackageId>EntityArchitect</PackageId>
-        <Version>1.1.17</Version>
+        <Version>1.1.19</Version>
         <Authors>Jan Rzepisko</Authors>
         <Description>Entity architect framwerok. Feature of api building</Description>
         <PackageLicenseUrl>https://example.com/license</PackageLicenseUrl>
@@ -29,6 +29,7 @@
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0"/>
         <PackageReference Include="Newtonsoft.Json" Version="13.0.1"/>
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.0"/>
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
         <PackageReference Include="Testcontainers.PostgreSql" Version="4.0.0"/>
         <PackageReference Include="xunit" Version="2.4.2" />
         <PackageReference Include="BCrypt-Official" Version="0.1.109" />

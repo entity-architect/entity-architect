@@ -192,6 +192,7 @@ public static partial class ApiBuilder
                 foreach (var query in queryFiles.Where(c => c.StartsWith(entityPrefix, StringComparison.OrdinalIgnoreCase)))
                 {
                     var sql = File.ReadAllText(query);
+                    sql = SqlParser.AddMinFile(sql, assembly);
 
                     // Generate endpoint name with snake_case and spaces replaced with dashes
                     var rawEndpointName = Path.GetFileNameWithoutExtension(query);
@@ -1039,6 +1040,7 @@ public static partial class ApiBuilder
             
             var context = httpContext.RequestServices.GetService<IConfiguration>();
             var connectionString = context!.GetConnectionString("DefaultConnection");
+            sql = SqlParser.AddMinFile(sql, typeof(TEntity).Assembly);
             var r = queryHandler.HandleAsync(sql, endpointName, param, connectionString, typeof(TEntity).Assembly, fileUrl);
             return r;
         });
