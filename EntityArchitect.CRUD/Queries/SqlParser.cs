@@ -230,7 +230,10 @@ namespace EntityArchitect.CRUD.Queries
             {
                 if (field.Value is not null && field.OldValue is not null)
                 {
-                    inputSql = inputSql.Replace(field.OldValue + ",", field.Value + ",");
+                    if(inputSql.Contains(field.OldValue + ","))
+                        inputSql = inputSql.Replace(field.OldValue + ",", field.Value + ",");
+                    else
+                        inputSql = inputSql.Replace(field.OldValue + "\n", field.Value + "\n");
                 }
             }
             
