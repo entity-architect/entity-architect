@@ -216,7 +216,7 @@ public static partial class ApiBuilder
                         .Invoke(null, new object[] { endpoints.ServiceProvider, file.Name, file.GetCustomAttribute<EntityFileAttribute>()!.Path });
 
                     var uploadFileDelegate = fileManagementDelegateBuilder!.GetType().GetProperty("UploadFile")!.GetValue(fileManagementDelegateBuilder) as Delegate;
-                    var endpoint = group.MapPost($"{file.Name.ToLower()}/{{id}}", uploadFileDelegate!)
+                    var endpoint = group.MapPost($"{file.Name.ToLower()}", uploadFileDelegate!)
                         .DisableAntiforgery();
                     endpoint.WithSummary($"Upload file for {entity.Name}");
                     endpoint.WithDisplayName($"Upload file for {entity.Name}");
@@ -237,8 +237,6 @@ public static partial class ApiBuilder
                     endpoint.WithSummary($"Download file for {entity.Name}");
                     endpoint.WithDisplayName($"Download file for {entity.Name}");
                 }
-
-                // Tag already set in MapGroup above
             }
 
             var allEntityNames = enumerable.Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
