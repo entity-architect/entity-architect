@@ -231,9 +231,11 @@ namespace EntityArchitect.CRUD.Queries
                 if (field.Value is not null && field.OldValue is not null)
                 {
                     if(inputSql.Contains(field.OldValue + ","))
-                        inputSql = inputSql.Replace(field.OldValue + ",", field.Value + ",");
+                        inputSql = inputSql.Replace(field.OldValue.TrimEnd(' ') + ",", field.Value.TrimEnd(' ') + ",");
+                    else if(field.Value.Contains("\n"))
+                        inputSql = inputSql.Replace(field.OldValue.TrimEnd(' ') + "\n", field.Value.TrimEnd(' ') + "\n");
                     else
-                        inputSql = inputSql.Replace(field.OldValue + "\n", field.Value + "\n");
+                        inputSql = inputSql.Replace(field.OldValue.TrimEnd(' '), field.Value.TrimEnd(' '));
                 }
             }
             
