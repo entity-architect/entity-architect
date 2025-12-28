@@ -144,7 +144,7 @@ internal class QueryHandler<TParam>
         }
     }
     
-    private static List<Type> ReorderTypes(List<Type> types)
+    public static List<Type> ReorderTypes(List<Type> types)
     {
         if (types == null || types.Count <= 1)
             return types;

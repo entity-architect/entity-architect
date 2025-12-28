@@ -1043,6 +1043,22 @@ public static partial class ApiBuilder
             return r;
         });
 
+        isSingle = sql.Replace("--", "").ToUpper().Contains("#SINGLE") || isSingle;
+
+        var fields = SqlParser.ParseSql(sql, typeof(TEntity).Assembly, fileUrl);
+        TypeBuilder typeBuilder = new();
+        var typeArray = typeBuilder.BuildQueryTypes(fields, endpointName, out var splitOn);
+        typeArray = QueryHandler<TParam>.ReorderTypes(typeArray.ToList()).ToArray();
+        var resultType = typeBuilder.BuildQueryResultType(typeArray.First());
+        
+        endpoint.WithSummary($"Query endpoint {typeof(TParam).Name}");
+        endpoint.WithDisplayName($"Query endpoint {typeof(TParam).Name}");
+        if(isSingle)
+            endpoint.Produces(200, typeof(Result<>).MakeGenericType(resultType));
+        else
+            endpoint.Produces(200, typeof(Result<>).MakeGenericType(typeof(List<>).MakeGenericType(resultType)));
+
+
         //var authorizationPolicies = new List<Type>();
         //var haveAuthorization = typeof(TQuery).CustomAttributes.Any(c => c.AttributeType == typeof(SecuredAttribute));
         //var authorizationEntityAttribute = typeof(TQuery).GetCustomAttribute<SecuredAttribute>();

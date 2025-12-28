@@ -81,7 +81,10 @@ public partial class TypeBuilder
 
                 if (property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType) || property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeTypeOtO))
                 {
-                    TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid));
+                    if(IsNullable(property))
+                        TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid?));
+                    else
+                        TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid));
                     continue;
                 }
             }
@@ -186,7 +189,10 @@ public partial class TypeBuilder
 
                 if (property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType) || property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeTypeOtO))
                 {
-                    TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid));
+                    if(IsNullable(property))
+                        TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid?));
+                    else
+                        TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid));
                     continue;
                 }
             }
@@ -619,5 +625,12 @@ public partial class TypeBuilder
 
         var result = resultType.CreateType();
         return result;
+    }
+    
+    bool IsNullable(PropertyInfo property)
+    {
+        if (Nullable.GetUnderlyingType(property.PropertyType) != null)
+            return true;
+        return !property.PropertyType.IsValueType;
     }
 }
