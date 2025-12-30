@@ -27,6 +27,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
 using Microsoft.OpenApi.Models;
+using AuthorizationBuilder = EntityArchitect.CRUD.Authorization.AuthorizationBuilder;
 using RouteAttribute = EntityArchitect.CRUD.Feature.RouteAttribute;
 
 namespace EntityArchitect.CRUD;
@@ -79,17 +80,17 @@ public static partial class ApiBuilder
                 var result = ConvertEndpointNameRegex().Replace(entity.Name, "$1-$2");
                 var name = result.ToLower();
 
-                var authorizationPolicies = new List<Type>();
                 var haveAuthorization = entity.CustomAttributes.Any(c => c.AttributeType == typeof(SecuredAttribute));
                 var authorizationEntityAttribute = entity.GetCustomAttribute<SecuredAttribute>();
+                string? authorizationPolicyName = null;
                 if (authorizationEntityAttribute is not null)
                 {
                     foreach (var type in authorizationEntityAttribute.SecuredByTypes)
                     {
                         if (type.CustomAttributes.All(c => c.AttributeType != typeof(AuthorizationEntityAttribute)))
                             throw new Exception($"AuthorizationEntityAttribute can only have AuthorizationEntityAttribute as EntityTypes. {type.Name}");
-                        authorizationPolicies.Add(type);
                     }
+                    authorizationPolicyName = AuthorizationBuilder.GetPolicyName(authorizationEntityAttribute.SecuredByTypes);
                 }
 
                 var requestPostType = typeBuilder.BuildCreateRequestFromEntity(entity);
@@ -130,7 +131,7 @@ public static partial class ApiBuilder
                     var postHandler = delegateBuilder!.GetType().GetProperty("PostDelegate")!.GetValue(delegateBuilder) as Delegate;
                     var endpoint = group.MapPost("", postHandler!);
 
-                    if (haveAuthorization) endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
+                    if (haveAuthorization) endpoint.RequireAuthorization(authorizationPolicyName!);
 
                     endpoint.WithSummary($"Create {entity.Name}");
                     endpoint.WithDisplayName($"Create {entity.Name}");
@@ -144,7 +145,7 @@ public static partial class ApiBuilder
                     var updateHandler = delegateBuilder!.GetType().GetProperty("UpdateDelegate")!.GetValue(delegateBuilder) as Delegate;
                     var endpoint = group.MapPut("", updateHandler!);
 
-                    if (haveAuthorization) endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
+                    if (haveAuthorization) endpoint.RequireAuthorization(authorizationPolicyName!);
 
                     endpoint.WithSummary($"Update {entity.Name}");
                     endpoint.WithDisplayName($"Update {entity.Name}");
@@ -158,7 +159,7 @@ public static partial class ApiBuilder
                     var deleteHandler = delegateBuilder!.GetType().GetProperty(nameof(DelegateBuilder<Entity, Entity, Entity, Response>.DeleteDelegate))!.GetValue(delegateBuilder) as Delegate;
                     var endpoint = group.MapDelete("{id}", deleteHandler!);
 
-                    if (haveAuthorization) endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
+                    if (haveAuthorization) endpoint.RequireAuthorization(authorizationPolicyName!);
 
                     endpoint.WithSummary($"Delete {entity.Name} by Id");
                     endpoint.WithDisplayName($"Delete {entity.Name} by Id");
@@ -185,7 +186,7 @@ public static partial class ApiBuilder
                     var endpoint = group.MapGet("light-list", getLightListDelegate!);
                     endpoint.WithSummary($"Get light list of {entity.Name}s. Only includes Id and {string.Join(",", lightListProperties)}");
 
-                    if (haveAuthorization) endpoint.RequireAuthorization(authorizationPolicies.Select(c => c.Name).ToArray());
+                    if (haveAuthorization) endpoint.RequireAuthorization(authorizationPolicyName!);
                 }
 
                 var entityPrefix = $"{normalizedSqlPath}/{entity.Name}/";
