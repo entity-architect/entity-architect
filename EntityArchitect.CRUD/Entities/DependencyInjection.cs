@@ -15,6 +15,8 @@ public static class DependencyInjection
     public static IServiceCollection AddEntityArchitect(this IServiceCollection services, Assembly entityAssembly,
         string connectionString)
     {
+        AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+        
         services.UseActions();
 
         services.AddSingleton(entityAssembly);

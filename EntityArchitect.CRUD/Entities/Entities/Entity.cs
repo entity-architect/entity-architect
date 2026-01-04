@@ -16,7 +16,7 @@ public abstract class Entity : IEntity
 
     public void SetCreatedDate()
     {
-        CreatedAt = DateTime.Now.ToUniversalTime();
+        CreatedAt = DateTime.Now;
     }
     
     public static TEntity CreateFromId<TEntity>(Guid id) where TEntity : Entity

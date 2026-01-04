@@ -27,21 +27,48 @@ public static class ApplicationBuilderFromModel
         {
             Console.WriteLine($"Building entity: {entity.Name}");
             List<CustomAttributeBuilder> entityAttributes = new();
-            if(entity.CannotDelete)
+            
+            // CannotCreate / CannotPost
+            if (entity.CannotCreate || entity.CannotPost)
                 entityAttributes.Add(new CustomAttributeBuilder(
-                    typeof(CannotDeleteAttribute).GetConstructor(new[] { typeof(CannotDeleteAttribute) })!,
+                    typeof(CannotCreateAttribute).GetConstructor(Type.EmptyTypes)!,
                     Array.Empty<object>()));
-                
-            if(entity.CannotPost)
+            
+            // CannotUpdate / CannotPut
+            if (entity.CannotUpdate || entity.CannotPut)
                 entityAttributes.Add(new CustomAttributeBuilder(
-                    typeof(CannotDeleteAttribute).GetConstructor(new[] { typeof(CannotDeleteAttribute) })!,
+                    typeof(CannotUpdateAttribute).GetConstructor(Type.EmptyTypes)!,
                     Array.Empty<object>()));
-                
-            if(entity.CannotPut)
+            
+            // CannotDelete
+            if (entity.CannotDelete)
                 entityAttributes.Add(new CustomAttributeBuilder(
-                    typeof(CannotUpdateAttribute).GetConstructor(new[] { typeof(CannotUpdateAttribute) })!,
+                    typeof(CannotDeleteAttribute).GetConstructor(Type.EmptyTypes)!,
                     Array.Empty<object>()));
-            var tb = TypeBuilderExtension.GetTypeBuilder(entity.Name, typeof(Entity));
+            
+            // CannotGetById
+            if (entity.CannotGetById)
+                entityAttributes.Add(new CustomAttributeBuilder(
+                    typeof(CannotGetByIdAttribute).GetConstructor(Type.EmptyTypes)!,
+                    Array.Empty<object>()));
+            
+            // HasLightList
+            if (entity.HasLightList)
+                entityAttributes.Add(new CustomAttributeBuilder(
+                    typeof(HasLightListAttribute).GetConstructor(Type.EmptyTypes)!,
+                    Array.Empty<object>()));
+            
+            // GetListPaginated
+            if (entity.GetListPaginated)
+            {
+                var itemCount = entity.PaginatedItemCount ?? 10;
+                entityAttributes.Add(new CustomAttributeBuilder(
+                    typeof(GetListPaginatedAttribute).GetConstructor(new[] { typeof(int) })!,
+                    new object[] { itemCount }));
+            }
+            
+            var tb = TypeBuilderExtension.GetTypeBuilder(entity.Name, typeof(Entity), entityAttributes);
+            
             foreach (var property in entity.Properties)
             {
                 Console.WriteLine($"  Adding property: {property.Name} of type {property.Type}");
@@ -50,39 +77,57 @@ public static class ApplicationBuilderFromModel
                 
                 List<CustomAttributeBuilder> attributes = new();
 
-                
-                if(property.IgnorePostRequest)
+                // IgnorePostRequest
+                if (property.IgnorePostRequest)
                     attributes.Add(new CustomAttributeBuilder(
-                        typeof(IgnorePostRequest).GetConstructor(new[] { typeof(IgnorePostRequest) })!,
+                        typeof(IgnorePostRequest).GetConstructor(Type.EmptyTypes)!,
                         Array.Empty<object>()));
-                if(property.IgnorePutRequest)
+                
+                // IgnorePutRequest
+                if (property.IgnorePutRequest)
                     attributes.Add(new CustomAttributeBuilder(
-                        typeof(IgnorePutRequest).GetConstructor(new[] { typeof(IgnorePutRequest) })!,
+                        typeof(IgnorePutRequest).GetConstructor(Type.EmptyTypes)!,
+                        Array.Empty<object>()));
+                
+                // IncludeInGet
+                if (property.IncludeInGet)
+                {
+                    var deep = property.IncludingDeep ?? 0;
+                    attributes.Add(new CustomAttributeBuilder(
+                        typeof(IncludeInGetAttribute).GetConstructor(new[] { typeof(int) })!,
+                        new object[] { deep }));
+                }
+                
+                // LightListProperty
+                if (property.LightListProperty)
+                    attributes.Add(new CustomAttributeBuilder(
+                        typeof(LightListPropertyAttribute).GetConstructor(Type.EmptyTypes)!,
                         Array.Empty<object>()));
 
                 if (property.Relation is not null)
                 {
+                    var checkIfExists = property.Relation.CheckIfExists;
+                    
                     if (property.Relation.Type == RelationType.OneToOne)
                     {
                         var attributeType = typeof(OneToOneAttribute<>).MakeGenericType(GetType(property.Relation.TargetEntity));
                         attributes.Add(new CustomAttributeBuilder(
                             attributeType.GetConstructor(new[] { typeof(string), typeof(bool) })!,
-                            new object[] { property.Relation.TargetPropertyName, true }));
+                            new object[] { property.Relation.TargetPropertyName, checkIfExists }));
                     }
                     else if (property.Relation.Type == RelationType.OneToMany)
                     {
                         var attributeType = typeof(OneToManyAttribute<>).MakeGenericType(GetType(property.Relation.TargetEntity));
                         attributes.Add(new CustomAttributeBuilder(
                             attributeType.GetConstructor(new[] { typeof(string), typeof(bool) })!,
-                            new object[] { property.Relation.TargetPropertyName, true }));
+                            new object[] { property.Relation.TargetPropertyName, checkIfExists }));
                     }
                     else if (property.Relation.Type == RelationType.ManyToOne)
                     {
-                        
                         var attributeType = typeof(ManyToOneAttribute<>).MakeGenericType(GetType(property.Relation.TargetEntity));
                         attributes.Add(new CustomAttributeBuilder(  
-                            attributeType.GetConstructor(new[] { typeof(string), typeof(bool) })!,
-                            new object[] { property.Relation.TargetPropertyName, true }));
+                            attributeType.GetConstructor(new[] { typeof(string) })!,
+                            new object[] { property.Relation.TargetPropertyName }));
                         
                         var collectionType = typeof(ICollection<>).MakeGenericType(type);
                         TypeBuilderExtension.CreateProperty(tb, property.Name, collectionType, attributes);
