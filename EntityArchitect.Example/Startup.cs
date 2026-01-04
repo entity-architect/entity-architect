@@ -3,6 +3,7 @@ using EntityArchitect.CRUD.Actions;
 using EntityArchitect.CRUD.Application;
 using EntityArchitect.CRUD.Authorization;
 using EntityArchitect.CRUD.Designer;
+using EntityArchitect.CRUD.Designer.Editor;
 using EntityArchitect.CRUD.Entities;
 using EntityArchitect.CRUD.Helpers;
 using EntityArchitect.Example.Services.Logger;
@@ -57,7 +58,7 @@ public class Startup
         var connectionString = Configuration.GetConnectionString("DefaultConnection");
 
         services.AddScoped<ILogger, Logger>();
-        services.AddEntityArchitect(typeof(Program).Assembly, connectionString ?? "");
+        services.AddEntityArchitect(typeof(Program).Assembly, connectionString ?? "", useDesigner: true);
         services.BuildEntityArchitectAuthorization(typeof(Program).Assembly);
     }
 
@@ -66,6 +67,15 @@ public class Startup
         app.QueryBuilderPropertiesBuild();
         app.UseSwagger();
         app.UseSwaggerUI();
+        
+        // Designer - dostępny pod /__designer
+        app.UseEntityArchitectDesigner();
+        app.UseRouting();
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapEntityArchitectDesigner();
+        });
+        
         app.MapEntityArchitectCrud(typeof(Program).Assembly, "", "Sql");
     }
 }

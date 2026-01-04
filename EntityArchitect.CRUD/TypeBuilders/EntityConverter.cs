@@ -42,13 +42,12 @@ public static class EntityConverter
             
             if (propertyEntity.PropertyType.BaseType == typeof(Entity))
             {
-                var attributeType = typeof(OneToManyAttribute<>)
-                    .MakeGenericType(propertyEntity.PropertyType);
-                
-                var attributeTypeOtO = typeof(OneToOneAttribute<>)
-                    .MakeGenericType(propertyEntity.PropertyType);
+                // Check for OneToManyAttribute or OneToOneAttribute (both generic and non-generic)
+                var hasRelationAttr = propertyEntity.CustomAttributes.Any(c => 
+                    typeof(OneToManyAttribute).IsAssignableFrom(c.AttributeType) ||
+                    typeof(OneToOneAttribute).IsAssignableFrom(c.AttributeType));
 
-                if (propertyEntity.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType) || propertyEntity.CustomAttributes.Select(c => c.AttributeType).Contains(attributeTypeOtO))
+                if (hasRelationAttr)
                 {
                     // Handle nullable OneToOne/OneToMany relations - if value is null, don't create sub entity
                     if (value is null || (value is Guid guidValue && guidValue == Guid.Empty))

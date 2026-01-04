@@ -12,9 +12,12 @@ namespace EntityArchitect.CRUD.Entities;
 
 public static class DependencyInjection
 {
+    internal static bool UseDesignerEnabled { get; private set; }
+    
     public static IServiceCollection AddEntityArchitect(this IServiceCollection services, Assembly entityAssembly,
-        string connectionString)
+        string connectionString, bool useDesigner = false)
     {
+        UseDesignerEnabled = useDesigner;
         AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
         
         services.UseActions();

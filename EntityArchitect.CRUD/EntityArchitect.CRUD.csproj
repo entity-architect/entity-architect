@@ -51,4 +51,8 @@
     <ItemGroup>
         <None Include="icon.png" Pack="true" PackagePath="." />
     </ItemGroup>
+
+    <ItemGroup>
+        <EmbeddedResource Include="Designer\Editor\wwwroot\**\*" />
+    </ItemGroup>
 </Project>

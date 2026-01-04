@@ -29,13 +29,13 @@ public static class QueryBuilderPropertiesExtension
                 if(property.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationPasswordAttribute)))
                     continue;
 
-                if(property.CustomAttributes.Any(c => c.AttributeType == typeof(ManyToOneAttribute<>)))
+                if(property.CustomAttributes.Any(c => typeof(ManyToOneAttribute).IsAssignableFrom(c.AttributeType)))
                     continue;
                 
-                if(property.CustomAttributes.Any(c => c.AttributeType == typeof(OneToManyAttribute<>)))
+                if(property.CustomAttributes.Any(c => typeof(OneToManyAttribute).IsAssignableFrom(c.AttributeType)))
                     continue;
                 
-                if(property.CustomAttributes.Any(c => c.AttributeType == typeof(OneToOneAttribute<>)))
+                if(property.CustomAttributes.Any(c => typeof(OneToOneAttribute).IsAssignableFrom(c.AttributeType)))
                     continue;
 
                 if (property.Name == "Id")

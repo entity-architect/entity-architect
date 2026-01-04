@@ -3,13 +3,18 @@ using EntityArchitect.CRUD.Entities.Entities;
 
 namespace EntityArchitect.CRUD.Entities.Attributes;
 
+/// <summary>
+/// Non-generic version for dynamic type building
+/// </summary>
 [AttributeUsage(AttributeTargets.Property)]
-public class ManyToOneAttribute<T>(string PropertyName) : Attribute where T : Entity
+public class ManyToOneAttribute(string propertyName, string entityName) : Attribute
 {
-    public string EntityName { get; set; }
-    
-    public ManyToOneAttribute(string propertyName, string entityName) : this(propertyName)
-    {
-        EntityName = entityName;
-    }
+    public string PropertyName { get; } = propertyName;
+    public string EntityName { get; } = entityName;
 }
+
+/// <summary>
+/// Generic version for compile-time type safety
+/// </summary>
+[AttributeUsage(AttributeTargets.Property)]
+public class ManyToOneAttribute<T>(string propertyName) : ManyToOneAttribute(propertyName, typeof(T).Name) where T : Entity;

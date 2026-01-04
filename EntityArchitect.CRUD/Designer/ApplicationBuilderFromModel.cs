@@ -107,30 +107,33 @@ public static class ApplicationBuilderFromModel
                 if (property.Relation is not null)
                 {
                     var checkIfExists = property.Relation.CheckIfExists;
+                    var targetEntity = property.Relation.TargetEntity;
+                    var targetPropertyName = property.Relation.TargetPropertyName;
                     
                     if (property.Relation.Type == RelationType.OneToOne)
                     {
-                        var attributeType = typeof(OneToOneAttribute<>).MakeGenericType(GetType(property.Relation.TargetEntity));
+                        // Use non-generic OneToOneAttribute(propertyName, entityName, checkIfExists)
                         attributes.Add(new CustomAttributeBuilder(
-                            attributeType.GetConstructor(new[] { typeof(string), typeof(bool) })!,
-                            new object[] { property.Relation.TargetPropertyName, checkIfExists }));
+                            typeof(OneToOneAttribute).GetConstructor(new[] { typeof(string), typeof(string), typeof(bool) })!,
+                            new object[] { targetPropertyName, targetEntity, checkIfExists }));
                     }
                     else if (property.Relation.Type == RelationType.OneToMany)
                     {
-                        var attributeType = typeof(OneToManyAttribute<>).MakeGenericType(GetType(property.Relation.TargetEntity));
+                        // Use non-generic OneToManyAttribute(propertyName, entityName, checkIfExists)
                         attributes.Add(new CustomAttributeBuilder(
-                            attributeType.GetConstructor(new[] { typeof(string), typeof(bool) })!,
-                            new object[] { property.Relation.TargetPropertyName, checkIfExists }));
+                            typeof(OneToManyAttribute).GetConstructor(new[] { typeof(string), typeof(string), typeof(bool) })!,
+                            new object[] { targetPropertyName, targetEntity, checkIfExists }));
                     }
                     else if (property.Relation.Type == RelationType.ManyToOne)
                     {
-                        var attributeType = typeof(ManyToOneAttribute<>).MakeGenericType(GetType(property.Relation.TargetEntity));
+                        // Use non-generic ManyToOneAttribute(propertyName, entityName)
                         attributes.Add(new CustomAttributeBuilder(  
-                            attributeType.GetConstructor(new[] { typeof(string) })!,
-                            new object[] { property.Relation.TargetPropertyName }));
+                            typeof(ManyToOneAttribute).GetConstructor(new[] { typeof(string), typeof(string) })!,
+                            new object[] { targetPropertyName, targetEntity }));
                         
-                        var collectionType = typeof(ICollection<>).MakeGenericType(type);
-                        TypeBuilderExtension.CreateProperty(tb, property.Name, collectionType, attributes);
+                        // For ManyToOne we need ICollection<TargetEntity> but type is not available yet
+                        // We'll use object type for now - the actual type resolution happens at runtime
+                        TypeBuilderExtension.CreateProperty(tb, property.Name, typeof(object), attributes);
                         continue;
                     }
                 }

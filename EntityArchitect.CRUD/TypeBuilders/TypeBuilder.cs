@@ -73,13 +73,12 @@ public partial class TypeBuilder
             
             if (property.PropertyType.BaseType == typeof(Entity))
             {
-                var attributeType = typeof(OneToManyAttribute<>)
-                    .MakeGenericType(property.PropertyType);
-                
-                var attributeTypeOtO = typeof(OneToOneAttribute<>)
-                    .MakeGenericType(property.PropertyType);
+                // Check for OneToManyAttribute or OneToOneAttribute (both generic and non-generic)
+                var hasRelationAttr = property.CustomAttributes.Any(c => 
+                    typeof(OneToManyAttribute).IsAssignableFrom(c.AttributeType) ||
+                    typeof(OneToOneAttribute).IsAssignableFrom(c.AttributeType));
 
-                if (property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType) || property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeTypeOtO))
+                if (hasRelationAttr)
                 {
                     if(IsNullable(property))
                         TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid?));
@@ -181,13 +180,12 @@ public partial class TypeBuilder
 
             if (property.PropertyType.BaseType == typeof(Entity))
             {
-                var attributeType = typeof(OneToManyAttribute<>)
-                    .MakeGenericType(property.PropertyType);
-                
-                var attributeTypeOtO = typeof(OneToOneAttribute<>)
-                    .MakeGenericType(property.PropertyType);
+                // Check for OneToManyAttribute or OneToOneAttribute (both generic and non-generic)
+                var hasRelationAttr = property.CustomAttributes.Any(c => 
+                    typeof(OneToManyAttribute).IsAssignableFrom(c.AttributeType) ||
+                    typeof(OneToOneAttribute).IsAssignableFrom(c.AttributeType));
 
-                if (property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType) || property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeTypeOtO))
+                if (hasRelationAttr)
                 {
                     if(IsNullable(property))
                         TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid?));

@@ -36,43 +36,34 @@ public static class EntityBuilder
         {
             if (property.PropertyType.BaseType == typeof(Entity))
             {
-                var attributeOneToManyType = typeof(OneToManyAttribute<>).MakeGenericType(property.PropertyType);
-                var attributeOneToOneType = typeof(OneToOneAttribute<>).MakeGenericType(property.PropertyType);
-
                 if (property.PropertyType.BaseType == typeof(ValueObject))
                 {
                     modelBuilder.Entity(entity).OwnsOne(property.PropertyType, property.Name);
                     continue;
                 }
                 
-                if (property.CustomAttributes.Select(c => c.AttributeType)
-                    .Contains(attributeOneToManyType))
+                // Check for OneToManyAttribute (both generic and non-generic inherit from base)
+                var oneToManyAttr = property.CustomAttributes
+                    .FirstOrDefault(c => typeof(OneToManyAttribute).IsAssignableFrom(c.AttributeType));
+                    
+                if (oneToManyAttr is not null)
                 {
-                    var relationType = property.CustomAttributes
-                        .First(c => c.AttributeType == attributeOneToManyType)
-                        .AttributeType.GetGenericArguments()[0];
-
-                    if (relationType is null) continue;
-                    var relation = property.CustomAttributes
-                        .First(c => c.AttributeType == attributeOneToManyType);
-                    var fk = relation.ConstructorArguments.First().Value as string;
+                    var fk = oneToManyAttr.ConstructorArguments.First().Value as string;
                     
                     modelBuilder.Entity(entity)
                         .HasOne(property.Name)
                         .WithMany(fk)  
                         .HasForeignKey(property.Name + "Id");
+                    continue;
                 }
-                else if (property.CustomAttributes.Select(c => c.AttributeType)
-                         .Contains(attributeOneToOneType))
+                
+                // Check for OneToOneAttribute (both generic and non-generic inherit from base)
+                var oneToOneAttr = property.CustomAttributes
+                    .FirstOrDefault(c => typeof(OneToOneAttribute).IsAssignableFrom(c.AttributeType));
+                    
+                if (oneToOneAttr is not null)
                 {
-                    var relationType = property.CustomAttributes
-                        .First(c => c.AttributeType == attributeOneToOneType)
-                        .AttributeType.GetGenericArguments()[0];
-
-                    if (relationType is null) continue;
-                    var relation = property.CustomAttributes
-                        .First(c => c.AttributeType == attributeOneToOneType);
-                    var fk = relation.ConstructorArguments.First().Value as string;
+                    var fk = oneToOneAttr.ConstructorArguments.First().Value as string;
 
                     var hasForeignKeyMethods = typeof(Microsoft.EntityFrameworkCore.Metadata.Builders.ReferenceReferenceBuilder).GetMethods();
                     var hasForeignKeyMethod = hasForeignKeyMethods.First(m => m.Name == "HasForeignKey" && m.GetParameters()[0].ParameterType == typeof(Type));
@@ -83,26 +74,17 @@ public static class EntityBuilder
             }
             else if (property.PropertyType.IsGenericType && property.PropertyType.GetGenericArguments().First().BaseType == typeof(Entity))
             {
-                var attributeManyToOneType =
-                    typeof(ManyToOneAttribute<>).MakeGenericType(property.PropertyType.GetGenericArguments()
-                        .First());
+                // Check for ManyToOneAttribute (both generic and non-generic inherit from base)
+                var manyToOneAttr = property.CustomAttributes
+                    .FirstOrDefault(c => typeof(ManyToOneAttribute).IsAssignableFrom(c.AttributeType));
 
-                if (property.CustomAttributes.Select(c => c.AttributeType)
-                    .Contains(attributeManyToOneType))
+                if (manyToOneAttr is not null)
                 {
-                    var relationType = property.CustomAttributes
-                        .First(c => c.AttributeType == attributeManyToOneType)
-                        .AttributeType.GetGenericArguments()[0];
-
-                    if (relationType == null) continue;
-                    var relation = property.CustomAttributes
-                        .First(c => c.AttributeType == attributeManyToOneType);
-                    var fk = relation.ConstructorArguments.First().Value as string;
+                    var fk = manyToOneAttr.ConstructorArguments.First().Value as string;
 
                     modelBuilder.Entity(entity)
                         .HasMany(property.Name)
                         .WithOne(fk);
-                    //.HasForeignKey(fk + "Id");
                 }
             }
             else if (property.PropertyType.BaseType == typeof(Enumeration))

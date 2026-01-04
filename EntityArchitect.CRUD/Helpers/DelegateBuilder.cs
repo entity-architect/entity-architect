@@ -52,8 +52,8 @@ public class DelegateBuilder<
                          .Where(c =>
                              c.PropertyType.BaseType == typeof(Entity) &&
                              c.CustomAttributes.Any(x =>
-                                 x.AttributeType == typeof(OneToManyAttribute<>).MakeGenericType(c.PropertyType) ||
-                                 x.AttributeType == typeof(OneToOneAttribute<>).MakeGenericType(c.PropertyType))))
+                                 typeof(OneToManyAttribute).IsAssignableFrom(x.AttributeType) ||
+                                 typeof(OneToOneAttribute).IsAssignableFrom(x.AttributeType))))
             {
                 if(item.CustomAttributes.Any(c => c.AttributeType == typeof(IgnorePostRequest)))
                     continue;
@@ -113,8 +113,8 @@ public class DelegateBuilder<
                          .Where(c =>
                              c.PropertyType.BaseType == typeof(Entity) &&
                              c.CustomAttributes.Any(x =>
-                                 x.AttributeType == typeof(OneToManyAttribute<>).MakeGenericType(c.PropertyType) ||
-                                 x.AttributeType == typeof(OneToOneAttribute<>).MakeGenericType(c.PropertyType)) &&
+                                 typeof(OneToManyAttribute).IsAssignableFrom(x.AttributeType) ||
+                                 typeof(OneToOneAttribute).IsAssignableFrom(x.AttributeType)) &&
                                c.CustomAttributes.All(x => x.AttributeType != typeof(IgnorePutRequest))
                      ))
             {
