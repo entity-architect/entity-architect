@@ -1,152 +1,420 @@
+using System.ComponentModel;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using EntityArchitect.CRUD.Files;
+using EntityArchitect.CRUD.Helpers;
 
-namespace EntityArchitect.CRUD.Queries;
-
-public abstract class SqlParser
+namespace EntityArchitect.CRUD.Queries
 {
-    public class Field
+    public abstract class SqlParser
     {
-        public string Name { get; set; }
-        public string Type { get; set; }
-        public List<Field> Fields { get; set; }
-        public bool IsArray { get; set; }
-        public bool IsKey { get; set; }
-    }
-
-    public static List<Field> ParseSql(string sql)
-    {
-        var columns = ExtractColumns(sql);
-        return ParseFields(columns);
-    }
-
-    static List<string> ExtractColumns(string nestedFields)
-    {
-        var columns = new List<string>();
-        var buffer = new StringBuilder();
-        int depth = 0;
-
-        foreach (var ch in nestedFields)
+        public static List<Field> ParseSql(string sql, Assembly assembly, string fileUrl)
         {
-            if (ch == ',' && depth == 0)
+            sql = AddMinFile(sql, assembly);
+            var columnsSegment = ExtractColumnsSegment(sql);
+            var columns = ExtractColumns(columnsSegment);
+            return ParseFields(columns, assembly, fileUrl);
+        }
+        
+        private static string ExtractColumnsSegment(string sql)
+        {
+            var selectIndex = sql.IndexOf("SELECT", StringComparison.OrdinalIgnoreCase);
+            if (selectIndex == -1)
+                throw new ArgumentException("Missing SELECT clause in SQL statement.");
+
+            int depth = 0;
+            int fromIndex = -1;
+            for (int i = selectIndex; i < sql.Length - 4; i++)
             {
+                if (sql[i] == '(') depth++;
+                if (sql[i] == ')') depth--;
+
+                if (depth == 0 && sql.Substring(i, 4).Equals("FROM", StringComparison.OrdinalIgnoreCase))
+                {
+                    fromIndex = i;
+                    break;
+                }
+            }
+
+            if (fromIndex == -1)
+                throw new ArgumentException("Could not find matching FROM clause outside of subqueries.");
+
+            return sql.Substring(selectIndex + 6, fromIndex - (selectIndex + 6)).Trim();
+        }
+
+
+        private static List<string> ExtractColumns(string nestedFields)
+        {
+            var columns = new List<string>();
+            var buffer = new StringBuilder();
+            var depth = 0;
+
+            foreach (var ch in nestedFields)
+            {
+                if (ch == ',' && depth == 0)
+                {
+                    columns.Add(buffer.ToString().Trim());
+                    buffer.Clear();
+                }
+                else
+                {
+                    if (ch == '(') depth++;
+                    if (ch == ')') depth--;
+                    buffer.Append(ch);
+                }
+            }
+
+            if (buffer.Length > 0)
                 columns.Add(buffer.ToString().Trim());
-                buffer.Clear();
-            }
-            else
-            {
-                if (ch == '(') depth++;
-                if (ch == ')') depth--;
-                buffer.Append(ch);
-            }
+
+            return columns;
         }
 
-        if (buffer.Length > 0)
-            columns.Add(buffer.ToString().Trim());
-
-        return columns;
-    }
-
-    static List<Field> ParseFields(List<string> columnStrings)
-    {
-        var fields = new List<Field>();
-
-        foreach (var column in columnStrings)
+        private static List<Field> ParseFields(List<string> columnStrings, Assembly assembly, string fileUrl)
         {
-            if (IsComplexClass(column))
+            var fields = new List<Field>();
+
+            foreach (var column in columnStrings)
             {
-                fields.Add(ParseComplexField(column));
+                if(column.TrimStart().StartsWith("--")) 
+                    continue;
+                if (column.ToUpper().Split(":")[1] == "FILE")
+                {
+                    fields.Add(HandleFileField(column, assembly, fileUrl));
+                    continue;
+                }
+                
+                if (column.ToUpper().Split(":")[1] == "FILEMIN")
+                {
+                    fields.Add(HandleFileMinField(column, assembly, fileUrl));
+                    continue;
+                }
+                
+                if(string.IsNullOrEmpty(column))
+                    continue;
+                if (IsComplexType(column))
+                    fields.Add(ParseComplexField(column, assembly, fileUrl));
+                else
+                    fields.Add(ParseSimpleField(column, assembly, fileUrl));
             }
-            else
-            {
-                fields.Add(ParseSimpleField(column));
-            }
+
+            return fields;
         }
 
-        return fields;
-    }
-
-    static bool IsComplexClass(string column)
-    {
-        return Regex.IsMatch(column, @":\(.+\)"); 
-    }
-
-    static Field ParseComplexField(string column)
-    {
-        var mainFieldMatch = Regex.Match(column, @"([\w\.]+):\((.+)\)(\[\])?:([\w]+)");
-        if (!mainFieldMatch.Success)
-            throw new ArgumentException($"Column format is invalid: {column}");
-
-        var mainName = mainFieldMatch.Groups[1].Value;
-        var nestedFields = mainFieldMatch.Groups[2].Value;
-        var mainType = mainFieldMatch.Groups[4].Value;
-        var isArray = mainFieldMatch.Groups[3].Success;
-
-        var extracted = ExtractColumns(nestedFields);
-        var fields = new List<Field>();
-
-        foreach (var nestedField in extracted)
+        private static bool IsComplexType(string column)
         {
-            if (IsComplexClass(nestedField))
-            {
-                fields.Add(ParseComplexField(nestedField.Trim()));
-            }
-            else
-            {
-                fields.Add(ParseSimpleField(nestedField.Trim()));
-            }
+            return Regex.IsMatch(column, @"^\w+:\(", RegexOptions.IgnoreCase) ||
+                   Regex.IsMatch(column, @":\(\(.*\)\)", RegexOptions.Singleline);
         }
 
-        return new Field
+        private static Field ParseComplexField(string column, Assembly assembly, string fileUrl)
         {
-            Name = mainName,
-            Type = mainType,
-            Fields = fields,
-            IsArray = isArray
-        };
-    }
+            // Pattern for subqueries like field:((subquery)):alias:type
+            var subQueryPattern = @"^(?<name>\w+):\(\((?<subquery>.*?)\)\):(?<alias>\w+)(?::(?<type>\w+))?$";
+            var subQueryMatch = Regex.Match(column, subQueryPattern, RegexOptions.Singleline);
 
+            if (subQueryMatch.Success)
+            {
+                return new Field
+                {
+                    Name = subQueryMatch.Groups["alias"].Value,
+                    SubQuery = subQueryMatch.Groups["subquery"].Value.Trim(),
+                    Type = subQueryMatch.Groups["type"].Success ? subQueryMatch.Groups["type"].Value : "string",
+                    Fields = new List<Field>(),
+                    IsArray = false
+                };
+            }
 
-    static Field ParseSimpleField(string column)
-    {
-        var match = Regex.Match(column, @"([\w\.]+):([\w]+)(:([\w]+))?");
-        if (!match.Success)
-            throw new ArgumentException($"Invalid column format: {column}");
+            // Pattern for nested complex fields: field:(nested fields)[]:type
+            var complexFieldPattern = @"^(?<name>\w+):\((?<fields>.*)\)(?<array>\[\])?:(?<type>\w+)$";
+            var complexMatch = Regex.Match(column, complexFieldPattern, RegexOptions.Singleline);
 
-        return new Field
-        {
-            Name = match.Groups[1].Value,
-            Type = match.Groups[2].Value,
-            IsKey = match.Groups[4].Value == "Key",
-            Fields = new List<Field>(),
-            IsArray = false
-        };
-    }
-    
-    internal static string RemoveTypes(string text)
-    {
-        const string pattern = @"(@\w+):\w+(:\w+)?";
-        return Regex.Replace(text, pattern, "$1");
-    }
-    
-    internal static string CleanupSql(string inputSql)
-    {
-        var step1 = Regex.Replace(inputSql, @":\w+", "", RegexOptions.IgnoreCase);
-        var step2 = Regex.Replace(step1, @"\b\w+:\(([^()]*?)\)", "$1", RegexOptions.IgnoreCase);
+            if (!complexMatch.Success)
+                throw new ArgumentException($"Column format is invalid: {column}");
 
-        while (Regex.IsMatch(step2, @"\b\w+:\(([^()]*?)\)", RegexOptions.IgnoreCase))
-        {
-            step2 = Regex.Replace(step2, @"\b\w+:\(([^()]*?)\)", "$1", RegexOptions.IgnoreCase);
+            var mainName = complexMatch.Groups["name"].Value;
+            var nestedFields = complexMatch.Groups["fields"].Value;
+            var mainType = complexMatch.Groups["type"].Value;
+            var isArray = complexMatch.Groups["array"].Success;
+            
+            var extracted = ExtractColumns(nestedFields);
+            var fields = new List<Field>();
+
+            foreach (var nestedField in extracted)
+            {
+                if (string.IsNullOrEmpty(nestedField))
+                    continue;
+
+                fields.Add(IsComplexType(nestedField)
+                    ? ParseComplexField(nestedField.Trim(), assembly, fileUrl)
+                    : ParseSimpleField(nestedField.Trim(), assembly, fileUrl));
+            }
+
+            return new Field
+            {
+                Name = mainName,
+                Type = mainType,
+                Fields = fields,
+                IsArray = isArray
+            };
         }
 
-        step2 = Regex.Replace(step2, @",\s*\)", ")",
-            RegexOptions.IgnoreCase); 
-        step2 = Regex.Replace(step2, @",\s*,", ",", RegexOptions.IgnoreCase); 
-        step2 = Regex.Replace(step2, @"\bas\s+(\w+)", "as $1", RegexOptions.IgnoreCase);
-        var step3 = Regex.Replace(step2, @"\[\]", "", RegexOptions.IgnoreCase); 
-        step3 = Regex.Replace(step3, @"\s{2,}", " ").Trim();
-        step3 = Regex.Replace(step3, @"^,|,$", "", RegexOptions.IgnoreCase);
+        private static Field ParseSimpleField(string column, Assembly assembly , string fileUrl)
+        {
+            var pattern = @"^(?<db>[\w\.]+)(?:\s+AS\s+(?<alias>[\w\.]+))?(?::(?<type>\w+)(?::(?<modifier>\w+))?)?$";
+            var match = Regex.Match(column, pattern, RegexOptions.IgnoreCase);
 
-        return step3;
+            if (!match.Success)
+                throw new ArgumentException($"Invalid column format: {column}");
+
+            var dbName = match.Groups["db"].Value;
+            var alias = match.Groups["alias"].Success ? match.Groups["alias"].Value : dbName;
+            var type = match.Groups["type"].Success ? match.Groups["type"].Value : "string";
+            var modifier = match.Groups["modifier"].Value;
+
+            Type? enumerationType = null;
+            if (type.Equals("enumeration", StringComparison.OrdinalIgnoreCase))
+                enumerationType = assembly.GetTypes().FirstOrDefault(x => x.Name == modifier);
+
+            if (column.ToUpper().Split(":")[1] == "FILE")
+            {
+                return HandleFileField(column, assembly, fileUrl);
+            }
+
+            if (column.ToUpper().Split(":")[1] == "FILEMIN")
+            {
+                return HandleFileMinField(column, assembly, fileUrl);
+            }
+            
+            return new Field
+            {
+                Name = alias,
+                Type = type,
+                IsKey = modifier.Equals("Key", StringComparison.OrdinalIgnoreCase),
+                EnumerationType = enumerationType,
+                Fields = new List<Field>(),
+                IsArray = false,
+                SubQuery = null,
+            };
+        }
+
+        internal static string RemoveTypes(string text)
+        {
+            const string pattern = @"(@\w+):\w+(:\w+)?";
+            return Regex.Replace(text, pattern, "$1");
+        }
+        
+        internal static List<Field> FlattenFields(IEnumerable<Field> fields)
+        {
+            var result = new List<Field>();
+
+            foreach (var field in fields)
+            {
+                result.Add(field);
+
+                if (field.Fields != null && field.Fields.Any())
+                {
+                    result.AddRange(FlattenFields(field.Fields));
+                }
+            }
+
+            return result;
+        }
+
+
+        internal static string CleanupSql(string inputSql, List<Field> parametersFields)
+        {
+            var flatFields = FlattenFields(parametersFields);
+            foreach (var field in flatFields)
+            {
+                if (field.Value is not null && field.OldValue is not null)
+                {
+                    if(inputSql.Contains(field.OldValue + ","))
+                        inputSql = inputSql.Replace(field.OldValue.TrimEnd(' ') + ",", field.Value.TrimEnd(' ') + ",");
+                    else if(field.Value.Contains("\n"))
+                        inputSql = inputSql.Replace(field.OldValue.TrimEnd(' ') + "\n", field.Value.TrimEnd(' ') + "\n");
+                    else
+                        inputSql = inputSql.Replace(field.OldValue.TrimEnd(' '), field.Value.TrimEnd(' '));
+                }
+            }
+            
+            //remove form -- to end of line
+            inputSql = Regex.Replace(inputSql, @"--.*$", "", RegexOptions.Multiline);
+            
+            // Zamień nazwapola:((subquery)):alias na (subquery) AS alias
+            var subQueryPattern = @"\w+:\(\((.*?)\)\):(?<alias>\w+)";
+            var step0 = Regex.Replace(inputSql, subQueryPattern, "($1) AS ${alias}", RegexOptions.Singleline);
+
+            // Usuń typy np. :GUID, :enumeration, itp.
+            var step1 = Regex.Replace(step0, @":\w+(?::\w+)?", "", RegexOptions.IgnoreCase);
+
+            // Usuń nazwy pól z nawiasami np. teams:(...)[]:Alias
+            var nestedPattern = @"\w+:\(((?>[^()]+|\((?<depth>)|\)(?<-depth>))*(?(depth)(?!)))\)(\[\])?(?::\w+)?";
+            while (Regex.IsMatch(step1, nestedPattern, RegexOptions.Singleline))
+                step1 = Regex.Replace(step1, nestedPattern, "$1", RegexOptions.Singleline);
+
+            // Drobne czyszczenie końcowe
+            step1 = Regex.Replace(step1, @"\[\]", "", RegexOptions.IgnoreCase);
+            step1 = Regex.Replace(step1, @",\s*\)", ")", RegexOptions.IgnoreCase);
+            step1 = Regex.Replace(step1, @",\s*,", ",", RegexOptions.IgnoreCase);
+            step1 = Regex.Replace(step1, @"\s{2,}", " ").Trim();
+
+            // Usuń przecinek przed FROM
+            step1 = Regex.Replace(step1, @",\s*(FROM)", " $1", RegexOptions.IgnoreCase);
+
+            step1 = Regex.Replace(step1, @"^,|,$", "", RegexOptions.IgnoreCase);
+
+            return step1;
+        }
+
+        public static string AddMinFile(string sql, Assembly assembly)
+        {
+            // Najpierw sprawdź czy w SQL już jest FILEMIN - jeśli tak, pomiń całkowicie
+            if (sql.Contains(":FILEMIN", StringComparison.OrdinalIgnoreCase))
+            {
+                return sql;
+            }
+            
+            //example u.avatar AS User:FILE 
+            // Pattern dopasowuje :FILE ale NIE dopasowuje :FILEMIN
+            var pattern = @"(?<instance>\w+)\.(?<property>\w+)\s+AS\s+(?<entity>\w+):FILE\b";
+            
+            var result = Regex.Replace(sql, pattern, m =>
+            {
+                var instance = m.Groups["instance"].Value;
+                var property = m.Groups["property"].Value;
+                var entity = m.Groups["entity"].Value;
+                
+                var e = assembly.ExportedTypes.FirstOrDefault(c => c.Name.Equals(entity, StringComparison.OrdinalIgnoreCase));
+                if (e == null)
+                    throw new ArgumentException($"Entity type '{entity}' not found in assembly.");
+                
+                var propInfo = e.GetProperties().FirstOrDefault(p => p.Name.Equals(property, StringComparison.OrdinalIgnoreCase));
+                if (propInfo == null)
+                    throw new ArgumentException($"Property '{property}' not found in entity '{entity}'.");
+                
+                var hasEntityFileAttr = propInfo.CustomAttributes.Any(c => c.AttributeType == typeof(EntityFileAttribute));
+                var minAttribute = propInfo.GetCustomAttribute<MinFileAttribute>();
+
+                if (hasEntityFileAttr && minAttribute is not null)
+                {
+                    return $"{instance}.{property} AS {entity}:FILE,\n{instance}.{property} AS {entity}:FILEMIN";
+                }
+                return m.Value;
+                
+            }, RegexOptions.IgnoreCase);
+            return result;
+        }
+
+        private static Field HandleFileField(string column, Assembly assembly , string fileUrl)
+        {
+             var instanceShortcut = column.Split(".")[0];
+                    var entityName = column.ToUpper().Split(".")[1].Split("AS ")[1].Split(":")[0].Trim();
+                    var propertyName = column.Split(".")[1].Split(" ")[0];
+                    var entity = assembly.ExportedTypes.FirstOrDefault(c => c.Name.Equals(entityName, StringComparison.OrdinalIgnoreCase));
+                    if (entity == null)
+                        throw new ArgumentException($"Entity type '{entityName}' not found in assembly.");
+                    
+                    var fileField = entity.GetProperties()
+                        .FirstOrDefault(p => p.CustomAttributes
+                            .Any(a => a.AttributeType == typeof(EntityFileAttribute)) && 
+                                             string.Equals(p.Name, propertyName, StringComparison.CurrentCultureIgnoreCase));
+                    if (fileField == null)
+                        throw new ArgumentException($"Property '{propertyName}' with EntityFileAttribute not found in entity '{entityName}'.");
+
+                    var filePath = fileField.CustomAttributes.First(a => a.AttributeType == typeof(EntityFileAttribute))
+                        .ConstructorArguments[0].Value?.ToString() ?? "";
+                    var fieldSnake = CrudSqlBuilder.ToSnakeCase(fileField.Name);
+                    var defaultValue = fileField.CustomAttributes
+                        .First(a => a.AttributeType == typeof(EntityFileAttribute)).ConstructorArguments[1].Value;
+                    var defaultValueString = defaultValue != null ? $"CONCAT('" + fileUrl + "/" + filePath + "/','" + defaultValue + "')" : "NULL";
+
+                    var url =
+                        "CASE WHEN " + instanceShortcut + "." + fieldSnake + "_id IS NULL " +
+                        $"THEN {defaultValueString} ELSE " +
+                        "CONCAT('" + fileUrl + "/" + filePath + "/'," +
+                        instanceShortcut + "." + fieldSnake + "_id," +
+                        instanceShortcut + "." + fieldSnake + "_extension) " +
+                        "END AS " + propertyName;
+
+                    var field = new Field
+                    {
+                        Name = propertyName,
+                        Type = "file",
+                        IsKey = false,
+                        Fields = [],
+                        IsArray = false,
+                        SubQuery = null,
+                        Value = url,
+                        OldValue = column
+                    };
+                    
+            return field;
+        }
+        
+        private static Field HandleFileMinField(string column, Assembly assembly , string fileUrl)
+        {
+             var instanceShortcut = column.Split(".")[0];
+                    var entityName = column.ToUpper().Split(".")[1].Split("AS ")[1].Split(":")[0].Trim();
+                    var propertyName = column.Split(".")[1].Split(" ")[0];
+                    var entity = assembly.ExportedTypes.FirstOrDefault(c => c.Name.Equals(entityName, StringComparison.OrdinalIgnoreCase));
+                    if (entity == null)
+                        throw new ArgumentException($"Entity type '{entityName}' not found in assembly.");
+                    
+                    var fileField = entity.GetProperties()
+                        .FirstOrDefault(p => p.CustomAttributes
+                            .Any(a => a.AttributeType == typeof(EntityFileAttribute)) && 
+                                             string.Equals(p.Name, propertyName, StringComparison.CurrentCultureIgnoreCase));
+                    if (fileField == null)
+                        throw new ArgumentException($"Property '{propertyName}' with EntityFileAttribute not found in entity '{entityName}'.");
+
+                    var filePath = fileField.CustomAttributes.First(a => a.AttributeType == typeof(EntityFileAttribute))
+                        .ConstructorArguments[0].Value?.ToString() ?? "";
+                    var fieldSnake = CrudSqlBuilder.ToSnakeCase(fileField.Name);
+                    var defaultValue = fileField.CustomAttributes
+                        .First(a => a.AttributeType == typeof(EntityFileAttribute)).ConstructorArguments[1].Value;
+                    var defaultMin = defaultValue.ToString().Split(".")[0] + "." + defaultValue.ToString().Split(".")[1];
+                    var defaultValueString = defaultValue != null ? $"CONCAT('" + fileUrl + "/" + filePath + "/min/','" + defaultMin + "')" : "NULL";
+
+                    var url =
+                        "CASE WHEN " + instanceShortcut + "." + fieldSnake + "_id IS NULL " +
+                        $"THEN {defaultValueString} ELSE " +
+                        "CONCAT('" + fileUrl + "/" + filePath + "/min/'," +
+                        instanceShortcut + "." + fieldSnake + "_id," +
+                        instanceShortcut + "." + fieldSnake + "_extension) " +
+                        "END AS " + propertyName + "Min";
+
+                    var field = new Field
+                    {
+                        Name = propertyName+"Min",
+                        Type = "file",
+                        IsKey = false,
+                        Fields = [],
+                        IsArray = false,
+                        SubQuery = null,
+                        Value = url,
+                        OldValue = column
+                    };
+                    
+            return field;
+        }
+
+
+        /// <summary>
+        /// Klasa reprezentująca pojedyncze pole w zapytaniu
+        /// </summary>
+        public class Field
+        {
+            public string Name { get; set; }
+            public string Type { get; set; }
+            public List<Field> Fields { get; set; }
+            public bool IsArray { get; set; }
+            public bool IsKey { get; set; }
+            public Type? EnumerationType { get; set; }
+            public string? SubQuery { get; set; }
+            public string? Value { get; set; } = null;
+            public string? OldValue { get; set; } = null;
+        }
     }
 }

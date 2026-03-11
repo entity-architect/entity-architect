@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -5,17 +7,29 @@ namespace EntityArchitect.CRUD.TypeBuilders;
 
 internal static class TypeBuilderExtension
 {
-    internal static System.Reflection.Emit.TypeBuilder GetTypeBuilder(string typeName, Type? parentType = null, CustomAttributeBuilder? customAttributeBuilder = null)
+    internal static System.Reflection.Emit.TypeBuilder GetTypeBuilder(string typeName, Type? parentType = null,
+        List<CustomAttributeBuilder>? customAttributeBuilders = null)
     {
         var assemblyName = new AssemblyName(typeName);
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
         var moduleBuilder = assemblyBuilder.DefineDynamicModule("MainModule");
-        
-        if(customAttributeBuilder is not null)
-            moduleBuilder.SetCustomAttribute(customAttributeBuilder);
-        return parentType is not null
+
+        var typeBuilder = parentType is not null
             ? moduleBuilder.DefineType(typeName, TypeAttributes.Public | TypeAttributes.Class, parentType)
             : moduleBuilder.DefineType(typeName, TypeAttributes.Public | TypeAttributes.Class);
+        
+        if (customAttributeBuilders is not null)
+            foreach (var customAttributeBuilder in customAttributeBuilders)
+                typeBuilder.SetCustomAttribute(customAttributeBuilder);
+        
+        return typeBuilder;
+    }
+    
+    internal static System.Reflection.Emit.TypeBuilder GetTypeBuilder(string typeName, Type? parentType,
+        CustomAttributeBuilder? customAttributeBuilder)
+    {
+        return GetTypeBuilder(typeName, parentType, 
+            customAttributeBuilder is not null ? new List<CustomAttributeBuilder> { customAttributeBuilder } : null);
     }
 
     internal static void CreateProperty(System.Reflection.Emit.TypeBuilder typeBuilder, string propertyName,
@@ -25,11 +39,11 @@ internal static class TypeBuilderExtension
 
         var propertyBuilder =
             typeBuilder.DefineProperty(propertyName, PropertyAttributes.HasDefault, propertyType, null);
-        
-        if(customAttributeBuilders is not null)
+
+        if (customAttributeBuilders is not null)
             foreach (var customAttributeBuilder in customAttributeBuilders)
                 propertyBuilder.SetCustomAttribute(customAttributeBuilder);
-        
+
         var getMethodBuilder = typeBuilder.DefineMethod($"get_{propertyName}",
             MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
             propertyType, Type.EmptyTypes);

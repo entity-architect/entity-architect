@@ -1,4 +1,6 @@
-using EntityArchitect.Entities.Entities;
+
+using EntityArchitect.CRUD.Authorization.Responses;
+using EntityArchitect.CRUD.Entities.Entities;
 
 namespace EntityArchitect.CRUD.Authorization.Service;
 

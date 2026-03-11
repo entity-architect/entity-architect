@@ -1,0 +1,18 @@
+using EntityArchitect.CRUD.Actions;
+using EntityArchitect.CRUD.Entities.Context;
+using EntityArchitect.CRUD.Entities.Repository;
+using EntityArchitect.CRUD.Results.Abstracts;
+using EntityArchitect.CRUD.Services;
+using EntityArchitect.Example.Entities;
+using ILogger = EntityArchitect.Example.Services.Logger.ILogger;
+
+namespace EntityArchitect.Example.Actions;
+
+public class AuthorCreateAction(ILogger logger, IClaimProvider claimProvider, IRepository<Client> clientRepository, IUnitOfWork unitOfWork, IRepository<Author> authorRepository) : EndpointAction<Author>
+{
+    protected override async ValueTask<Result<Author>> BeforePostAsync(Author entity, CancellationToken cancellationToken = default)
+    {
+        Console.WriteLine("BeforePostAsync");
+        return entity;
+    }
+}

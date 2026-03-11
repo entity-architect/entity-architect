@@ -1,0 +1,23 @@
+﻿services:
+  entityarchitect.example.api:
+    image: entityarchitect.example
+    build:
+      context: .
+      dockerfile: EntityArchitect.Example/Dockerfile
+    depends_on: 
+        - entityarchitect.example.db
+    restart: always
+    ports:
+      - "5247:8080"
+  
+  entityarchitect.example.db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: exampleuser
+      POSTGRES_PASSWORD: examplepassword
+      POSTGRES_DB: exampledb
+    ports:
+        - "5432:5432"
+    volumes:
+        - pgdata:/var/lib/postgresql/data
+

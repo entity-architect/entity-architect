@@ -1,9 +1,7 @@
-using EntityArchitect.CRUD.Attributes;
 using EntityArchitect.CRUD.Attributes.CrudAttributes;
-using EntityArchitect.CRUD.Authorization;
 using EntityArchitect.CRUD.Authorization.Attributes;
-using EntityArchitect.Entities.Attributes;
-using EntityArchitect.Entities.Entities;
+using EntityArchitect.CRUD.Entities.Attributes;
+using EntityArchitect.CRUD.Entities.Entities;
 
 namespace EntityArchitect.Example.Entities;
 
@@ -18,6 +16,6 @@ public class Client : Entity
     [AuthorizationPassword]
     public string Password { get; private set; }
     
-    [RelationManyToOne<Rental>(nameof(Rental.Client)), IncludeInGet(1), IgnorePostRequest, IgnorePutRequest]
-    public List<Rental> Rentals { get; private set; }
+    [ManyToOne<Rental>(nameof(Rental.Client)), IncludeInGet(1), IgnorePostRequest, IgnorePutRequest]
+    public ICollection<Rental> Rentals { get; private set; }
 }

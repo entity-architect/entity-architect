@@ -1,17 +1,21 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Text.RegularExpressions;
-using EntityArchitect.CRUD.Attributes;
 using EntityArchitect.CRUD.Attributes.CrudAttributes;
 using EntityArchitect.CRUD.Attributes.QueryResponseTypeAttributes;
-using EntityArchitect.CRUD.Authorization;
+using EntityArchitect.CRUD.Authorization.Attributes;
+using EntityArchitect.CRUD.Entities.Attributes;
+using EntityArchitect.CRUD.Entities.Entities;
+using EntityArchitect.CRUD.Enumerations;
 using EntityArchitect.CRUD.Queries;
-using EntityArchitect.Entities.Attributes;
-using EntityArchitect.Entities.Entities;
+using LightListPropertyAttribute = EntityArchitect.CRUD.Attributes.CrudAttributes.LightListPropertyAttribute;
 
 namespace EntityArchitect.CRUD.TypeBuilders;
 
-public partial class TypeBuilder()
+public partial class TypeBuilder
 {
     private List<Type> _types = [];
 
@@ -26,12 +30,19 @@ public partial class TypeBuilder()
         }
 
         var typeName = entityType.FullName + "CreateRequest";
-        if (_types.Any(c => c.FullName == typeName))
-            return _types.First(c => c.FullName == typeName);
 
-        if (_types.Any(c => c.IsGenericType && c.GetGenericArguments()[0].FullName == typeName))
-            return _types.First(c => c.IsGenericType && c.GetGenericArguments()[0].FullName == typeName)
-                .GetGenericArguments()[0];
+        for (int i = 0; i < _types.Count; i++)
+        {
+            if (_types[i].FullName == typeName)
+                return _types[i];
+        }
+
+        for (int i = 0; i < _types.Count; i++)
+        {
+            if (_types[i].IsGenericType && _types[i].GetGenericArguments()[0].FullName == typeName)
+                return _types[i].GetGenericArguments()[0];
+        }
+
 
         var customAttributeBuilder = new CustomAttributeBuilder(
             typeof(EntityRequestAttribute).GetConstructor(new[] { typeof(Type) })!, new object[] { entityType });
@@ -42,23 +53,38 @@ public partial class TypeBuilder()
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
+            if (property.Name is "Id" or "CreatedAt" or "UpdatedAt" ||
+                property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(IgnorePostRequest)))
+                continue;
+            
+            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.EntityFile))
+                continue;
+            
             if (property.PropertyType == parentType ||
                 (parentType is not null &&
                  typeof(List<>).MakeGenericType(parentType) == property.PropertyType))
                 continue;
 
-            if (property.Name is "Id" or "CreatedAt" or "UpdatedAt" ||
-                property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(IgnorePostRequest)))
+            if (property.PropertyType.BaseType == typeof(Enumeration))
+            {
+                TypeBuilderExtension.CreateProperty(typeBuilder, property.Name, typeof(int));
                 continue;
-
+            }
+            
             if (property.PropertyType.BaseType == typeof(Entity))
             {
-                var attributeType = typeof(RelationOneToManyAttribute<>)
+                var attributeType = typeof(OneToManyAttribute<>)
+                    .MakeGenericType(property.PropertyType);
+                
+                var attributeTypeOtO = typeof(OneToOneAttribute<>)
                     .MakeGenericType(property.PropertyType);
 
-                if (property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType))
+                if (property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType) || property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeTypeOtO))
                 {
-                    TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid));
+                    if(IsNullable(property))
+                        TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid?));
+                    else
+                        TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid));
                     continue;
                 }
             }
@@ -85,8 +111,12 @@ public partial class TypeBuilder()
                 property.Name == "Id" ? typeof(Guid) : property.PropertyType);
         }
 
-        if (_types.Any(c => c.FullName == typeBuilder.FullName))
-            return _types.First(c => c.FullName == typeBuilder.FullName);
+        for (int i = 0; i < _types.Count; i++)
+        {
+            if (_types[i].FullName == typeBuilder.FullName)
+                return _types[i];
+        }
+
 
         var resultType = typeBuilder.CreateType();
         if (isList)
@@ -99,45 +129,70 @@ public partial class TypeBuilder()
 
     public Type BuildUpdateRequestFromEntity(Type entityType, Type? parentType = null)
     {
-        bool isList = false;
-        if (entityType.IsGenericType &&
-            entityType.GetGenericTypeDefinition() == typeof(List<>))
+        var isList = false;
+        if (entityType.IsGenericType && entityType.GetGenericTypeDefinition() == typeof(List<>))
         {
             isList = true;
             entityType = entityType.GetGenericArguments()[0];
         }
-
+        
         var typeName = entityType.FullName + "UpdateRequest";
-        if (_types.Any(c => c.FullName == typeName))
-            return _types.First(c => c.FullName == typeName);
+        for (int i = 0; i < _types.Count; i++)
+        {
+            if (_types[i].FullName == typeName)
+                return _types[i];
+        }
 
-        if (_types.Any(c => c.IsGenericType && c.GetGenericArguments()[0].FullName == typeName))
-            return _types.First(c => c.IsGenericType && c.GetGenericArguments()[0].FullName == typeName)
-                .GetGenericArguments()[0];
+        for (int i = 0; i < _types.Count; i++)
+        {
+            if (_types[i].IsGenericType && _types[i].GetGenericArguments()[0].FullName == typeName)
+                return _types[i].GetGenericArguments()[0];
+        }
 
+        
         var typeBuilder = TypeBuilderExtension.GetTypeBuilder(typeName, typeof(EntityRequest));
         typeBuilder.DefineDefaultConstructor(MethodAttributes.Public | MethodAttributes.SpecialName |
                                              MethodAttributes.RTSpecialName);
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
+            if (property.Name is "CreatedAt" or "UpdatedAt" ||
+                property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(IgnorePutRequest)))
+                continue;
+            
+            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.EntityFile))
+                continue;
+            
             if (property.PropertyType == parentType ||
                 (parentType is not null &&
                  typeof(List<>).MakeGenericType(parentType) == property.PropertyType))
                 continue;
-
-            if (property.Name is "CreatedAt" or "UpdatedAt" ||
-                property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(IgnorePutRequest)))
+            
+            if(property.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationPasswordAttribute)))
                 continue;
+            
+            if (property.PropertyType.BaseType == typeof(Enumeration))
+            {
+                TypeBuilderExtension.CreateProperty(typeBuilder, property.Name, typeof(int));
+                continue;
+            }
+
+
 
             if (property.PropertyType.BaseType == typeof(Entity))
             {
-                var attributeType = typeof(RelationOneToManyAttribute<>)
+                var attributeType = typeof(OneToManyAttribute<>)
+                    .MakeGenericType(property.PropertyType);
+                
+                var attributeTypeOtO = typeof(OneToOneAttribute<>)
                     .MakeGenericType(property.PropertyType);
 
-                if (property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType))
+                if (property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeType) || property.CustomAttributes.Select(c => c.AttributeType).Contains(attributeTypeOtO))
                 {
-                    TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid));
+                    if(IsNullable(property))
+                        TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid?));
+                    else
+                        TypeBuilderExtension.CreateProperty(typeBuilder, property.Name + "Id", typeof(Guid));
                     continue;
                 }
             }
@@ -166,9 +221,13 @@ public partial class TypeBuilder()
                 property.Name == "Id" ? typeof(Guid) : property.PropertyType);
         }
 
-        if (_types.Any(c => c.FullName == typeBuilder.FullName))
-            return _types.First(c => c.FullName == typeBuilder.FullName);
-
+        //change to for loop
+        for (int i = 0; i < _types.Count; i++)
+        {
+            if (_types[i].IsGenericType && _types[i].GetGenericArguments()[0].FullName == typeBuilder.FullName)
+                return _types[i].GetGenericArguments()[0];
+        }
+        
         var resultType = typeBuilder.CreateType();
         if (isList)
             resultType = typeof(List<>).MakeGenericType(resultType);
@@ -187,20 +246,28 @@ public partial class TypeBuilder()
             isList = true;
             entityType = entityType.GetGenericArguments()[0];
         }
-
         var nameParentTypes = "";
-        foreach (var item in (parentType?.Select(c => c.Name) ?? Array.Empty<string>()).ToList())
+        var parentNames = (parentType?.Select(c => c.Name) ?? Array.Empty<string>()).ToList();
+
+        for (int i = 0; i < parentNames.Count; i++)
         {
-            nameParentTypes += item;
+            nameParentTypes += parentNames[i];
         }
 
-        var typeName = entityType.FullName + nameParentTypes + "Response";
-        if (_types.Any(c => c.FullName == typeName))
-            return _types.First(c => c.FullName == typeName);
 
-        if (_types.Any(c => c.IsGenericType && c.GetGenericArguments()[0].FullName == typeName))
-            return _types.First(c => c.IsGenericType && c.GetGenericArguments()[0].FullName == typeName)
-                .GetGenericArguments()[0];
+        var typeName = entityType.FullName + nameParentTypes + "Response";
+        for (int i = 0; i < _types.Count; i++)
+        {
+            if (_types[i].FullName == typeName)
+                return _types[i];
+        }
+
+        for (int i = 0; i < _types.Count; i++)
+        {
+            if (_types[i].IsGenericType && _types[i].GetGenericArguments()[0].FullName == typeName)
+                return _types[i].GetGenericArguments()[0];
+        }
+
 
         var typeBuilder = TypeBuilderExtension.GetTypeBuilder(typeName, typeof(EntityResponse));
         typeBuilder.DefineDefaultConstructor(MethodAttributes.Public | MethodAttributes.SpecialName |
@@ -209,6 +276,9 @@ public partial class TypeBuilder()
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
+            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.EntityFile))
+                continue;
+            
             if(property.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationPasswordAttribute)))
                 continue;
             
@@ -217,9 +287,9 @@ public partial class TypeBuilder()
                                              ?.ConstructorArguments[0].Value ??
                                          0);
 
-            if (parentType is not null &&
-                parentType.Count > 0 &&
-                property.PropertyType == parentType.Last() ||
+            if ((parentType is not null &&
+                 parentType.Count > 0 &&
+                 property.PropertyType == parentType.Last()) ||
                 (parentType is not null &&
                  typeof(List<>).MakeGenericType(parentType.Last()) == property.PropertyType))
             {
@@ -289,10 +359,10 @@ public partial class TypeBuilder()
         var properties = entityType.GetProperties().OrderByDescending(s => s.Name.StartsWith("Id")).ToList();
         foreach (var property in properties)
         {
-            if(property.CustomAttributes.Any(c => c.AttributeType == typeof(AuthorizationPasswordAttribute)))
+            if(property.PropertyType == typeof(EntityArchitect.CRUD.Files.EntityFile))
                 continue;
             
-            if (property.PropertyType.BaseType != typeof(Object) &&
+            if (property.PropertyType.BaseType != typeof(object) &&
                 property.CustomAttributes.Any(c => c.AttributeType == typeof(LightListPropertyAttribute)))
                 throw new Exception("Property in light list response must be a simple type");
 
@@ -301,7 +371,6 @@ public partial class TypeBuilder()
 
             if (property.CustomAttributes.Any(c => c.AttributeType == typeof(LightListPropertyAttribute)))
                 TypeBuilderExtension.CreateProperty(typeBuilder, property.Name, property.PropertyType);
-
         }
 
         var resultType = typeBuilder.CreateType();
@@ -323,13 +392,18 @@ public partial class TypeBuilder()
         {
             List<CustomAttributeBuilder> customAttributeBuilders = new();
             var attributeBuilder =
-                (new CustomAttributeBuilder(
+                new CustomAttributeBuilder(
                     typeof(SqlParameterPositionTypeAttribute).GetConstructor(new[] { typeof(SqlParameterPosition) })!,
-                    new object[] { sqlParameterPosition }));
+                    new object[] { sqlParameterPosition });
 
+            var nullableType = type;
+            if(type != typeof(string) && type.IsValueType && Nullable.GetUnderlyingType(type) == null)
+            {
+                nullableType = typeof(Nullable<>).MakeGenericType(type);
+            }
             customAttributeBuilders.Add(attributeBuilder);
 
-            TypeBuilderExtension.CreateProperty(typeBuilder, name, type, customAttributeBuilders);
+            TypeBuilderExtension.CreateProperty(typeBuilder, name, nullableType, customAttributeBuilders);
         }
 
         var resultType = typeBuilder.CreateType();
@@ -353,11 +427,10 @@ public partial class TypeBuilder()
             var parsedType = ParseType(type);
 
             SqlParameterPosition sqlParameterPosition;
-            if (int.TryParse(match.Groups[3].Value, out int sqlParameterPositionInt))
+            if (int.TryParse(match.Groups[3].Value, out var sqlParameterPositionInt))
                 sqlParameterPosition = (SqlParameterPosition)sqlParameterPositionInt;
             else
                 sqlParameterPosition = SqlParameterPosition.Exact;
-
 
 
             getProperties.Add((parsedType, name, sqlParameterPosition));
@@ -369,9 +442,9 @@ public partial class TypeBuilder()
     [GeneratedRegex(@"@(\w+):([A-Z]+)(?::(\d))?")]
     private static partial Regex GetPropertiesFromSqlRegex();
 
-    private static Type ParseType(string typeString)
+    private static Type ParseType(string typeString, Type? enumerationType = null)
     {
-        return typeString switch
+        return typeString.ToUpper() switch
         {
             "INT" => typeof(int),
             "STRING" => typeof(string),
@@ -383,6 +456,9 @@ public partial class TypeBuilder()
             "BOOL" => typeof(bool),
             "BOOLEAN" => typeof(bool),
             "BYTE" => typeof(byte),
+            "FILE" => typeof(string),
+            "FILEMIN" => typeof(string),
+            "ENUMERATION" => typeof(int),
             _ => typeof(string)
         };
     }
@@ -397,7 +473,6 @@ public partial class TypeBuilder()
                                           MethodAttributes.RTSpecialName);
 
         foreach (var field in parameterFields)
-        {
             if (field.Fields.Count == 0)
             {
                 var propertyType = ParseType(field.Type);
@@ -408,7 +483,14 @@ public partial class TypeBuilder()
                     var customAttributeBuilder = new CustomAttributeBuilder(ctor!, new object[] { });
                     attributesList.Add(customAttributeBuilder);
                 }
-
+                
+                if (field.EnumerationType is not null)
+                {
+                    var ctor = typeof(IsEnumerationAttribute).GetConstructors().First();
+                    var customAttributeBuilder = new CustomAttributeBuilder(ctor!, new object[] { field.EnumerationType });
+                    attributesList.Add(customAttributeBuilder);
+                }
+                
                 TypeBuilderExtension.CreateProperty(baseType, field.Name, propertyType, attributesList);
             }
             else
@@ -431,27 +513,23 @@ public partial class TypeBuilder()
                         new CustomAttributeBuilder(isNestedCtor!, new object[] { });
                     attributesList.Add(customAttributeIsNestedTypeBuilder);
                 }
-
+                
                 TypeBuilderExtension.CreateProperty(baseType, field.Name, nestedType, attributesList);
             }
-        }
 
         var queryType = baseType.CreateType();
         _types.Add(queryType);
         _types = _types.OrderBy(c => c.FullName).ToList();
 
-        if (!queryTypes.Contains(queryType))
-        {
-            queryTypes.Insert(0, queryType); 
-        }
+        if (!queryTypes.Contains(queryType)) queryTypes.Insert(0, queryType);
 
         if (splitOn.Length > 0)
             splitOn = splitOn[..^2];
 
         return queryTypes.ToArray();
     }
-    
-    
+
+
     private Type BuildComplexType(SqlParser.Field field, string typeName, ref string splitOn, ref List<Type> queryTypes,
         bool isNested = false)
     {
@@ -461,9 +539,10 @@ public partial class TypeBuilder()
 
         if (field.Fields.Count > 0)
             splitOn += field.Fields[0].Name.Split(".").Last() + ", ";
+        else if(field.EnumerationType is not null)
+            splitOn += field.Name + ", ";
 
         foreach (var complexField in field.Fields)
-        {
             if (complexField.Fields.Count > 0)
             {
                 var nestedType = BuildComplexType(complexField, typeName + complexField.Type, ref splitOn,
@@ -486,26 +565,34 @@ public partial class TypeBuilder()
 
                     attributesList.Add(customAttributeIsNestedTypeBuilder);
                 }
-
+                
+                if(complexField.EnumerationType is not null)
+                {
+                    var ctor = typeof(IsEnumerationAttribute).GetConstructors().First();
+                    var customAttributeBuilder = new CustomAttributeBuilder(ctor!, new object[] { complexField.EnumerationType });
+                    attributesList.Add(customAttributeBuilder);
+                }
 
                 TypeBuilderExtension.CreateProperty(complexType, complexField.Name, nestedType, attributesList);
             }
             else
             {
-                var propertyType = ParseType(complexField.Type);
-                TypeBuilderExtension.CreateProperty(complexType, complexField.Name, propertyType);
+                var attributesList = new List<CustomAttributeBuilder>();
+                var propertyType = ParseType(complexField.Type, complexField.EnumerationType);
+                if (complexField.EnumerationType is not null)
+                {
+                    attributesList.Add(new CustomAttributeBuilder(
+                        typeof(IsEnumerationAttribute).GetConstructors().First(), new object[] { complexField.EnumerationType }));
+                }
+                TypeBuilderExtension.CreateProperty(complexType, complexField.Name, propertyType, attributesList);
             }
-        }
 
         var createdType = complexType.CreateType();
-        if (!queryTypes.Contains(createdType))
-        {
-            queryTypes.Insert(0, createdType);
-        }
+        if (!queryTypes.Contains(createdType)) queryTypes.Add(createdType);
 
         return createdType;
     }
-    
+
     public Type BuildQueryResultType(Type type)
     {
         var resultType = TypeBuilderExtension.GetTypeBuilder(type.Name + "Result");
@@ -517,12 +604,18 @@ public partial class TypeBuilder()
         {
             var propertyType = property.PropertyType;
 
+            if (property.CustomAttributes.Any(c => c.AttributeType == typeof(IsEnumerationAttribute)))
+            {
+                var enumerationType = property.CustomAttributes.FirstOrDefault(c => c.AttributeType == typeof(IsEnumerationAttribute));
+                var et = enumerationType.ConstructorArguments[0].Value as Type;
+                propertyType = et;
+            }
             if (property.CustomAttributes.Select(c => c.AttributeType).Contains(typeof(IsArrayAttribute)))
             {
                 var resultGenericType = BuildQueryResultType(propertyType);
                 propertyType = typeof(List<>).MakeGenericType(resultGenericType);
             }
-            else if (propertyType.IsClass && propertyType != typeof(string))
+            else if (propertyType.IsClass && propertyType != typeof(string) && propertyType.BaseType != typeof(Enumeration))
             {
                 propertyType = BuildQueryResultType(propertyType);
             }
@@ -532,5 +625,12 @@ public partial class TypeBuilder()
 
         var result = resultType.CreateType();
         return result;
+    }
+    
+    bool IsNullable(PropertyInfo property)
+    {
+        if (Nullable.GetUnderlyingType(property.PropertyType) != null)
+            return true;
+        return !property.PropertyType.IsValueType;
     }
 }

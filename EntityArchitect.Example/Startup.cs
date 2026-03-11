@@ -1,14 +1,15 @@
 using EntityArchitect.CRUD;
 using EntityArchitect.CRUD.Actions;
+using EntityArchitect.CRUD.Application;
 using EntityArchitect.CRUD.Authorization;
-using EntityArchitect.Entities;
+using EntityArchitect.CRUD.Designer;
+using EntityArchitect.CRUD.Entities;
+using EntityArchitect.CRUD.Helpers;
 using EntityArchitect.Example.Services.Logger;
 using Microsoft.OpenApi.Models;
 using ILogger = EntityArchitect.Example.Services.Logger.ILogger;
 
-
 namespace EntityArchitect.Example;
-
 
 public class Startup
 {
@@ -21,6 +22,7 @@ public class Startup
 
     public void ConfigureServices(IServiceCollection services)
     {
+        typeof(Program).Assembly.MigrateAsync();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
         services.AddSwaggerGen(options =>
@@ -54,18 +56,16 @@ public class Startup
         
         var connectionString = Configuration.GetConnectionString("DefaultConnection");
 
+        services.AddScoped<ILogger, Logger>();
         services.AddEntityArchitect(typeof(Program).Assembly, connectionString ?? "");
         services.BuildEntityArchitectAuthorization(typeof(Program).Assembly);
-
-        services.UseActions(typeof(Program).Assembly);
-        services.AddScoped<ILogger, Logger>();
-
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
+        app.QueryBuilderPropertiesBuild();
         app.UseSwagger();
         app.UseSwaggerUI();
-        app.MapEntityArchitectCrud(typeof(Program).Assembly);
+        app.MapEntityArchitectCrud(typeof(Program).Assembly, "", "Sql");
     }
 }
