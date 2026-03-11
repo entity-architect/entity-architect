@@ -41,7 +41,8 @@ public static class AuthorizationBuilder
                     IssuerSigningKey = new SymmetricSecurityKey(key),
                     ValidateIssuer = false,
                     ValidateAudience = false,
-                    ValidateLifetime = true
+                    ValidateLifetime = true,
+                    RoleClaimType = System.Security.Claims.ClaimTypes.Role
                 };
             }
         );

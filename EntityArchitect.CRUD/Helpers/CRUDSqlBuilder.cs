@@ -69,28 +69,38 @@ public static partial class CrudSqlBuilder
                 }
             }
 
-            if (property.PropertyType == typeof(int))
-                sql += property.GetValue(entity) + ", ";
-            else if (property.CustomAttributes.Any(c => c.AttributeType.Name.Contains("OneToManyAttribute")) && property.GetValue(entity) is not null)
-                sql += "'" + (property.GetValue(entity) as Entity)?.Id.Value + "', ";
-            else if (property.CustomAttributes.Any(c => c.AttributeType.Name.Contains("OneToOneAttribute")) && property.GetValue(entity) is not null)
-                sql += "'" + (property.GetValue(entity) as Entity).Id.Value + "', ";
-            else if (property.CustomAttributes.Any(c => c.AttributeType.Name.Contains("OneToManyAttribute")) && property.GetValue(entity) is null)
-                sql += "null, ";
-            else if (property.CustomAttributes.Any(c => c.AttributeType.Name.Contains("OneToOneAttribute")) && property.GetValue(entity) is null)
-                sql += "null, ";
+            if (property.CustomAttributes.Any(c => c.AttributeType.Name.Contains("OneToManyAttribute")))
+            {
+                var val = property.GetValue(entity);
+                sql += val is not null ? "'" + (val as Entity)?.Id.Value + "', " : "null, ";
+            }
+            else if (property.CustomAttributes.Any(c => c.AttributeType.Name.Contains("OneToOneAttribute")))
+            {
+                var val = property.GetValue(entity);
+                sql += val is not null ? "'" + (val as Entity)?.Id.Value + "', " : "null, ";
+            }
             else if (property.CustomAttributes.Any(c => c.AttributeType.Name.Contains("ManyToOneAttribute")))
-                sql+="";
-            else if (property.PropertyType == typeof(DateTime))
-                sql += "'" + ((DateTime)property.GetValue(entity)!).ToString("yyyy-MM-dd HH:mm:ss") + "', ";
-            else if (property.PropertyType == typeof(bool))
-                sql += (bool)property.GetValue(entity)! ? "true, " : "false, ";
-            else if (property.Name == nameof(Entity.Id))
-                sql += "'" + entity.Id.Value + "', ";
-            else if (property.PropertyType.BaseType == typeof(Enumeration))
-                sql += ((Enumeration)property.GetValue(entity)).Id + ", ";
+                sql += "";
             else
-                sql += "'" + property.GetValue(entity) + "', ";
+            {
+                var val = property.GetValue(entity);
+                var underlyingType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+
+                if (val is null)
+                    sql += "null, ";
+                else if (property.Name == nameof(Entity.Id))
+                    sql += "'" + entity.Id.Value + "', ";
+                else if (underlyingType == typeof(int))
+                    sql += val + ", ";
+                else if (underlyingType == typeof(DateTime))
+                    sql += "'" + ((DateTime)val).ToString("yyyy-MM-dd HH:mm:ss") + "', ";
+                else if (underlyingType == typeof(bool))
+                    sql += (bool)val ? "true, " : "false, ";
+                else if (underlyingType.BaseType == typeof(Enumeration))
+                    sql += ((Enumeration)val).Id + ", ";
+                else
+                    sql += "'" + val + "', ";
+            }
         }
 
         sql = sql.Remove(sql.Length - 2);

@@ -1,10 +1,9 @@
-using System.Net;
 using EntityArchitect.CRUD.Designer.ApplicationModels;
-using EntityArchitect.CRUD.Results.Abstracts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Newtonsoft.Json;
+using HttpResults = Microsoft.AspNetCore.Http.Results;
 
 namespace EntityArchitect.CRUD.Designer.Editor;
 
@@ -22,20 +21,20 @@ public static class DesignerEndpoints
             try
             {
                 if (!Directory.Exists(MigrationsFolder))
-                    return Results.Ok(new ApplicationModel());
+                    return HttpResults.Ok(new ApplicationModel());
                 
                 var lastMigrationFile = Directory.GetFiles(MigrationsFolder).MaxBy(f => f);
                 if (lastMigrationFile is null)
-                    return Results.Ok(new ApplicationModel());
+                    return HttpResults.Ok(new ApplicationModel());
                 
                 var json = await File.ReadAllTextAsync(lastMigrationFile);
                 var model = JsonConvert.DeserializeObject<ApplicationModel>(json);
                 
-                return Results.Ok(model ?? new ApplicationModel());
+                return HttpResults.Ok(model ?? new ApplicationModel());
             }
             catch (Exception ex)
             {
-                return Results.Problem(ex.Message);
+                return HttpResults.Problem(ex.Message);
             }
         });
         
@@ -51,11 +50,11 @@ public static class DesignerEndpoints
                 var json = JsonConvert.SerializeObject(model, Formatting.Indented);
                 await File.WriteAllTextAsync(fileName, json);
                 
-                return Results.Ok(new { success = true, fileName });
+                return HttpResults.Ok(new { success = true, fileName });
             }
             catch (Exception ex)
             {
-                return Results.Problem(ex.Message);
+                return HttpResults.Problem(ex.Message);
             }
         });
         
@@ -65,18 +64,18 @@ public static class DesignerEndpoints
             try
             {
                 if (!Directory.Exists(MigrationsFolder))
-                    return Results.Ok(Array.Empty<string>());
+                    return HttpResults.Ok(Array.Empty<string>());
                 
                 var files = Directory.GetFiles(MigrationsFolder)
                     .Select(Path.GetFileName)
                     .OrderByDescending(f => f)
                     .ToList();
                 
-                return Results.Ok(files);
+                return HttpResults.Ok(files);
             }
             catch (Exception ex)
             {
-                return Results.Problem(ex.Message);
+                return HttpResults.Problem(ex.Message);
             }
         });
         
@@ -87,16 +86,16 @@ public static class DesignerEndpoints
             {
                 var filePath = Path.Combine(MigrationsFolder, fileName);
                 if (!File.Exists(filePath))
-                    return Results.NotFound();
+                    return HttpResults.NotFound();
                 
                 var json = await File.ReadAllTextAsync(filePath);
                 var model = JsonConvert.DeserializeObject<ApplicationModel>(json);
                 
-                return Results.Ok(model);
+                return HttpResults.Ok(model);
             }
             catch (Exception ex)
             {
-                return Results.Problem(ex.Message);
+                return HttpResults.Problem(ex.Message);
             }
         });
         
@@ -127,7 +126,7 @@ public static class DesignerEndpoints
                 RelationTypes = new[] { "OneToOne", "OneToMany", "ManyToOne" }
             };
             
-            return Results.Ok(schema);
+            return HttpResults.Ok(schema);
         });
     }
 }

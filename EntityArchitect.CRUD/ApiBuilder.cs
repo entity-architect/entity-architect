@@ -12,6 +12,7 @@ using EntityArchitect.CRUD.Authorization.Responses;
 using EntityArchitect.CRUD.Authorization.Service;
 using EntityArchitect.CRUD.Entities.Context;
 using EntityArchitect.CRUD.Entities.Entities;
+using EntityArchitect.CRUD.Enumerations;
 using EntityArchitect.CRUD.Feature;
 using EntityArchitect.CRUD.Feature.Methods;
 using EntityArchitect.CRUD.Files;
@@ -126,6 +127,17 @@ public static partial class ApiBuilder
                 }
                 
 
+                var entityEnumProperties = entity.GetProperties()
+                    .Where(p => p.PropertyType.IsSubclassOf(typeof(Enumeration)))
+                    .ToList();
+                string? enumDescription = null;
+                if (entityEnumProperties.Count > 0)
+                {
+                    var enumDesc = string.Join("; ", entityEnumProperties.Select(p =>
+                        $"{p.Name} → {p.PropertyType.Name} (GET {JoinRoute(basePath, "enumerations", ConvertToSnakeCaseAndReplaceSpaces(p.PropertyType.Name))})"));
+                    enumDescription = $"Enumeration fields (pass integer Id): {enumDesc}";
+                }
+
                 if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotCreateAttribute)))
                 {
                     var postHandler = delegateBuilder!.GetType().GetProperty("PostDelegate")!.GetValue(delegateBuilder) as Delegate;
@@ -138,6 +150,7 @@ public static partial class ApiBuilder
                     endpoint.Produces(200, typeof(Result<>).MakeGenericType(responseType));
                     endpoint.Produces(400, typeof(Result));
                     endpoint.Produces(500, typeof(Result));
+                    if (enumDescription != null) endpoint.WithDescription(enumDescription);
                 }
 
                 if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotUpdateAttribute)))
@@ -152,6 +165,7 @@ public static partial class ApiBuilder
                     endpoint.Produces(200, typeof(Result<>).MakeGenericType(responseType));
                     endpoint.Produces(404, typeof(Result));
                     endpoint.Produces(500, typeof(Result));
+                    if (enumDescription != null) endpoint.WithDescription(enumDescription);
                 }
 
                 if (entity.CustomAttributes.All(c => c.AttributeType != typeof(CannotDeleteAttribute)))
@@ -237,6 +251,42 @@ public static partial class ApiBuilder
                     endpoint = group.MapGet($"{file.Name.ToLower()}/{{id}}", streamFileDelegate!);
                     endpoint.WithSummary($"Download file for {entity.Name}");
                     endpoint.WithDisplayName($"Download file for {entity.Name}");
+                }
+            }
+
+            var enumerationTypes = assembly.ExportedTypes
+                .Where(c => c.IsSubclassOf(typeof(Enumeration)) && !c.IsAbstract)
+                .ToList();
+
+            if (enumerationTypes.Count > 0)
+            {
+                var enumerationUsages = new Dictionary<Type, List<string>>();
+                foreach (var enumType in enumerationTypes)
+                    enumerationUsages[enumType] = new List<string>();
+
+                foreach (var e in enumerable)
+                {
+                    foreach (var property in e.GetProperties())
+                    {
+                        if (property.PropertyType.IsSubclassOf(typeof(Enumeration)) &&
+                            enumerationUsages.ContainsKey(property.PropertyType))
+                            enumerationUsages[property.PropertyType].Add($"{e.Name}.{property.Name}");
+                    }
+                }
+
+                var enumerationGroup = endpoints.MapGroup(JoinRoute(basePath, "enumerations"))
+                    .WithTags("enumerations");
+
+                foreach (var enumerationType in enumerationTypes)
+                {
+                    var enumName = ConvertToSnakeCaseAndReplaceSpaces(enumerationType.Name);
+                    var usedBy = enumerationUsages.TryGetValue(enumerationType, out var usages) && usages.Count > 0
+                        ? string.Join(", ", usages)
+                        : "";
+
+                    var mi = typeof(ApiBuilder).GetMethod(nameof(MapEnumerationEndpoint))!
+                        .MakeGenericMethod(enumerationType);
+                    mi.Invoke(null, new object[] { enumerationGroup, enumName, usedBy });
                 }
             }
 
@@ -1023,6 +1073,37 @@ public static partial class ApiBuilder
         }
 
         return (TCommand)constructor.Invoke(args);
+    }
+
+    public static void MapEnumerationEndpoint<T>(IEndpointRouteBuilder group, string name, string usedBy)
+        where T : Enumeration
+    {
+        var endpoint = group.MapGet(name, () =>
+        {
+            var values = Enumeration.GetAll<T>()
+                .Where(x => x != null && x.Id != -1)
+                .Cast<T>()
+                .ToList();
+            return Result.Success<List<T>>(values);
+        });
+
+        endpoint.WithSummary($"Get all {typeof(T).Name} values");
+        endpoint.WithDisplayName($"List {typeof(T).Name}");
+        endpoint.Produces(200, typeof(Result<>).MakeGenericType(typeof(List<>).MakeGenericType(typeof(T))));
+        endpoint.Produces(500, typeof(Result));
+
+        var description = $"Returns all possible values for enumeration {typeof(T).Name}.";
+        if (!string.IsNullOrEmpty(usedBy))
+            description += $"\nUsed by: {usedBy}";
+
+        var props = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.DeclaringType != typeof(Enumeration) && p.Name != "Id" && p.Name != "Name")
+            .Select(p => $"{p.Name} ({p.PropertyType.Name})")
+            .ToList();
+        if (props.Count > 0)
+            description += $"\nAdditional properties: {string.Join(", ", props)}.";
+
+        endpoint.WithDescription(description);
     }
 
     public static void MapGetEndpoint<TParam, TEntity>(IEndpointRouteBuilder group, string endpointName, string sql, bool isSingle,
